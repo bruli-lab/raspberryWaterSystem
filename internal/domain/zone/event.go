@@ -3,8 +3,9 @@ package zone
 import "github.com/bruli/raspberryWaterSystem/internal/cqs"
 
 const (
-	ExecutedEventName = "v1.zone.executed"
-	IgnoredEventName  = "v1.zone.ignored"
+	ExecutedEventName               = "v1.zone.executed"
+	IgnoredEventName                = "v1.zone.ignored"
+	FertilizerZoneExecutedEventName = "v1.fertilizer.zone.executed"
 )
 
 type Executed struct {
@@ -20,4 +21,19 @@ type Ignored struct {
 	cqs.BasicEvent
 	ZoneName string
 	Reason   string
+}
+
+type FertilizerZoneExecuted struct {
+	cqs.BasicEvent
+	ZoneID                   string
+	ZoneName                 string
+	ZoneSeconds              uint
+	StabilizationZoneSeconds uint
+	ZoneRelayPins            []string
+	CleanPumpSeconds         uint
+	CleanPumpRelayPin        string
+	FertilizerPumpSeconds    uint
+	FertilizerPumpRelayPin   string
+	AirZoneSeconds           uint
+	AirZoneRelayPin          string
 }

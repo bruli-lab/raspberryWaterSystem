@@ -3,99 +3,83 @@ package zone
 import (
 	"time"
 
-	"github.com/bruli-lab/go-core/event"
-	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/google/uuid"
 )
 
 const (
-	AirZoneDefaultTime    = 15 * time.Second
-	CleanValveDefaultTime = 15 * time.Second
+	AirZoneDefaultTime   = 15 * time.Second
+	CleanPumpDefaultTime = 15 * time.Second
 )
 
 type FertilizerZone struct {
-	event.BasicAggregateRoot
-	zone            *Zone
-	airZone         *AirZone
-	fertilizerPump  *FertilizerPumpZone
-	cleanValve      *CleanValveZone
-	fertilizerValve *FertilizerValveZone
+	cqs.BasicAggregateRoot
+	zone           *Zone
+	airZone        *AireZone
+	fertilizerPump *FertilizerPumpZone
+	CleanPump      *CleanPumpZone
 }
 
 func (z *FertilizerZone) Execute(seconds uint) error {
-	if _, err := program.ParseSeconds(int(seconds)); err != nil {
-		return err
+	if seconds > ExecutionSecondsLimit {
+		return ErrInvalidSecondsExecutionZone
 	}
 	pins := make([]string, len(z.zone.Relays()))
 	for i, p := range z.zone.Relays() {
 		pins[i] = p.pin
 	}
 	z.Record(FertilizerZoneExecuted{
-		BasicEvent:               event.NewBasicEvent(FertilizerZoneExecutedEventName, uuid.New(), z.zone.Id()),
+		BasicEvent:               cqs.NewBasicEvent(FertilizerZoneExecutedEventName, uuid.New(), z.zone.Id()),
 		ZoneID:                   z.zone.Id(),
 		ZoneName:                 z.zone.Name(),
 		ZoneSeconds:              seconds,
 		StabilizationZoneSeconds: uint(z.zone.StabilizationFlux().Seconds()),
 		ZoneRelayPins:            pins,
-		CleanValveSeconds:        uint(z.cleanValve.Seconds().Seconds()),
-		CleanValveRelayPin:       z.cleanValve.Relay().Pin(),
-		FertilizerPumpSeconds:    seconds + uint(z.cleanValve.Seconds().Seconds()),
+		CleanPumpSeconds:         uint(z.CleanPump.Seconds().Seconds()),
+		CleanPumpRelayPin:        z.CleanPump.Relay().Pin(),
+		FertilizerPumpSeconds:    seconds,
 		FertilizerPumpRelayPin:   z.fertilizerPump.Relay().Pin(),
 		AirZoneSeconds:           uint(z.airZone.Seconds().Seconds()),
 		AirZoneRelayPin:          z.airZone.Relay().Pin(),
-		FertilizerValveSeconds:   seconds,
-		FertilizerValveRelayPin:  z.fertilizerValve.Relay().Pin(),
 	})
 	return nil
 }
 
-func (z *FertilizerZone) ExecuteWithStatus(active, raining bool, seconds uint) error {
-	if ignored, isIgnored := ignoredByStatus(z.zone.id, z.zone.name, active, raining); isIgnored {
-		z.Record(ignored)
-		return nil
-	}
-	return z.Execute(seconds)
-}
-
 func NewFertilizerZone(zone *Zone) *FertilizerZone {
 	return &FertilizerZone{
-		BasicAggregateRoot: event.NewBasicAggregateRoot(),
+		BasicAggregateRoot: cqs.NewBasicAggregateRoot(),
 		zone:               zone,
-		airZone:            &AirZone{},
+		airZone:            &AireZone{},
 		fertilizerPump:     &FertilizerPumpZone{},
-		cleanValve:         &CleanValveZone{},
-		fertilizerValve:    &FertilizerValveZone{},
+		CleanPump:          &CleanPumpZone{},
 	}
 }
 
-type FertilizerValveZone struct{}
+type CleanPumpZone struct{}
 
-func (f FertilizerValveZone) Relay() Relay {
-	return fertilizerValveRelay
+func (c CleanPumpZone) Seconds() time.Duration {
+	return CleanPumpDefaultTime
 }
 
-type CleanValveZone struct{}
-
-func (c CleanValveZone) Seconds() time.Duration {
-	return CleanValveDefaultTime
-}
-
-func (c CleanValveZone) Relay() Relay {
-	return cleanValveRelay
+func (c CleanPumpZone) Relay() *Relay {
+	r, _ := ParseRelay(CleanPumpID)
+	return &r
 }
 
 type FertilizerPumpZone struct{}
 
-func (f FertilizerPumpZone) Relay() Relay {
-	return fertilizerPumpRelay
+func (f FertilizerPumpZone) Relay() *Relay {
+	r, _ := ParseRelay(FertilizerPumpID)
+	return &r
 }
 
-type AirZone struct{}
+type AireZone struct{}
 
-func (a AirZone) Seconds() time.Duration {
+func (a AireZone) Seconds() time.Duration {
 	return AirZoneDefaultTime
 }
 
-func (a AirZone) Relay() Relay {
-	return airRelay
+func (a AireZone) Relay() *Relay {
+	r, _ := ParseRelay(AirRelayID)
+	return &r
 }

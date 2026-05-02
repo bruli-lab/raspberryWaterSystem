@@ -1,19 +1,15 @@
 package zone
 
-import (
-	"errors"
-	"fmt"
-)
+import "errors"
 
 const (
 	OneRelayID = iota + 1
 	TwoRelayID
 	ThreeRelayID
 	FourRelayID
-	FertilizerPumpID
 	AirRelayID
-	CleanValveID
-	FertilizerValveID
+	FertilizerPumpID
+	CleanPumpID
 )
 
 type RelayID int
@@ -25,14 +21,13 @@ func (i RelayID) Int() int {
 var ErrUnknownRelay = errors.New("unknown relay")
 
 var enabledRelays = map[RelayID]string{
-	OneRelayID:        "18",
-	TwoRelayID:        "17",
-	ThreeRelayID:      "23",
-	FourRelayID:       "22",
-	AirRelayID:        "15",
-	CleanValveID:      "14",
-	FertilizerPumpID:  "24",
-	FertilizerValveID: "27",
+	OneRelayID:       "18",
+	TwoRelayID:       "17",
+	ThreeRelayID:     "23",
+	FourRelayID:      "24",
+	AirRelayID:       "XX",
+	CleanPumpID:      "YY",
+	FertilizerPumpID: "ZZ",
 }
 
 type Relay struct {
@@ -58,27 +53,4 @@ func newRelay(id RelayID) (Relay, error) {
 
 func ParseRelay(i int) (Relay, error) {
 	return newRelay(RelayID(i))
-}
-
-var (
-	fertilizerPumpRelay  = mustRelay(FertilizerPumpID)
-	airRelay             = mustRelay(AirRelayID)
-	cleanValveRelay      = mustRelay(CleanValveID)
-	fertilizerValveRelay = mustRelay(FertilizerValveID)
-)
-
-func mustRelay(id RelayID) Relay {
-	r, err := newRelay(id)
-	if err != nil {
-		panic(UnknownFixedRelayError{id: id})
-	}
-	return r
-}
-
-type UnknownFixedRelayError struct {
-	id RelayID
-}
-
-func (u UnknownFixedRelayError) Error() string {
-	return fmt.Sprintf("fixed relay %d has no pin", u.id)
 }
