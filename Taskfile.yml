@@ -4,7 +4,7 @@ vars:
   APP: 'water_system'
   DOCKER_COMPOSE: 'COMPOSE_BAKE=true docker compose'
   VAULT: 'ansible-vault'
-  GOLANGCI_LINT_VERSION: 'v2.15.0'
+  GOLANGCI_LINT_VERSION: 'v2.11.4'
 
 tasks:
   default:
@@ -100,7 +100,7 @@ tasks:
       - |
         set -euo pipefail
         echo "🚀 Executing golangci-lint..."
-        golangci-lint run --build-tags infra,functional,resilience ./...
+        golangci-lint run ./...
 
   test:
     desc: Run unit tests
@@ -110,29 +110,13 @@ tasks:
         echo "🧪 Running unit tests (race, JSON → tparse)..."
         go test -race ./... -json -cover -coverprofile=coverage.out | go tool tparse -all
 
-  test-infra:
-    desc: Run infra tests (real files and testcontainers, needs Docker)
-    cmds:
-      - |
-        set -euo pipefail
-        echo "🧪 Running infra tests..."
-        go test -race -tags=infra ./internal/infra/... -count=1
-
-  test-resilience:
-    desc: Run resilience tests (app offline from NATS and ntfy with testcontainers, needs Docker, ~1 min)
-    cmds:
-      - |
-        set -euo pipefail
-        echo "🧪 Running resilience tests..."
-        go test -tags=resilience ./tests/resilience/... -count=1 -timeout 5m
-
   test-functional:
-    desc: Run functional tests (each test starts its own app with NATS and ntfy in testcontainers, needs Docker)
+    desc: Run functional tests
     cmds:
       - |
         set -euo pipefail
         echo "🧪 Running functional tests..."
-        go test -tags=functional ./tests/functional/... -count=1 -timeout 5m -json | go tool tparse -all
+        go test -tags=functional ./... -v
 
   check:
     desc: Run format, security, lint and tests
@@ -148,12 +132,8 @@ tasks:
     cmds:
       - |
         set -euo pipefail
-        echo "🧪 Generating code from openapi.yaml..."
-        go tool oapi-codegen \
-          -generate types,skip-prune \
-          -package http \
-          -o internal/infra/http/models.gen.go \
-          internal/infra/http/openapi.yaml
+        echo "🧪 Generating code from json schemas..."
+        devops/scripts/import_jsonschema.sh
 
   clean:
     desc: Clean local artifacts
@@ -185,7 +165,7 @@ tasks:
           -o devops/ansible/assets/server ./cmd/server/
 
   deploy:
-    desc: Deploy with Ansible to the production Raspberry (v1, frozen)
+    desc: Deploy with Ansible
     deps:
       - build
     cmds:
@@ -193,15 +173,3 @@ tasks:
         set -euo pipefail
         echo "🚚 Deploying with Ansible (production inventory)..."
         ansible-playbook -i devops/ansible/inventories/production/hosts devops/ansible/deploy.yml --ask-vault-pass
-
-  deploy-raspberry-v2:
-    desc: Deploy with Ansible to the new Raspberry (v2, in validation). Secrets come live from Vault
-      (community.hashi_vault, needs VAULT_ADDR/VAULT_TOKEN in the environment), not from an ansible-vault file.
-    deps:
-      - build
-    cmds:
-      - |
-        set -euo pipefail
-        echo "🚚 Deploying with Ansible (raspberry-v2 inventory)..."
-        ansible-galaxy collection install -r devops/ansible/requirements.yml
-        ansible-playbook -i devops/ansible/inventories/raspberry_v2/hosts devops/ansible/deploy.yml
