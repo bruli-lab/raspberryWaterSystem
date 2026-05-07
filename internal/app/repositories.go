@@ -13,7 +13,7 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 )
 
-//go:generate go tool moq -out repositories_mock_test.go -pkg app_test . ZoneRepository TemperatureRepository RainRepository StatusRepository ProgramRepository WeeklyProgramRepository TemperatureProgramRepository ExecutionLogRepository LightRepository
+//go:generate go tool moq -out zmock_repositories_test.go -pkg app_test . ZoneRepository TemperatureRepository RainRepository StatusRepository ProgramRepository WeeklyProgramRepository TemperatureProgramRepository ExecutionLogRepository LightRepository FertilizerZoneRepository
 
 type ZoneRepository interface {
 	FindAll(ctx context.Context) ([]*zone.Zone, error)
@@ -67,4 +67,9 @@ type ExecutionLogRepository interface {
 
 type LightRepository interface {
 	Find(ctx context.Context, date time.Time) (*status.Light, error)
+}
+
+type FertilizerZoneRepository interface {
+	FindByID(ctx context.Context, id string) (*zone.FertilizerZone, error)
+	Save(ctx context.Context, zo *zone.FertilizerZone) error
 }

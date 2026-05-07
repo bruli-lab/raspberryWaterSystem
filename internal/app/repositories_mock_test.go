@@ -1525,3 +1525,125 @@ func (mock *LightRepositoryMock) FindCalls() []struct {
 	mock.lockFind.RUnlock()
 	return calls
 }
+
+// Ensure, that FertilizerZoneRepositoryMock does implement app.FertilizerZoneRepository.
+// If this is not the case, regenerate this file with moq.
+var _ app.FertilizerZoneRepository = &FertilizerZoneRepositoryMock{}
+
+// FertilizerZoneRepositoryMock is a mock implementation of app.FertilizerZoneRepository.
+//
+//	func TestSomethingThatUsesFertilizerZoneRepository(t *testing.T) {
+//
+//		// make and configure a mocked app.FertilizerZoneRepository
+//		mockedFertilizerZoneRepository := &FertilizerZoneRepositoryMock{
+//			FindByIDFunc: func(ctx context.Context, id string) (*zone.FertilizerZone, error) {
+//				panic("mock out the FindByID method")
+//			},
+//			SaveFunc: func(ctx context.Context, zo *zone.FertilizerZone) error {
+//				panic("mock out the Save method")
+//			},
+//		}
+//
+//		// use mockedFertilizerZoneRepository in code that requires app.FertilizerZoneRepository
+//		// and then make assertions.
+//
+//	}
+type FertilizerZoneRepositoryMock struct {
+	// FindByIDFunc mocks the FindByID method.
+	FindByIDFunc func(ctx context.Context, id string) (*zone.FertilizerZone, error)
+
+	// SaveFunc mocks the Save method.
+	SaveFunc func(ctx context.Context, zo *zone.FertilizerZone) error
+
+	// calls tracks calls to the methods.
+	calls struct {
+		// FindByID holds details about calls to the FindByID method.
+		FindByID []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// ID is the id argument value.
+			ID string
+		}
+		// Save holds details about calls to the Save method.
+		Save []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Zo is the zo argument value.
+			Zo *zone.FertilizerZone
+		}
+	}
+	lockFindByID sync.RWMutex
+	lockSave     sync.RWMutex
+}
+
+// FindByID calls FindByIDFunc.
+func (mock *FertilizerZoneRepositoryMock) FindByID(ctx context.Context, id string) (*zone.FertilizerZone, error) {
+	if mock.FindByIDFunc == nil {
+		panic("FertilizerZoneRepositoryMock.FindByIDFunc: method is nil but FertilizerZoneRepository.FindByID was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		ID  string
+	}{
+		Ctx: ctx,
+		ID:  id,
+	}
+	mock.lockFindByID.Lock()
+	mock.calls.FindByID = append(mock.calls.FindByID, callInfo)
+	mock.lockFindByID.Unlock()
+	return mock.FindByIDFunc(ctx, id)
+}
+
+// FindByIDCalls gets all the calls that were made to FindByID.
+// Check the length with:
+//
+//	len(mockedFertilizerZoneRepository.FindByIDCalls())
+func (mock *FertilizerZoneRepositoryMock) FindByIDCalls() []struct {
+	Ctx context.Context
+	ID  string
+} {
+	var calls []struct {
+		Ctx context.Context
+		ID  string
+	}
+	mock.lockFindByID.RLock()
+	calls = mock.calls.FindByID
+	mock.lockFindByID.RUnlock()
+	return calls
+}
+
+// Save calls SaveFunc.
+func (mock *FertilizerZoneRepositoryMock) Save(ctx context.Context, zo *zone.FertilizerZone) error {
+	if mock.SaveFunc == nil {
+		panic("FertilizerZoneRepositoryMock.SaveFunc: method is nil but FertilizerZoneRepository.Save was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Zo  *zone.FertilizerZone
+	}{
+		Ctx: ctx,
+		Zo:  zo,
+	}
+	mock.lockSave.Lock()
+	mock.calls.Save = append(mock.calls.Save, callInfo)
+	mock.lockSave.Unlock()
+	return mock.SaveFunc(ctx, zo)
+}
+
+// SaveCalls gets all the calls that were made to Save.
+// Check the length with:
+//
+//	len(mockedFertilizerZoneRepository.SaveCalls())
+func (mock *FertilizerZoneRepositoryMock) SaveCalls() []struct {
+	Ctx context.Context
+	Zo  *zone.FertilizerZone
+} {
+	var calls []struct {
+		Ctx context.Context
+		Zo  *zone.FertilizerZone
+	}
+	mock.lockSave.RLock()
+	calls = mock.calls.Save
+	mock.lockSave.RUnlock()
+	return calls
+}

@@ -25,15 +25,17 @@ type Ignored struct {
 
 type FertilizerZoneExecuted struct {
 	cqs.BasicEvent
-	ZoneID                   string
-	ZoneName                 string
-	ZoneSeconds              uint
-	StabilizationZoneSeconds uint
-	ZoneRelayPins            []string
-	CleanPumpSeconds         uint
-	CleanPumpRelayPin        string
-	FertilizerPumpSeconds    uint
-	FertilizerPumpRelayPin   string
-	AirZoneSeconds           uint
-	AirZoneRelayPin          string
+	ZoneID                    string
+	ZoneName                  string
+	ZoneSeconds               uint
+	StabilizationZoneSeconds  uint
+	ZoneRelayPins             []string
+	CleanValvuleSeconds       uint
+	CleanValvuleRelayPin      string
+	FertilizerPumpSeconds     uint
+	FertilizerPumpRelayPin    string
+	AirZoneSeconds            uint
+	AirZoneRelayPin           string
+	FertilizerValvuleSeconds  uint
+	FertilizerValvuleRelayPin string
 }

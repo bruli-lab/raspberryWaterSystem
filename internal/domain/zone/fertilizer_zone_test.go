@@ -45,11 +45,13 @@ func TestFertilizerZone_Execute(t *testing.T) {
 			for i, r := range zo.Relays() {
 				zoneRelays[i] = r.Pin()
 			}
-			cleanUPPIn, err := zone.ParseRelay(zone.CleanPumpID)
+			cleanUPPIn, err := zone.ParseRelay(zone.CleanValvuleID)
 			require.NoError(t, err)
 			fertilizerPIn, err := zone.ParseRelay(zone.FertilizerPumpID)
 			require.NoError(t, err)
 			airZonePin, err := zone.ParseRelay(zone.AirRelayID)
+			require.NoError(t, err)
+			fertValvulePin, err := zone.ParseRelay(zone.FertilizerValvuleID)
 			require.NoError(t, err)
 
 			require.True(t, ok)
@@ -58,12 +60,14 @@ func TestFertilizerZone_Execute(t *testing.T) {
 			require.Equal(t, tt.args.seconds, event.ZoneSeconds)
 			require.Equal(t, zo.StabilizationFlux().Seconds(), float64(event.StabilizationZoneSeconds))
 			require.Equal(t, zoneRelays, event.ZoneRelayPins)
-			require.Equal(t, cleanUPPIn.Pin(), event.CleanPumpRelayPin)
-			require.Equal(t, uint(zone.CleanPumpDefaultTime.Seconds()), event.CleanPumpSeconds)
-			require.Equal(t, tt.args.seconds, event.FertilizerPumpSeconds)
+			require.Equal(t, cleanUPPIn.Pin(), event.CleanValvuleRelayPin)
+			require.Equal(t, uint(zone.CleanValvuleDefaultTime.Seconds()), event.CleanValvuleSeconds)
+			require.Equal(t, tt.args.seconds+uint(zone.CleanValvuleDefaultTime.Seconds()), event.FertilizerPumpSeconds)
 			require.Equal(t, fertilizerPIn.Pin(), event.FertilizerPumpRelayPin)
 			require.Equal(t, uint(zone.AirZoneDefaultTime.Seconds()), event.AirZoneSeconds)
 			require.Equal(t, airZonePin.Pin(), event.AirZoneRelayPin)
+			require.Equal(t, tt.args.seconds, event.FertilizerValvuleSeconds)
+			require.Equal(t, fertValvulePin.Pin(), event.FertilizerValvuleRelayPin)
 		})
 	}
 }
