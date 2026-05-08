@@ -27,10 +27,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up Go 1.26.2
+      - name: Set up Go 1.26.3
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26.2'
+          go-version: '1.26.3'
           cache: false  # usem cache manual per controlar directoris
 
       - name: Cache Go modules
