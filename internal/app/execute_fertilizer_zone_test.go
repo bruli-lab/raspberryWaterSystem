@@ -5,9 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/stretchr/testify/require"
@@ -21,29 +20,15 @@ func TestExecuteFertilizerZoneHandle(t *testing.T) {
 		ZoneID:  "name",
 	}
 	tests := []struct {
-		name    string
-		command cqs.Command
-		expectedErr, findErr,
-		findStErr error
-		zone   *zone.Zone
-		status status.Status
+		name                 string
+		command              cqs.Command
+		expectedErr, findErr error
+		zone                 *zone.Zone
 	}{
 		{
 			name:        "with invalid command, then it returns an invalid command error",
 			command:     invalidCommand{},
 			expectedErr: cqs.InvalidCommandError{},
-		},
-		{
-			name:        "and find status returns an error, then it returns same error",
-			command:     cmd,
-			findStErr:   errTest,
-			expectedErr: errTest,
-		},
-		{
-			name:        "and find status returns an status with clean, then it returns execute fertilizer zone error",
-			command:     cmd,
-			status:      fixtures.StatusBuilder{Clean: true}.Build(),
-			expectedErr: app.ExecuteFertilizerZoneError{},
 		},
 		{
 			name:        "and find zone returns an error, then it returns same error",
@@ -52,7 +37,7 @@ func TestExecuteFertilizerZoneHandle(t *testing.T) {
 			expectedErr: errTest,
 		},
 		{
-			name:        "and execute returns an error, then it returns an execute fertilizer zone error",
+			name:        "and execute returns an error, then it returns an execute zone error",
 			zone:        zo,
 			expectedErr: app.ExecuteFertilizerZoneError{},
 			command:     cmd,
@@ -75,15 +60,10 @@ func TestExecuteFertilizerZoneHandle(t *testing.T) {
 					return tt.zone, tt.findErr
 				},
 			}
-			str := &StatusRepositoryMock{
-				FindFunc: func(_ context.Context) (status.Status, error) {
-					return tt.status, tt.findStErr
-				},
-			}
-			handler := app.NewExecuteFertilizerZone(zr, str, tracer())
+			handler := app.NewExecuteFertilizerZone(zr, tracer())
 			events, err := handler.Handle(context.Background(), tt.command)
 			if err != nil {
-				require.IsType(t, tt.expectedErr, err)
+				require.ErrorAs(t, err, &tt.expectedErr)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

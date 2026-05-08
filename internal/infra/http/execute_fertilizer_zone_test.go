@@ -7,8 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bruli-lab/go-core/cqs"
-	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -17,7 +16,7 @@ import (
 )
 
 func TestExecuteFertilizerZone(t *testing.T) {
-	body := buildRequestJsonToString(t, http.ExecutionRequest{Seconds: 20})
+	body := buildRequestJsonToString(t, http.ExecuteZoneRequestJson{Seconds: 20})
 	tests := []struct {
 		name, body   string
 		chErr        error
@@ -50,15 +49,15 @@ func TestExecuteFertilizerZone(t *testing.T) {
 		t.Run(`Given a ExecuteFertilizerZone http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &cqs.CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
+			ch := &CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
 					return nil, tt.chErr
 				},
 			}
 			handler := http.ExecuteFertilizerZone(ch, tracer())
 			server := chi.NewMux()
 			server.Post("/zones/fertilizer/{id}/execute", handler)
-			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPost, "/zones/fertilizer/id/execute", buildRequestBody(tt.body))
+			req := httptest.NewRequest(http2.MethodPost, "/zones/fertilizer/id/execute", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

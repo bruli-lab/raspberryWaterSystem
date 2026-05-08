@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/bruli-lab/go-core/cqs"
-	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -23,28 +23,15 @@ func (e ExecuteFertilizerZoneCmd) Name() string {
 
 type ExecuteFertilizerZone struct {
 	zr     ZoneRepository
-	stRepo StatusRepository
 	tracer trace.Tracer
 }
 
-func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
+func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
 	ctx, span := e.tracer.Start(ctx, "ExecuteFertilizerZoneCmd")
 	defer span.End()
 	co, ok := cmd.(ExecuteFertilizerZoneCmd)
 	if !ok {
 		err := cqs.NewInvalidCommandError(ExecuteFertilizerZoneCmdName, cmd.Name())
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-	st, err := e.stRepo.Find(ctx)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-	if st.IsClean() {
-		err = ExecuteFertilizerZoneError{m: "system on clean mode"}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -58,7 +45,7 @@ func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]e
 	fzo := zone.NewFertilizerZone(zo)
 
 	if err = fzo.Execute(co.Seconds); err != nil {
-		err = ExecuteFertilizerZoneError{m: err.Error(), cause: err}
+		err = ExecuteFertilizerZoneError{m: err.Error()}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -67,19 +54,14 @@ func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]e
 	return fzo.Events(), nil
 }
 
-func NewExecuteFertilizerZone(zr ZoneRepository, stRepo StatusRepository, tracer trace.Tracer) ExecuteFertilizerZone {
-	return ExecuteFertilizerZone{zr: zr, stRepo: stRepo, tracer: tracer}
+func NewExecuteFertilizerZone(zr ZoneRepository, tracer trace.Tracer) ExecuteFertilizerZone {
+	return ExecuteFertilizerZone{zr: zr, tracer: tracer}
 }
 
 type ExecuteFertilizerZoneError struct {
-	m     string
-	cause error
-}
-
-func (e ExecuteFertilizerZoneError) Unwrap() error {
-	return e.cause
+	m string
 }
 
 func (e ExecuteFertilizerZoneError) Error() string {
-	return "failed to execute zone: " + e.m
+	return fmt.Sprintf("failed to execute zone: %s", e.m)
 }

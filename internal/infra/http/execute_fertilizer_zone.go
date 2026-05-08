@@ -4,9 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/codes"
@@ -17,8 +16,8 @@ func ExecuteFertilizerZone(ch cqs.CommandHandler, tracer trace.Tracer) http.Hand
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), "ExecuteFertilizerZoneRequest")
 		defer span.End()
-		var req ExecuteZoneRequest
-		if err := ReadRequest(w, r, executeZoneRequestSchema, &req); err != nil {
+		var req ExecuteZoneRequestJson
+		if err := ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -33,11 +32,6 @@ func ExecuteFertilizerZone(ch cqs.CommandHandler, tracer trace.Tracer) http.Hand
 			switch {
 			case errors.As(err, &errs.NotFoundError{}):
 				WriteErrorResponse(w, http.StatusNotFound)
-			case errors.As(err, &program.InvalidSecondsError{}):
-				WriteErrorResponse(w, http.StatusBadRequest, Error{
-					Code:    ErrorCodeInvalidRequest,
-					Message: err.Error(),
-				})
 			default:
 				WriteErrorResponse(w, http.StatusInternalServerError)
 			}
