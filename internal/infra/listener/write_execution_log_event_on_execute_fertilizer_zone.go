@@ -2,31 +2,42 @@ package listener
 
 import (
 	"context"
-	"time"
 
-	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
-	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type WriteExecutionLogEventOnExecuteFertilizerZone struct {
-	events OutboxEvents
-	now    func() time.Time
-	tracer trace.Tracer
+	eventsRepo *disk.EventsRepository
+	tracer     trace.Tracer
 }
 
-func (w WriteExecutionLogEventOnExecuteFertilizerZone) Listen(ctx context.Context, ev event.Event) error {
+func (w WriteExecutionLogEventOnExecuteFertilizerZone) Listen(ctx context.Context, ev cqs.Event) error {
 	ctx, span := w.tracer.Start(ctx, "WriteExecutionLogEventOnExecuteFertilizerZone.Listen")
 	defer span.End()
-	executed, _ := ev.(zone.FertilizerZoneExecuted)
-	return saveExecutionLogEvent(ctx, w.events, span, outbox.ExecutionLog{
-		Seconds:    int(executed.ZoneSeconds),
-		ZoneName:   executed.ZoneName,
-		ExecutedAt: executed.EventAt(),
-	}, w.now())
+	event, _ := ev.(zone.FertilizerZoneExecuted)
+	evnt, err := disk.NewFromExecutionLog(ctx, &disk.Log{
+		Seconds:    int(event.ZoneSeconds),
+		ZoneName:   event.ZoneName,
+		ExecutedAt: event.EventAt(),
+	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	if err = w.eventsRepo.Save(ctx, evnt); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	span.SetStatus(codes.Ok, "event saved")
+	return nil
 }
 
-func NewWriteExecutionLogEventOnExecuteFertilizerZone(events OutboxEvents, now func() time.Time, tracer trace.Tracer) *WriteExecutionLogEventOnExecuteFertilizerZone {
-	return &WriteExecutionLogEventOnExecuteFertilizerZone{events: events, now: now, tracer: tracer}
+func NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo *disk.EventsRepository, tracer trace.Tracer) *WriteExecutionLogEventOnExecuteFertilizerZone {
+	return &WriteExecutionLogEventOnExecuteFertilizerZone{eventsRepo: eventsRepo, tracer: tracer}
 }

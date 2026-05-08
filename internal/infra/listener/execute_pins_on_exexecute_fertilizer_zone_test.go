@@ -3,6 +3,7 @@
 package listener_test
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -17,9 +18,24 @@ import (
 )
 
 func Test_executePinsOnExecuteFertilizerZone_Listen(t *testing.T) {
+	log := buildLog()
 	tr := tracer()
-	ch := app.NewExecutePins(fake.NewPinsExecutor(), tr)
-	list := listener.NewExecutePinsOnExecuteFertilizerZone(ch, tr, buildLog())
+	execCh := app.NewExecutePins(fake.NewPinsExecutor(), tr)
+	logCH := &CommandHandlerMock{}
+	logCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+		log.DebugContext(ctx, "log command handler")
+		return nil, nil
+	}
+	publishCH := &CommandHandlerMock{}
+	publishCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+		log.DebugContext(ctx, "publish message command handler")
+		return nil, nil
+	}
+	chBus := app.NewCommandBus()
+	chBus.Subscribe(app.ExecutePinsCmdName, execCh)
+	chBus.Subscribe(app.SaveExecutionLogCmdName, logCH)
+	chBus.Subscribe(app.PublishMessageCmdName, publishCH)
+	list := listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tr, log)
 	event := zone.FertilizerZoneExecuted{
 		BasicEvent:                cqs.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
 		ZoneID:                    "bbf",
@@ -42,7 +58,7 @@ func Test_executePinsOnExecuteFertilizerZone_Listen(t *testing.T) {
 
 func buildLog() *slog.Logger {
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: slog.LevelDebug,
 	})
 
 	log := slog.New(handler)

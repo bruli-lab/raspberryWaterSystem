@@ -116,7 +116,7 @@ tasks:
       - |
         set -euo pipefail
         echo "🧪 Running functional tests..."
-        go test -tags=functional ./... -v
+        go test -tags=functional ./... -json |go tool tparse -all
 
   check:
     desc: Run format, security, lint and tests

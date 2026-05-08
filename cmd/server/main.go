@@ -151,6 +151,10 @@ func run() error {
 		BasicEvent: cqs.BasicEvent{NameAttr: zone.IgnoredEventName},
 	}, listener.NewPublishMessageOnZoneIgnored(chBus, tracer))
 
+	eventBus.Subscribe(zone.FertilizerZoneExecuted{
+		BasicEvent: cqs.BasicEvent{NameAttr: zone.FertilizerZoneExecutedEventName},
+	}, listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tracer, log), listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, tracer))
+
 	if err = initStatus(ctx, chBus, qhBus); err != nil {
 		log.ErrorContext(ctx, "failed initializing status", slog.String("error", err.Error()))
 		return err
