@@ -1,0 +1,50 @@
+[
+  {
+    "httpRequest": {
+      "method": "POST",
+      "path": "/bottoken_default/getMe"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": {
+        "ok": true,
+        "result": {
+          "id": 999999,
+          "is_bot": true,
+          "first_name": "MockBot",
+          "username": "mock_bot",
+          "can_join_groups": true,
+          "can_read_all_group_messages": false,
+          "supports_inline_queries": false
+        }
+      }
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "POST",
+      "path": "/bottoken_default/sendMessage"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": {
+        "ok": true,
+        "result": {
+          "message_id": 1,
+          "chat": {
+            "id": 12345,
+            "type": "private"
+          },
+          "date": 1710000000,
+          "text": "Mocked response"
+        }
+      }
+    }
+  }
+]

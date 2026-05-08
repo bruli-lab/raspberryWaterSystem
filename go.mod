@@ -77,11 +77,7 @@ require (
 	mvdan.cc/gofumpt v0.8.0 // indirect
 )
 
-require (
-	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
-	github.com/stretchr/testify v1.11.1
-	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
-)
+require github.com/stretchr/testify v1.11.1
 
 tool (
 	github.com/matryer/moq

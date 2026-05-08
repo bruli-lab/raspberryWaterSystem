@@ -18,24 +18,20 @@ services:
       - WEEKLY_PROGRAMS_FILE=${WEEKLY_PROGRAMS_FILE:-/tmp/weekly_programs.yml}
       - TEMPERATURE_PROGRAMS_FILE=${TEMPERATURE_PROGRAMS_FILE:-/tmp/temperature_programs.yml}
       - EXECUTION_LOGS_FILE=${EXECUTION_LOGS_FILE:-/tmp/execution_logs.json}
-      - STATUS_FILE=${STATUS_FILE:-/tmp/status.json}
-      - PENDING_IRRIGATIONS_DIRECTORY=${PENDING_IRRIGATIONS_DIRECTORY:-/tmp/pending_irrigations}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN:-token_default}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-12345}
+      - TELEGRAM_BOT_ENABLED=${TELEGRAM_BOT_ENABLED:-false}
       - NATS_SERVER_URL=${NATS_SERVER_URL:-nats://nats:4222}
       - EVENTS_DIRECTORY=${EVENTS_DIRECTORY:-/tmp/events}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_TRACES_SAMPLER=always_on
-      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-      - LOG_LEVEL=debug
-      - NTFY_URL=http://ntfy:80
-      - NTFY_TOPIC=bonsais
-      - NTFY_USER=user
-      - NTFY_PASSWORD=password
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
     ports:
       - "8083:8080"
     depends_on:
       - nats
       - lgtm
-      - ntfy
+      - mockserver
     networks:
       - water_system
     command: ["air", "-c", ".air.toml"]
@@ -73,18 +69,14 @@ services:
     networks:
         - water_system
 
-  ntfy:
-      image: binwiederhier/ntfy:v2.22.0
-      container_name: ntfy
-      command:
-        - serve
+  mockserver:
+      image: mockserver/mockserver:latest
       ports:
-        - "8085:80"
+        - "1080:1080"
       volumes:
-        - ./ntfy/cache:/var/cache/ntfy
+        - ./mockserver/expectations.json:/config/expectations.json
       environment:
-        NTFY_BASE_URL: http://localhost:8085
-        NTFY_AUTH_DEFAULT_ACCESS: read-write
+        MOCKSERVER_INITIALIZATION_JSON_PATH: /config/expectations.json
       networks:
           - water_system
 networks:

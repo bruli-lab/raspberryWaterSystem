@@ -86,7 +86,11 @@ func run() error {
 	lightRepo := api.NewSunriseSunsetRepository(5 * time.Second)
 	go lightRepo.CleanYesterday(ctx)
 	pe := pinsExecutor(tracer)
-	messagePublisher := telegram.NewMessagePublisher(conf.TelegramToken, conf.TelegramChatID, tracer)
+	messagePublisher, err := telegram.NewMessagePublisher(conf.TelegramToken, conf.TelegramChatID, tracer, conf.Environment.IsProduction())
+	if err != nil {
+		log.ErrorContext(ctx, "failed building telegram publisher", slog.String("error", err.Error()))
+		return err
+	}
 	eventsRepo := disk.NewEventsRepository(conf.EventsDirectory, tracer)
 
 	eventsPublisher, err := nats.NewPublisher(conf.NatsServerURL, tracer)
