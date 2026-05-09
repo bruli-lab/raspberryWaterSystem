@@ -79,7 +79,7 @@ func (e ExecutePinsOnExecuteFertilizerZone) fertilizerValvule(ctx context.Contex
 }
 
 func (e ExecutePinsOnExecuteFertilizerZone) fertilizerPump(ctx context.Context, event *zone.FertilizerZoneExecuted) error {
-	seconds := event.CleanValvuleSeconds + event.FertilizerPumpSeconds
+	seconds := event.FertilizerPumpSeconds
 	e.log.DebugContext(ctx, "execute fertilizer pump", slog.Uint64("seconds", uint64(seconds)))
 	defer e.log.DebugContext(ctx, "fertilizer pump stopped")
 	return e.executePin(ctx, seconds, []string{event.FertilizerPumpRelayPin})

@@ -5,63 +5,90 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/warthog618/go-gpiocdev"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"periph.io/x/conn/v3/gpio"
 )
 
+const gpioChip = "gpiochip0"
+
 type PinsExecutor struct {
-	relays map[string]gpio.PinIO
+	relays map[string]int
 	tracer trace.Tracer
 }
 
-func NewPinsExecutor(tracer trace.Tracer) *PinsExecutor {
-	return &PinsExecutor{relays: relays, tracer: tracer}
-}
-
 func (p *PinsExecutor) Execute(ctx context.Context, seconds uint, pins []string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	ctx, span := p.tracer.Start(ctx, "PinsExecutor.Execute")
+	defer span.End()
+
+	activatedPins := make([]*gpiocdev.Line, 0, len(pins))
+
+	defer func() {
+		for _, line := range activatedPins {
+			_ = line.SetValue(1)
+			_ = line.Close()
+		}
+	}()
+
+	for _, pinNumber := range pins {
+		line, err := p.activatePin(pinNumber)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return err
+		}
+
+		activatedPins = append(activatedPins, line)
+	}
+
+	timer := time.NewTimer(time.Duration(seconds) * time.Second)
+	defer timer.Stop()
+
 	select {
 	case <-ctx.Done():
+		span.RecordError(ctx.Err())
+		span.SetStatus(codes.Error, ctx.Err().Error())
 		return ctx.Err()
-	default:
-		_, span := p.tracer.Start(ctx, "PinsExecutor.Execute")
-		defer span.End()
-		activatedPins := make([]gpio.PinIO, len(pins))
-		for i, piNumber := range pins {
-			activatePin, err := p.activatePin(piNumber)
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-				return err
-			}
-			activatedPins[i] = activatePin
-		}
-		time.Sleep(time.Duration(seconds) * time.Second)
-		for _, act := range activatedPins {
-			if err := p.deActivatePin(act); err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-				return err
-			}
-		}
-		span.SetStatus(codes.Ok, "pins executed")
-		return nil
+
+	case <-timer.C:
 	}
+
+	span.SetStatus(codes.Ok, "pins executed")
+	return nil
 }
 
-func (p *PinsExecutor) activatePin(piNumber string) (gpio.PinIO, error) {
-	pi, ok := p.relays[piNumber]
+func (p *PinsExecutor) activatePin(pinNumber string) (*gpiocdev.Line, error) {
+	lineNumber, ok := p.relays[pinNumber]
 	if !ok {
-		return nil, InvalidPinToExecuteError{pinNumber: piNumber}
+		return nil, InvalidPinToExecuteError{pinNumber: pinNumber}
 	}
-	if err := pi.Out(gpio.Low); err != nil {
-		return nil, err
+
+	line, err := gpiocdev.RequestLine(
+		gpioChip,
+		lineNumber,
+		gpiocdev.AsOutput(1),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request GPIO %s: %w", pinNumber, err)
 	}
-	return pi, nil
+
+	if err := line.SetValue(0); err != nil {
+		_ = line.Close()
+		return nil, fmt.Errorf("failed to activate GPIO %s: %w", pinNumber, err)
+	}
+
+	return line, nil
 }
 
-func (p *PinsExecutor) deActivatePin(pi gpio.PinIO) error {
-	return pi.Out(gpio.High)
+func NewPinsExecutor(tracer trace.Tracer) *PinsExecutor {
+	return &PinsExecutor{
+		relays: relays,
+		tracer: tracer,
+	}
 }
 
 type InvalidPinToExecuteError struct {

@@ -77,7 +77,10 @@ require (
 	mvdan.cc/gofumpt v0.8.0 // indirect
 )
 
-require github.com/stretchr/testify v1.11.1
+require (
+	github.com/stretchr/testify v1.11.1
+	github.com/warthog618/go-gpiocdev v0.9.1
+)
 
 tool (
 	github.com/matryer/moq

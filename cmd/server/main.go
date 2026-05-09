@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
@@ -41,7 +42,9 @@ func main() {
 }
 
 func run() error {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	log := buildLog()
 	conf, err := config.New()
 	if err != nil {
@@ -66,7 +69,6 @@ func run() error {
 	tracer := otel.Tracer(serviceName)
 
 	eventsCh := make(chan tracing.Event, 5)
-	defer close(eventsCh)
 
 	logCHMdw := cqs.NewCommandHndErrorMiddleware(log, tracer)
 	eventsCHMdw := app.NewEventMiddleware(eventsCh, tracer)
@@ -164,11 +166,7 @@ func run() error {
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
-	errCh := make(chan error)
-	defer close(errCh)
+	errCh := make(chan error, 2)
 
 	go updateStatusWorker(ctx, qhBus, chBus, log)
 	go eventsWorker(ctx, eventsCh, eventBus, log, tracer)
@@ -186,10 +184,14 @@ func run() error {
 			errCh <- err
 		}
 	}()
-	if err := <-errCh; err != nil {
+
+	select {
+	case err := <-errCh:
 		return err
+	case <-ctx.Done():
+		log.Info("shutdown signal received")
+		return nil
 	}
-	return nil
 }
 
 func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.EventsRepository, ch cqs.QueryHandler, log *slog.Logger, tracer trace.Tracer) {
@@ -349,6 +351,7 @@ func buildLog() *slog.Logger {
 func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, logger *slog.Logger, tracer trace.Tracer) {
 	logger.InfoContext(ctx, "[WORKER] Execution in time: started")
 	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -374,7 +377,11 @@ func eventsWorker(ctx context.Context, ch <-chan tracing.Event, evBus cqs.EventB
 		case <-ctx.Done():
 			logger.InfoContext(ctx, "[WORKER] Events: context done")
 			return
-		case event := <-ch:
+		case event, ok := <-ch:
+			if !ok {
+				logger.InfoContext(ctx, "[WORKER] Events: channel closed")
+				return
+			}
 			parentCtx := trace.ContextWithSpanContext(ctx, event.SpanContext)
 			ctx, span := tracer.Start(parentCtx, "eventDispatch")
 			span.SetAttributes(attribute.String("event-name", event.Event.EventName()))
@@ -391,6 +398,7 @@ func eventsWorker(ctx context.Context, ch <-chan tracing.Event, evBus cqs.EventB
 func updateStatusWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, logger *slog.Logger) {
 	logger.InfoContext(ctx, "[WORKER] Update status: started")
 	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():

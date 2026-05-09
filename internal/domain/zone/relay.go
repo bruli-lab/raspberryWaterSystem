@@ -3,12 +3,12 @@ package zone
 import "errors"
 
 const (
-	MasterRelayID = iota + 1
-	FertilizerPumpRelayID
-	BigRelayID
-	SmallRelayID
-	AirRelayID
+	OneRelayID = iota + 1
+	TwoRelayID
+	ThreeRelayID
+	FourRelayID
 	FertilizerPumpID
+	AirRelayID
 	CleanValvuleID
 	FertilizerValvuleID
 )
@@ -22,14 +22,14 @@ func (i RelayID) Int() int {
 var ErrUnknownRelay = errors.New("unknown relay")
 
 var enabledRelays = map[RelayID]string{
-	MasterRelayID:         "master",
-	FertilizerPumpRelayID: "fertilizerPump",
-	BigRelayID:            "big",
-	SmallRelayID:          "small",
-	AirRelayID:            "air",
-	CleanValvuleID:        "clean",
-	FertilizerPumpID:      "22",
-	FertilizerValvuleID:   "fertilizerValvule",
+	OneRelayID:          "18",
+	TwoRelayID:          "17",
+	ThreeRelayID:        "23",
+	FourRelayID:         "22",
+	AirRelayID:          "15",
+	CleanValvuleID:      "14",
+	FertilizerPumpID:    "24",
+	FertilizerValvuleID: "27",
 }
 
 type Relay struct {

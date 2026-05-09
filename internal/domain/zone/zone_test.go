@@ -10,7 +10,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	rel1, err := zone.ParseRelay(zone.MasterRelayID)
+	rel1, err := zone.ParseRelay(zone.OneRelayID)
 	require.NoError(t, err)
 	relays := []zone.Relay{
 		rel1,

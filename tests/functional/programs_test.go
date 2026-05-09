@@ -62,7 +62,7 @@ func TestPrograms(t *testing.T) {
 			then it returns ok`, func(t *testing.T) {
 			resp, err = buildRequestAndSend(ctx, nil, authorizationHeader(), http2.MethodDelete, "/programs/daily/12:45", cl)
 			require.NoError(t, err)
-			},
+		},
 		)
 	})
 	t.Run(`Given a create weekly program endpoint,
