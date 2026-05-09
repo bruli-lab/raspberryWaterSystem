@@ -20,46 +20,30 @@ func NewPinsExecutor(tracer trace.Tracer) *PinsExecutor {
 }
 
 func (p *PinsExecutor) Execute(ctx context.Context, seconds uint, pins []string) error {
-	ctx, span := p.tracer.Start(ctx, "PinsExecutor.Execute")
-	defer span.End()
-
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	activatedPins := make([]gpio.PinIO, 0, len(pins))
-
-	defer func() {
-		for _, pin := range activatedPins {
-			if err := p.deActivatePin(pin); err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-			}
-		}
-	}()
-
-	for _, piNumber := range pins {
-		activatedPin, err := p.activatePin(piNumber)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			return err
-		}
-
-		activatedPins = append(activatedPins, activatedPin)
-	}
-
-	timer := time.NewTimer(time.Duration(seconds) * time.Second)
-	defer timer.Stop()
-
 	select {
 	case <-ctx.Done():
-		err := ctx.Err()
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-
-	case <-timer.C:
+		return ctx.Err()
+	default:
+		_, span := p.tracer.Start(ctx, "PinsExecutor.Execute")
+		defer span.End()
+		activatedPins := make([]gpio.PinIO, len(pins))
+		for i, piNumber := range pins {
+			activatePin, err := p.activatePin(piNumber)
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+				return err
+			}
+			activatedPins[i] = activatePin
+		}
+		time.Sleep(time.Duration(seconds) * time.Second)
+		for _, act := range activatedPins {
+			if err := p.deActivatePin(act); err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+				return err
+			}
+		}
 		span.SetStatus(codes.Ok, "pins executed")
 		return nil
 	}

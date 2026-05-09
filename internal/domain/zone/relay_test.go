@@ -20,7 +20,7 @@ func TestParseRelay(t *testing.T) {
 		{
 			name:          "with an unknown id, then it return a unknown valid relay id",
 			id:            1,
-			expectedRelay: zone.OneRelayID,
+			expectedRelay: zone.MasterRelayID,
 		},
 	}
 	for _, tt := range tests {
