@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/codes"
@@ -25,8 +25,6 @@ func ExecuteCleanZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFu
 			switch {
 			case errors.As(err, &errs.NotFoundError{}):
 				WriteErrorResponse(w, http.StatusNotFound)
-			case errors.As(err, &app.CleanInProgressError{}):
-				WriteErrorResponse(w, http.StatusConflict)
 			default:
 				WriteErrorResponse(w, http.StatusInternalServerError)
 			}

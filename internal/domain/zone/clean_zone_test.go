@@ -12,7 +12,6 @@ func TestCleanZone_Execute(t *testing.T) {
 	t.Run(`Given a CleanZone struct,
 	when Execute method is called,
 	then it returns a CleanZoneExecuted event`, func(t *testing.T) {
-		t.Parallel()
 		zo := fixtures.ZoneBuilder{}.Build()
 		clean := zone.NewCleanZone(zo)
 		clean.Execute()

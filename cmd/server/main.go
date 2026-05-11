@@ -22,7 +22,7 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/infra/listener"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/memory"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/nats"
-	"github.com/bruli/raspberryWaterSystem/internal/infra/telegram"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/ntfy"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/worker"
 	"github.com/robfig/cron/v3"
@@ -45,12 +45,12 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log := buildLog()
 	conf, err := config.New()
 	if err != nil {
-		log.ErrorContext(ctx, "failed building config", slog.String("error", err.Error()))
+		fmt.Printf("failed building config: %s", err.Error())
 		return err
 	}
+	log := buildLog(conf.LogLevel)
 
 	tracingProv, err := tracing.InitTracing(ctx, serviceName)
 	if err != nil {
@@ -88,9 +88,9 @@ func run() error {
 	lightRepo := api.NewSunriseSunsetRepository(5 * time.Second)
 	go lightRepo.CleanYesterday(ctx)
 	pe := pinsExecutor(tracer)
-	messagePublisher, err := telegram.NewMessagePublisher(conf.TelegramToken, conf.TelegramChatID, tracer, conf.Environment.IsProduction())
+	ntfyPublisher, err := ntfy.NewPublisher(conf.NtfyUser, conf.NtfyPassword, conf.NtfyURL, conf.NtfyTopic, tracer)
 	if err != nil {
-		log.ErrorContext(ctx, "failed building telegram publisher", slog.String("error", err.Error()))
+		log.ErrorContext(ctx, "failed building ntfy publisher", slog.String("error", err.Error()))
 		return err
 	}
 	eventsRepo := disk.NewEventsRepository(conf.EventsDirectory, tracer)
@@ -129,9 +129,10 @@ func run() error {
 	chBus.Subscribe(app.CreateZoneCmdName, logCHMdw(app.NewCreateZone(zr, tracer)))
 	chBus.Subscribe(app.ExecuteZoneCmdName, eventsMultiCHMdw(app.NewExecuteZone(zr, tracer)))
 	chBus.Subscribe(app.ExecuteFertilizerZoneCmdName, eventsMultiCHMdw(app.NewExecuteFertilizerZone(zr, tracer)))
+	chBus.Subscribe(app.ExecuteCleanZoneCmdName, eventsMultiCHMdw(app.NewExecuteCleanZone(zr, tracer)))
 	chBus.Subscribe(app.ExecutePinsCmdName, logCHMdw(app.NewExecutePins(pe, tracer)))
 	chBus.Subscribe(app.SaveExecutionLogCmdName, logCHMdw(app.NewSaveExecutionLog(execLogRepo, tracer)))
-	chBus.Subscribe(app.PublishMessageCmdName, logCHMdw(app.NewPublishMessage(messagePublisher, tracer)))
+	chBus.Subscribe(app.PublishMessageCmdName, logCHMdw(app.NewPublishMessage(ntfyPublisher, tracer)))
 	chBus.Subscribe(app.RemoveZoneCmdName, logCHMdw(app.NewRemoveZone(zr, tracer)))
 	chBus.Subscribe(app.ActivateDeactivateServerCmdName, logCHMdw(app.NewActivateDeactivateServer(sr, tracer)))
 	chBus.Subscribe(app.ExecuteZoneWithStatusCmdName, eventsMultiCHMdw(app.NewExecuteZoneWithStatus(zr, sr, tracer)))
@@ -161,6 +162,10 @@ func run() error {
 		BasicEvent: cqs.BasicEvent{NameAttr: zone.FertilizerZoneExecutedEventName},
 	}, listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tracer, log), listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, tracer))
 
+	eventBus.Subscribe(zone.CleanZoneExecuted{
+		BasicEvent: cqs.BasicEvent{NameAttr: zone.CleanZoneExecutedEventName},
+	}, listener.NewExecutePinsOnExecuteCleanZone(chBus, tracer, log))
+
 	if err = initStatus(ctx, chBus, qhBus); err != nil {
 		log.ErrorContext(ctx, "failed initializing status", slog.String("error", err.Error()))
 		return err
@@ -172,12 +177,6 @@ func run() error {
 	go eventsWorker(ctx, eventsCh, eventBus, log, tracer)
 	go executionInTimeWorker(ctx, qhBus, chBus, log, tracer)
 
-	go func() {
-		if err := runTelegramBot(ctx, conf, qhBus, chBus, log, tracer); err != nil {
-			log.ErrorContext(ctx, "failed running telegram bot", slog.String("error", err.Error()))
-			errCh <- err
-		}
-	}()
 	go func() {
 		if err := runHTTPServer(ctx, chBus, qhBus, conf, log, tracer); err != nil {
 			log.ErrorContext(ctx, "failed running http server", slog.String("error", err.Error()))
@@ -314,20 +313,6 @@ func publishEvent(ctx context.Context, evRepo *disk.EventsRepository, publisher 
 	return nil
 }
 
-func runTelegramBot(ctx context.Context, conf *config.Config, qhBus app.QueryBus, chBus app.CommandBus, log *slog.Logger, tracer trace.Tracer) error {
-	if !conf.TelegramBotEnabled {
-		log.InfoContext(ctx, "[TELEGRAM SERVICE] disabled")
-		return nil
-	}
-	telegramServer, err := telegram.NewCommandReader(conf.TelegramToken, qhBus, chBus, tracer)
-	if err != nil {
-		log.ErrorContext(ctx, "[TELEGRAM SERVICE] failed building telegram server", slog.String("error", err.Error()))
-		return err
-	}
-	telegramServer.Read(ctx, log)
-	return nil
-}
-
 func runHTTPServer(ctx context.Context, chBus app.CommandBus, qhBus app.QueryBus, conf *config.Config, log *slog.Logger, tracer trace.Tracer) error {
 	definitions := handlersDefinition(chBus, qhBus, conf.AuthToken, tracer)
 	httpHandlers := infrahttp.NewHandler(definitions)
@@ -338,9 +323,17 @@ func runHTTPServer(ctx context.Context, chBus app.CommandBus, qhBus app.QueryBus
 	return nil
 }
 
-func buildLog() *slog.Logger {
+func buildLog(level string) *slog.Logger {
+	levels := map[string]slog.Level{
+		"info":  slog.LevelInfo,
+		"debug": slog.LevelDebug,
+		"error": slog.LevelError,
+		"warn":  slog.LevelWarn,
+	}
+	l := levels[level]
+
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: l,
 	})
 
 	log := slog.New(handler)
@@ -461,6 +454,11 @@ func handlersDefinition(chBus app.CommandBus, qhBus app.QueryBus, authToken stri
 			Endpoint:    "/zones/fertilizer/{id}/execute",
 			Method:      http.MethodPost,
 			HandlerFunc: authMdw(infrahttp.ExecuteFertilizerZone(chBus, tracer)),
+		},
+		{
+			Endpoint:    "/zones/clean/{id}/execute",
+			Method:      http.MethodPost,
+			HandlerFunc: authMdw(infrahttp.ExecuteCleanZone(chBus, tracer)),
 		},
 		{
 			Endpoint:    "/zones/{id}",

@@ -3,7 +3,7 @@ package zone
 import (
 	"time"
 
-	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/google/uuid"
 )
 
@@ -14,10 +14,10 @@ const (
 )
 
 type CleanZone struct {
-	event.BasicAggregateRoot
-	zone            *Zone
-	fertilizerPump  *FertilizerPumpZone
-	fertilizerValve *FertilizerValveZone
+	cqs.BasicAggregateRoot
+	zone              *Zone
+	fertilizerPump    *FertilizerPumpZone
+	fertilizerValvule *FertilizerValvuleZone
 }
 
 func (z *CleanZone) Execute() {
@@ -27,26 +27,26 @@ func (z *CleanZone) Execute() {
 	}
 	seconds := uint(DefaultCleanZone.Seconds())
 	z.Record(CleanZoneExecuted{
-		BasicEvent:               event.NewBasicEvent(CleanZoneExecutedEventName, uuid.New(), z.zone.Id()),
-		ZoneID:                   z.zone.Id(),
-		ZoneName:                 z.zone.Name(),
-		ZoneSeconds:              seconds,
-		StabilizationZoneSeconds: uint(z.zone.StabilizationFlux().Seconds()),
-		ZoneRelayPins:            pins,
-		FertilizerPumpSeconds:    seconds,
-		FertilizerPumpRelayPin:   z.fertilizerPump.Relay().Pin(),
-		FertilizerValveSeconds:   seconds,
-		FertilizerValveRelayPin:  z.fertilizerValve.Relay().Pin(),
-		WaitDuration:             DefaultWaitCleanZone,
-		ClarifyDuration:          DefaultClarifyCleanZone,
+		BasicEvent:                cqs.NewBasicEvent(CleanZoneExecutedEventName, uuid.New(), z.zone.Id()),
+		ZoneID:                    z.zone.Id(),
+		ZoneName:                  z.zone.Name(),
+		ZoneSeconds:               seconds,
+		StabilizationZoneSeconds:  uint(z.zone.StabilizationFlux().Seconds()),
+		ZoneRelayPins:             pins,
+		FertilizerPumpSeconds:     seconds,
+		FertilizerPumpRelayPin:    z.fertilizerPump.Relay().Pin(),
+		FertilizerValvuleSeconds:  seconds,
+		FertilizerValvuleRelayPin: z.fertilizerValvule.Relay().Pin(),
+		WaitDuration:              DefaultWaitCleanZone,
+		ClarifyDuration:           DefaultClarifyCleanZone,
 	})
 }
 
 func NewCleanZone(zone *Zone) *CleanZone {
 	return &CleanZone{
-		BasicAggregateRoot: event.NewBasicAggregateRoot(),
+		BasicAggregateRoot: cqs.NewBasicAggregateRoot(),
 		zone:               zone,
 		fertilizerPump:     &FertilizerPumpZone{},
-		fertilizerValve:    &FertilizerValveZone{},
+		fertilizerValvule:  &FertilizerValvuleZone{},
 	}
 }

@@ -5,9 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/stretchr/testify/require"
@@ -20,12 +19,10 @@ func TestExecuteCleanZoneHandle(t *testing.T) {
 		ZoneID: "name",
 	}
 	tests := []struct {
-		name                                         string
-		command                                      cqs.Command
-		expectedErr, findErr, findStErr, updateStErr error
-		zone                                         *zone.Zone
-		st                                           status.Status
-		expectedUpdates                              int
+		name                 string
+		command              cqs.Command
+		expectedErr, findErr error
+		zone                 *zone.Zone
 	}{
 		{
 			name:        "with invalid command, then it returns an invalid command error",
@@ -39,34 +36,11 @@ func TestExecuteCleanZoneHandle(t *testing.T) {
 			expectedErr: errTest,
 		},
 		{
-			name:        "and find status returns an error, then it returns same error",
-			command:     cmd,
-			zone:        zo,
-			findStErr:   errTest,
-			expectedErr: errTest,
-		},
-		{
-			name:        "and a clean cycle is already in progress, then it returns a clean in progress error",
-			command:     cmd,
-			zone:        zo,
-			st:          fixtures.StatusBuilder{Active: true, Clean: true}.Build(),
-			expectedErr: app.CleanInProgressError{},
-		},
-		{
-			name:            "and update status returns an error, then it returns same error",
-			command:         cmd,
-			zone:            zo,
-			st:              fixtures.StatusBuilder{Active: true}.Build(),
-			updateStErr:     errTest,
-			expectedErr:     errTest,
-			expectedUpdates: 1,
-		},
-		{
-			name:            "and execute nil, then it marks the status as cleaning and returns a valid event",
-			command:         cmd,
-			zone:            zo,
-			st:              fixtures.StatusBuilder{Active: true}.Build(),
-			expectedUpdates: 1,
+			name: "and execute nil, then it returns a valid event",
+			zone: zo,
+			command: app.ExecuteCleanZoneCmd{
+				ZoneID: "name",
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -78,25 +52,16 @@ func TestExecuteCleanZoneHandle(t *testing.T) {
 					return tt.zone, tt.findErr
 				},
 			}
-			sr := &StatusRepositoryMock{
-				FindFunc: func(_ context.Context) (status.Status, error) {
-					return tt.st, tt.findStErr
-				},
-				UpdateFunc: func(_ context.Context, st status.Status) error {
-					require.True(t, st.IsClean())
-					return tt.updateStErr
-				},
-			}
-			handler := app.NewExecuteCleanZone(zr, sr, tracer())
+			handler := app.NewExecuteCleanZone(zr, tracer())
 			events, err := handler.Handle(context.Background(), tt.command)
-			require.Len(t, sr.UpdateCalls(), tt.expectedUpdates)
-			if tt.expectedErr != nil {
-				require.IsType(t, tt.expectedErr, err)
+			if err != nil {
+				require.ErrorAs(t, err, &tt.expectedErr)
 				return
 			}
-			require.NoError(t, err)
+			require.Equal(t, tt.expectedErr, err)
 			require.Len(t, events, 1)
-			_, ok := events[0].(zone.CleanZoneExecuted)
+			ev := events[0]
+			_, ok := ev.(zone.CleanZoneExecuted)
 			require.True(t, ok)
 		})
 	}

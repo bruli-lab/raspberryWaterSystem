@@ -1,11 +1,16 @@
 package zone
 
-import "github.com/bruli/raspberryWaterSystem/internal/cqs"
+import (
+	"time"
+
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+)
 
 const (
 	ExecutedEventName               = "v1.zone.executed"
 	IgnoredEventName                = "v1.zone.ignored"
 	FertilizerZoneExecutedEventName = "v1.fertilizer.zone.executed"
+	CleanZoneExecutedEventName      = "v1.clean.zone.executed"
 )
 
 type Executed struct {
@@ -38,4 +43,18 @@ type FertilizerZoneExecuted struct {
 	AirZoneRelayPin           string
 	FertilizerValvuleSeconds  uint
 	FertilizerValvuleRelayPin string
+}
+type CleanZoneExecuted struct {
+	cqs.BasicEvent
+	ZoneID                    string
+	ZoneName                  string
+	ZoneSeconds               uint
+	StabilizationZoneSeconds  uint
+	ZoneRelayPins             []string
+	FertilizerPumpSeconds     uint
+	FertilizerPumpRelayPin    string
+	FertilizerValvuleSeconds  uint
+	FertilizerValvuleRelayPin string
+	WaitDuration              time.Duration
+	ClarifyDuration           time.Duration
 }

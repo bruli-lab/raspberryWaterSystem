@@ -7,9 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bruli-lab/go-core/cqs"
-	"github.com/bruli-lab/go-core/event"
-	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -29,11 +27,6 @@ func TestExecuteCleanZone(t *testing.T) {
 			chErr:        errs.NotFoundError{},
 		},
 		{
-			name:         "and command handler returns a clean in progress error, then it returns conflict",
-			expectedCode: http2.StatusConflict,
-			chErr:        app.CleanInProgressError{},
-		},
-		{
 			name:         "with a valid request and command handler returns en error, then it returns internal server error",
 			expectedCode: http2.StatusInternalServerError,
 			chErr:        errors.New(""),
@@ -47,15 +40,15 @@ func TestExecuteCleanZone(t *testing.T) {
 		t.Run(`Given a ExecuteCleanZone http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &cqs.CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
+			ch := &CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
 					return nil, tt.chErr
 				},
 			}
 			handler := http.ExecuteCleanZone(ch, tracer())
 			server := chi.NewMux()
 			server.Post("/zones/clean/{id}/execute", handler)
-			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPost, "/zones/clean/id/execute", http2.NoBody)
+			req := httptest.NewRequest(http2.MethodPost, "/zones/clean/id/execute", http2.NoBody)
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

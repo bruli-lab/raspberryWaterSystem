@@ -21,9 +21,13 @@ type Config struct {
 	ExecutionLogsFile       string `env:"EXECUTION_LOGS_FILE,required"`
 	TelegramToken           string `env:"TELEGRAM_TOKEN,required"`
 	TelegramChatID          int    `env:"TELEGRAM_CHAT_ID,required"`
-	TelegramBotEnabled      bool   `env:"TELEGRAM_BOT_ENABLED,required"`
 	NatsServerURL           string `env:"NATS_SERVER_URL,required"`
 	EventsDirectory         string `env:"EVENTS_DIRECTORY,required"`
+	LogLevel                string `env:"LOG_LEVEL,required"`
+	NtfyURL                 string `env:"NTFY_URL,required"`
+	NtfyTopic               string `env:"NTFY_TOPIC,required"`
+	NtfyUser                string `env:"NTFY_USER,required"`
+	NtfyPassword            string `env:"NTFY_PASSWORD,required"`
 }
 
 func New() (*Config, error) {
