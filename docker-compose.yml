@@ -33,7 +33,6 @@ services:
     depends_on:
       - nats
       - lgtm
-      - mockserver
       - ntfy
     networks:
       - water_system
@@ -72,16 +71,6 @@ services:
     networks:
         - water_system
 
-  mockserver:
-      image: mockserver/mockserver:latest
-      ports:
-        - "1080:1080"
-      volumes:
-        - ./mockserver/expectations.json:/config/expectations.json
-      environment:
-        MOCKSERVER_INITIALIZATION_JSON_PATH: /config/expectations.json
-      networks:
-          - water_system
   ntfy:
       image: binwiederhier/ntfy:v2.22.0
       container_name: ntfy
