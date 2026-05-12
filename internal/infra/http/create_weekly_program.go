@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -16,7 +16,7 @@ func CreateWeeklyProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.Handle
 		ctx, span := tracer.Start(r.Context(), "CreateWeeklyProgramRequest")
 		defer span.End()
 		var req WeeklyProgramRequest
-		if err := ReadRequest(w, r, weeklyProgramRequestSchema, &req); err != nil {
+		if err := ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -68,21 +68,12 @@ func buildCreateWeeklyProgramCommand(req WeeklyProgramRequest) (*program.Weekly,
 			if err != nil {
 				return nil, err
 			}
-			exe, err := program.NewExecution(sec, e.Zones)
-			if err != nil {
-				return nil, err
-			}
+			exe, _ := program.NewExecution(sec, e.Zones)
 			exec[j] = exe
 		}
-		pr, err := program.NewWithoutFertilizer(hour, exec)
-		if err != nil {
-			return nil, err
-		}
+		pr, _ := program.New(hour, exec)
 		prgms[i] = *pr
 	}
-	weekly, err := program.NewWeekly(day, prgms)
-	if err != nil {
-		return nil, err
-	}
+	weekly, _ := program.NewWeekly(day, prgms)
 	return &weekly, nil
 }

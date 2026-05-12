@@ -8,7 +8,6 @@ const (
 	UpdateZoneRequestRelaysN1 UpdateZoneRequestRelays = 1
 	UpdateZoneRequestRelaysN2 UpdateZoneRequestRelays = 2
 	UpdateZoneRequestRelaysN3 UpdateZoneRequestRelays = 3
-	UpdateZoneRequestRelaysN4 UpdateZoneRequestRelays = 4
 )
 
 // Valid indicates whether the value is a known member of the UpdateZoneRequestRelays enum.
@@ -20,8 +19,6 @@ func (e UpdateZoneRequestRelays) Valid() bool {
 		return true
 	case UpdateZoneRequestRelaysN3:
 		return true
-	case UpdateZoneRequestRelaysN4:
-		return true
 	default:
 		return false
 	}
@@ -32,7 +29,6 @@ const (
 	ZoneRelaysN1 ZoneRelays = 1
 	ZoneRelaysN2 ZoneRelays = 2
 	ZoneRelaysN3 ZoneRelays = 3
-	ZoneRelaysN4 ZoneRelays = 4
 )
 
 // Valid indicates whether the value is a known member of the ZoneRelays enum.
@@ -43,8 +39,6 @@ func (e ZoneRelays) Valid() bool {
 	case ZoneRelaysN2:
 		return true
 	case ZoneRelaysN3:
-		return true
-	case ZoneRelaysN4:
 		return true
 	default:
 		return false
@@ -60,7 +54,7 @@ type ExecutionRequest struct {
 // FertilizerProgram defines model for FertilizerProgram.
 type FertilizerProgram struct {
 	Executions []ExecutionRequest `json:"executions"`
-	Fertilizer *bool              `json:"fertilizer,omitempty"`
+	Fertilizer bool               `json:"fertilizer"`
 	Hour       string             `json:"hour"`
 }
 
@@ -70,19 +64,8 @@ type TemperatureProgramRequest struct {
 	Temperature float32   `json:"temperature"`
 }
 
-// UpdateProgramRequest defines model for UpdateProgramRequest.
-type UpdateProgramRequest struct {
-	Executions []ExecutionRequest `json:"executions"`
-	Fertilizer *bool              `json:"fertilizer,omitempty"`
-}
-
 // UpdateTemperatureProgramRequest defines model for UpdateTemperatureProgramRequest.
 type UpdateTemperatureProgramRequest struct {
-	Programs []Program `json:"programs"`
-}
-
-// UpdateWeeklyProgramRequest defines model for UpdateWeeklyProgramRequest.
-type UpdateWeeklyProgramRequest struct {
 	Programs []Program `json:"programs"`
 }
 
@@ -119,7 +102,6 @@ type Program struct {
 // ProgramItemResponse defines model for programItemResponse.
 type ProgramItemResponse struct {
 	Executions []ExecutionItemResponse `json:"executions"`
-	Fertilizer bool                    `json:"fertilizer"`
 	Hour       string                  `json:"hour"`
 }
 
@@ -135,7 +117,6 @@ type ProgramsResponse struct {
 // StatusResponse defines model for statusResponse.
 type StatusResponse struct {
 	Active          bool    `json:"active"`
-	Clean           bool    `json:"clean"`
 	Humidity        float32 `json:"humidity"`
 	IsDay           bool    `json:"is_day"`
 	IsRaining       bool    `json:"is_raining"`

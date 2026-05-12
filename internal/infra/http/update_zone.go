@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/codes"
@@ -18,7 +18,7 @@ func UpdateZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFunc {
 		defer span.End()
 		id := chi.URLParam(r, "id")
 		var req UpdateZoneRequest
-		if err := ReadRequest(w, r, updateZoneRequestSchema, &req); err != nil {
+		if err := ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return

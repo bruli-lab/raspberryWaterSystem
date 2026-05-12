@@ -4,10 +4,11 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 )
 
 func CreateZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFunc {
@@ -15,7 +16,7 @@ func CreateZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFunc {
 		ctx, span := tracer.Start(r.Context(), "CreateZoneRequest")
 		defer span.End()
 		var req Zone
-		if err := ReadRequest(w, r, zoneRequestSchema, &req); err != nil {
+		if err := ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return

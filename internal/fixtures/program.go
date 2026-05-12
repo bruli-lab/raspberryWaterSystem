@@ -26,6 +26,28 @@ func (b ProgramBuilder) Build() program.Program {
 	return program.HydrateProgram(hour, b.Fertilizer, executions)
 }
 
+type FertilizerProgramBuilder struct {
+	Hour       *program.Hour
+	Executions []program.Execution
+	Fertilizer bool
+}
+
+func (b FertilizerProgramBuilder) Build() program.FertilizerProgram {
+	var pr program.FertilizerProgram
+	hour, _ := program.ParseHour("15:10")
+	if b.Hour != nil {
+		hour = *b.Hour
+	}
+	executions := []program.Execution{
+		ExecutionBuilder{}.Build(),
+	}
+	if b.Executions != nil {
+		executions = b.Executions
+	}
+	pr.Hydrate(hour, b.Fertilizer, executions)
+	return pr
+}
+
 type WeeklyBuilder struct {
 	WeekDay  *program.WeekDay
 	Programs []program.Program

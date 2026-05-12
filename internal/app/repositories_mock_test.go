@@ -588,16 +588,16 @@ var _ app.ProgramRepository = &ProgramRepositoryMock{}
 //
 //		// make and configure a mocked app.ProgramRepository
 //		mockedProgramRepository := &ProgramRepositoryMock{
-//			FindAllFunc: func(ctx context.Context) ([]program.Program, error) {
+//			FindAllFunc: func(ctx context.Context) ([]program.FertilizerProgram, error) {
 //				panic("mock out the FindAll method")
 //			},
-//			FindByHourFunc: func(ctx context.Context, hour *program.Hour) (*program.Program, error) {
+//			FindByHourFunc: func(ctx context.Context, hour *program.Hour) (*program.FertilizerProgram, error) {
 //				panic("mock out the FindByHour method")
 //			},
 //			RemoveFunc: func(ctx context.Context, hour *program.Hour) error {
 //				panic("mock out the Remove method")
 //			},
-//			SaveFunc: func(ctx context.Context, programs *program.Program) error {
+//			SaveFunc: func(ctx context.Context, programs *program.FertilizerProgram) error {
 //				panic("mock out the Save method")
 //			},
 //		}
@@ -608,16 +608,16 @@ var _ app.ProgramRepository = &ProgramRepositoryMock{}
 //	}
 type ProgramRepositoryMock struct {
 	// FindAllFunc mocks the FindAll method.
-	FindAllFunc func(ctx context.Context) ([]program.Program, error)
+	FindAllFunc func(ctx context.Context) ([]program.FertilizerProgram, error)
 
 	// FindByHourFunc mocks the FindByHour method.
-	FindByHourFunc func(ctx context.Context, hour *program.Hour) (*program.Program, error)
+	FindByHourFunc func(ctx context.Context, hour *program.Hour) (*program.FertilizerProgram, error)
 
 	// RemoveFunc mocks the Remove method.
 	RemoveFunc func(ctx context.Context, hour *program.Hour) error
 
 	// SaveFunc mocks the Save method.
-	SaveFunc func(ctx context.Context, programs *program.Program) error
+	SaveFunc func(ctx context.Context, programs *program.FertilizerProgram) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -645,7 +645,7 @@ type ProgramRepositoryMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Programs is the programs argument value.
-			Programs *program.Program
+			Programs *program.FertilizerProgram
 		}
 	}
 	lockFindAll    sync.RWMutex
@@ -655,7 +655,7 @@ type ProgramRepositoryMock struct {
 }
 
 // FindAll calls FindAllFunc.
-func (mock *ProgramRepositoryMock) FindAll(ctx context.Context) ([]program.Program, error) {
+func (mock *ProgramRepositoryMock) FindAll(ctx context.Context) ([]program.FertilizerProgram, error) {
 	if mock.FindAllFunc == nil {
 		panic("ProgramRepositoryMock.FindAllFunc: method is nil but ProgramRepository.FindAll was just called")
 	}
@@ -687,7 +687,7 @@ func (mock *ProgramRepositoryMock) FindAllCalls() []struct {
 }
 
 // FindByHour calls FindByHourFunc.
-func (mock *ProgramRepositoryMock) FindByHour(ctx context.Context, hour *program.Hour) (*program.Program, error) {
+func (mock *ProgramRepositoryMock) FindByHour(ctx context.Context, hour *program.Hour) (*program.FertilizerProgram, error) {
 	if mock.FindByHourFunc == nil {
 		panic("ProgramRepositoryMock.FindByHourFunc: method is nil but ProgramRepository.FindByHour was just called")
 	}
@@ -759,13 +759,13 @@ func (mock *ProgramRepositoryMock) RemoveCalls() []struct {
 }
 
 // Save calls SaveFunc.
-func (mock *ProgramRepositoryMock) Save(ctx context.Context, programs *program.Program) error {
+func (mock *ProgramRepositoryMock) Save(ctx context.Context, programs *program.FertilizerProgram) error {
 	if mock.SaveFunc == nil {
 		panic("ProgramRepositoryMock.SaveFunc: method is nil but ProgramRepository.Save was just called")
 	}
 	callInfo := struct {
 		Ctx      context.Context
-		Programs *program.Program
+		Programs *program.FertilizerProgram
 	}{
 		Ctx:      ctx,
 		Programs: programs,
@@ -782,11 +782,11 @@ func (mock *ProgramRepositoryMock) Save(ctx context.Context, programs *program.P
 //	len(mockedProgramRepository.SaveCalls())
 func (mock *ProgramRepositoryMock) SaveCalls() []struct {
 	Ctx      context.Context
-	Programs *program.Program
+	Programs *program.FertilizerProgram
 } {
 	var calls []struct {
 		Ctx      context.Context
-		Programs *program.Program
+		Programs *program.FertilizerProgram
 	}
 	mock.lockSave.RLock()
 	calls = mock.calls.Save
@@ -1523,127 +1523,5 @@ func (mock *LightRepositoryMock) FindCalls() []struct {
 	mock.lockFind.RLock()
 	calls = mock.calls.Find
 	mock.lockFind.RUnlock()
-	return calls
-}
-
-// Ensure, that FertilizerZoneRepositoryMock does implement app.FertilizerZoneRepository.
-// If this is not the case, regenerate this file with moq.
-var _ app.FertilizerZoneRepository = &FertilizerZoneRepositoryMock{}
-
-// FertilizerZoneRepositoryMock is a mock implementation of app.FertilizerZoneRepository.
-//
-//	func TestSomethingThatUsesFertilizerZoneRepository(t *testing.T) {
-//
-//		// make and configure a mocked app.FertilizerZoneRepository
-//		mockedFertilizerZoneRepository := &FertilizerZoneRepositoryMock{
-//			FindByIDFunc: func(ctx context.Context, id string) (*zone.FertilizerZone, error) {
-//				panic("mock out the FindByID method")
-//			},
-//			SaveFunc: func(ctx context.Context, zo *zone.FertilizerZone) error {
-//				panic("mock out the Save method")
-//			},
-//		}
-//
-//		// use mockedFertilizerZoneRepository in code that requires app.FertilizerZoneRepository
-//		// and then make assertions.
-//
-//	}
-type FertilizerZoneRepositoryMock struct {
-	// FindByIDFunc mocks the FindByID method.
-	FindByIDFunc func(ctx context.Context, id string) (*zone.FertilizerZone, error)
-
-	// SaveFunc mocks the Save method.
-	SaveFunc func(ctx context.Context, zo *zone.FertilizerZone) error
-
-	// calls tracks calls to the methods.
-	calls struct {
-		// FindByID holds details about calls to the FindByID method.
-		FindByID []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// ID is the id argument value.
-			ID string
-		}
-		// Save holds details about calls to the Save method.
-		Save []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Zo is the zo argument value.
-			Zo *zone.FertilizerZone
-		}
-	}
-	lockFindByID sync.RWMutex
-	lockSave     sync.RWMutex
-}
-
-// FindByID calls FindByIDFunc.
-func (mock *FertilizerZoneRepositoryMock) FindByID(ctx context.Context, id string) (*zone.FertilizerZone, error) {
-	if mock.FindByIDFunc == nil {
-		panic("FertilizerZoneRepositoryMock.FindByIDFunc: method is nil but FertilizerZoneRepository.FindByID was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		ID  string
-	}{
-		Ctx: ctx,
-		ID:  id,
-	}
-	mock.lockFindByID.Lock()
-	mock.calls.FindByID = append(mock.calls.FindByID, callInfo)
-	mock.lockFindByID.Unlock()
-	return mock.FindByIDFunc(ctx, id)
-}
-
-// FindByIDCalls gets all the calls that were made to FindByID.
-// Check the length with:
-//
-//	len(mockedFertilizerZoneRepository.FindByIDCalls())
-func (mock *FertilizerZoneRepositoryMock) FindByIDCalls() []struct {
-	Ctx context.Context
-	ID  string
-} {
-	var calls []struct {
-		Ctx context.Context
-		ID  string
-	}
-	mock.lockFindByID.RLock()
-	calls = mock.calls.FindByID
-	mock.lockFindByID.RUnlock()
-	return calls
-}
-
-// Save calls SaveFunc.
-func (mock *FertilizerZoneRepositoryMock) Save(ctx context.Context, zo *zone.FertilizerZone) error {
-	if mock.SaveFunc == nil {
-		panic("FertilizerZoneRepositoryMock.SaveFunc: method is nil but FertilizerZoneRepository.Save was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Zo  *zone.FertilizerZone
-	}{
-		Ctx: ctx,
-		Zo:  zo,
-	}
-	mock.lockSave.Lock()
-	mock.calls.Save = append(mock.calls.Save, callInfo)
-	mock.lockSave.Unlock()
-	return mock.SaveFunc(ctx, zo)
-}
-
-// SaveCalls gets all the calls that were made to Save.
-// Check the length with:
-//
-//	len(mockedFertilizerZoneRepository.SaveCalls())
-func (mock *FertilizerZoneRepositoryMock) SaveCalls() []struct {
-	Ctx context.Context
-	Zo  *zone.FertilizerZone
-} {
-	var calls []struct {
-		Ctx context.Context
-		Zo  *zone.FertilizerZone
-	}
-	mock.lockSave.RLock()
-	calls = mock.calls.Save
-	mock.lockSave.RUnlock()
 	return calls
 }

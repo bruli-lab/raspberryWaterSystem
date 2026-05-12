@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -22,12 +22,12 @@ func CreateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 		ctx, span := tracer.Start(r.Context(), "CreateProgramRequest")
 		defer span.End()
 		var req FertilizerProgram
-		if err := ReadRequest(w, r, fertilizerProgramRequestSchema, &req); err != nil {
+		if err := ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
 		}
-		prog, err := buildProgram(w, req)
+		prog, err := buildFertilizerProgram(w, req)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -46,14 +46,13 @@ func CreateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 			default:
 				WriteErrorResponse(w, http.StatusInternalServerError)
 			}
-			return
 		}
 		span.SetStatus(codes.Ok, "program created")
-		WriteResponse(w, http.StatusOK, nil)
+		WriteErrorResponse(w, http.StatusOK)
 	}
 }
 
-func buildCreateProgramCommand(programType string, prog *program.Program) cqs.Command {
+func buildCreateProgramCommand(programType string, prog *program.FertilizerProgram) cqs.Command {
 	switch programType {
 	case DailyProgram:
 		return app.CreateDailyProgramCommand{Program: prog}
@@ -66,7 +65,7 @@ func buildCreateProgramCommand(programType string, prog *program.Program) cqs.Co
 	return nil
 }
 
-func buildProgram(w http.ResponseWriter, req FertilizerProgram) (*program.Program, error) {
+func buildFertilizerProgram(w http.ResponseWriter, req FertilizerProgram) (*program.FertilizerProgram, error) {
 	hour, err := program.ParseHour(req.Hour)
 	if err != nil {
 		WriteErrorResponse(w, http.StatusBadRequest, Error{
@@ -91,17 +90,9 @@ func buildProgram(w http.ResponseWriter, req FertilizerProgram) (*program.Progra
 				Code:    ErrorCodeInvalidRequest,
 				Message: err.Error(),
 			})
-			return nil, err
 		}
 		exec[i] = e
 	}
-	prog, err := program.New(hour, req.Fertilizer != nil && *req.Fertilizer, exec)
-	if err != nil {
-		WriteErrorResponse(w, http.StatusBadRequest, Error{
-			Code:    ErrorCodeInvalidRequest,
-			Message: err.Error(),
-		})
-		return nil, err
-	}
-	return prog, nil
+	prog, _ := program.NewFertilizerProgram(hour, req.Fertilizer, exec)
+	return prog, err
 }

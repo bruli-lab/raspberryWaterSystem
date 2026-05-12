@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"go.opentelemetry.io/otel/codes"
@@ -38,7 +38,6 @@ func FindStatus(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
 		}
 		resp := StatusResponse{
 			Active:          currenSt.IsActive(),
-			Clean:           currenSt.IsClean(),
 			Humidity:        float32(currenSt.Weather().Humidity()),
 			IsDay:           currenSt.Light().IsDay(time.Now()),
 			IsRaining:       currenSt.Weather().IsRaining(),

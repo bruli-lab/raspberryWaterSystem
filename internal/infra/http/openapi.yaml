@@ -38,8 +38,6 @@ components:
                 type: boolean
             is_day:
                 type: boolean
-            clean:
-                type: boolean
         required:
             - system_started_at
             - temperature
@@ -47,7 +45,6 @@ components:
             - is_raining
             - active
             - is_day
-            - clean
     programsResponse:
         type: object
         properties:
@@ -106,8 +103,6 @@ components:
         properties:
             hour:
                 type: string
-            fertilizer:
-                type: boolean
             executions:
                 type: array
                 items:
@@ -115,7 +110,6 @@ components:
         required:
             - executions
             - hour
-            - fertilizer
     executionItemResponse:
         type: object
         properties:
@@ -163,7 +157,6 @@ components:
                         - 1
                         - 2
                         - 3
-                        - 4
         required:
             - id
             - name
@@ -181,7 +174,6 @@ components:
                         - 1
                         - 2
                         - 3
-                        - 4
         required:
             - name
             - relays
@@ -198,15 +190,6 @@ components:
             - week_day
             - programs
     UpdateTemperatureProgramRequest:
-        type: object
-        properties:
-            programs:
-               type: array
-               items:
-                 $ref: "#/components/schemas/program"
-        required:
-            - programs
-    UpdateWeeklyProgramRequest:
         type: object
         properties:
             programs:
@@ -244,6 +227,7 @@ components:
       required:
         - executions
         - hour
+        - fertilizer
       properties:
         hour:
           type: string
@@ -269,20 +253,6 @@ components:
           type: array
           items:
             type: string
-
-    UpdateProgramRequest:
-      type: object
-      required:
-        - executions
-      properties:
-        fertilizer:
-          type: boolean
-          default: false
-
-        executions:
-          type: array
-          items:
-            $ref: "#/components/schemas/ExecutionRequest"
 
     zonesResponse:
         type: object

@@ -9,7 +9,6 @@ require gopkg.in/yaml.v3 v3.0.1
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/go-chi/chi/v5 v5.2.5
-	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.50.0
 	github.com/prometheus/client_golang v1.23.2

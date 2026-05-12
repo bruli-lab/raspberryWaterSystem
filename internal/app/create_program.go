@@ -20,7 +20,7 @@ const (
 )
 
 type CreateDailyProgramCommand struct {
-	Program *program.Program
+	Program *program.FertilizerProgram
 }
 
 func (c CreateDailyProgramCommand) Name() string {
@@ -28,7 +28,7 @@ func (c CreateDailyProgramCommand) Name() string {
 }
 
 type CreateOddProgramCommand struct {
-	Program *program.Program
+	Program *program.FertilizerProgram
 }
 
 func (c CreateOddProgramCommand) Name() string {
@@ -36,7 +36,7 @@ func (c CreateOddProgramCommand) Name() string {
 }
 
 type CreateEvenProgramCommand struct {
-	Program *program.Program
+	Program *program.FertilizerProgram
 }
 
 func (c CreateEvenProgramCommand) Name() string {
@@ -148,7 +148,7 @@ type CreateProgram struct {
 	zonesRepo   ZoneRepository
 }
 
-func (p CreateProgram) Create(ctx context.Context, prog *program.Program) error {
+func (p CreateProgram) Create(ctx context.Context, prog *program.FertilizerProgram) error {
 	hour := prog.Hour()
 	_, err := p.programRepo.FindByHour(ctx, &hour)
 	switch {

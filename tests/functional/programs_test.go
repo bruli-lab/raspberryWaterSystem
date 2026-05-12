@@ -36,7 +36,7 @@ func TestPrograms(t *testing.T) {
 		})
 		t.Run(`with authorization,
 		then it returns ok`, func(t *testing.T) {
-			createPrReq := http.CreateProgramRequestJson{
+			createPrReq := http.CreateProgramRequest{
 				Executions: []http.ExecutionRequest{
 					{
 						Seconds: 10,

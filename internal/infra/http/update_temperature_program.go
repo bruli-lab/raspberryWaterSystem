@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
@@ -28,8 +28,8 @@ func UpdateTemperatureProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.H
 			})
 			return
 		}
-		var req UpdateTemperatureProgramRequest
-		if err = ReadRequest(w, r, updateTemperatureProgramRequestSchema, &req); err != nil {
+		var req TemperatureProgramRequest
+		if err = ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -65,7 +65,7 @@ func UpdateTemperatureProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.H
 	}
 }
 
-func buildUpdateTempPrograms(req UpdateTemperatureProgramRequest) ([]program.Program, error) {
+func buildUpdateTempPrograms(req TemperatureProgramRequest) ([]program.Program, error) {
 	prgms := make([]program.Program, len(req.Programs))
 	for i, p := range req.Programs {
 		hour, err := program.ParseHour(p.Hour)
@@ -84,7 +84,7 @@ func buildUpdateTempPrograms(req UpdateTemperatureProgramRequest) ([]program.Pro
 			}
 			exec[n] = exe
 		}
-		pr, err := program.NewWithoutFertilizer(hour, exec)
+		pr, err := program.New(hour, exec)
 		if err != nil {
 			return nil, err
 		}
