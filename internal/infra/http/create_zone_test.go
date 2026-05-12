@@ -15,10 +15,10 @@ import (
 
 func TestCreateZone(t *testing.T) {
 	errTest := errors.New("")
-	body := buildRequestJsonToString(t, http.CreateZoneRequestJson{
+	body := buildRequestJsonToString(t, http.Zone{
 		Id:     "id",
 		Name:   "name",
-		Relays: []int{1},
+		Relays: []http.ZoneRelays{1},
 	})
 	tests := []struct {
 		name, body   string

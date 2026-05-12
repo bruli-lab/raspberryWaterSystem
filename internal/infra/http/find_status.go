@@ -36,13 +36,13 @@ func FindStatus(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
 		if currenSt.UpdatedAt() != nil {
 			updated = new(strconv.Itoa(int(currenSt.UpdatedAt().Unix())))
 		}
-		resp := StatusResponseJson{
+		resp := StatusResponse{
 			Active:          currenSt.IsActive(),
-			Humidity:        float64(currenSt.Weather().Humidity()),
+			Humidity:        float32(currenSt.Weather().Humidity()),
 			IsDay:           currenSt.Light().IsDay(time.Now()),
 			IsRaining:       currenSt.Weather().IsRaining(),
 			SystemStartedAt: strconv.Itoa(int(currenSt.SystemStartedAt().Unix())),
-			Temperature:     float64(currenSt.Weather().Temperature()),
+			Temperature:     float32(currenSt.Weather().Temperature()),
 			UpdatedAt:       updated,
 		}
 		data, _ := json.Marshal(resp)

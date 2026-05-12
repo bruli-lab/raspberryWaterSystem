@@ -16,15 +16,17 @@ import (
 )
 
 func TestUpdateTemperatureProgram(t *testing.T) {
-	body := buildRequestJsonToString(t, http.UpdateTemperatureProgramRequestJson{
-		{
-			Executions: []http.UpdateExecutionTemperatureRequest{
-				{
-					Seconds: 10,
-					Zones:   []string{"a", "b"},
+	body := buildRequestJsonToString(t, http.UpdateTemperatureProgramRequest{
+		Programs: []http.Program{
+			{
+				Executions: []http.ExecutionRequest{
+					{
+						Seconds: 10,
+						Zones:   []string{"a", "b"},
+					},
 				},
+				Hour: "10:00",
 			},
-			Hour: "10:00",
 		},
 	})
 	tests := []struct {
@@ -49,15 +51,17 @@ func TestUpdateTemperatureProgram(t *testing.T) {
 		{
 			name:        "and build programs returns error, then it returns a bad request",
 			temperature: "20",
-			body: buildRequestJsonToString(t, http.UpdateTemperatureProgramRequestJson{
-				{
-					Executions: []http.UpdateExecutionTemperatureRequest{
-						{
-							Seconds: 10,
-							Zones:   []string{"a", "b"},
+			body: buildRequestJsonToString(t, http.UpdateTemperatureProgramRequest{
+				Programs: []http.Program{
+					{
+						Executions: []http.ExecutionRequest{
+							{
+								Seconds: 10,
+								Zones:   []string{"a", "b"},
+							},
 						},
+						Hour: "-10:00",
 					},
-					Hour: "-10",
 				},
 			}),
 			expectedCode: http2.StatusBadRequest,

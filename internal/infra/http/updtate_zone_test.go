@@ -15,9 +15,9 @@ import (
 )
 
 func TestUpdateZone(t *testing.T) {
-	body := buildRequestJsonToString(t, http.UpdateZoneRequestJson{
+	body := buildRequestJsonToString(t, http.UpdateZoneRequest{
 		Name:   "test",
-		Relays: []int{1},
+		Relays: []http.UpdateZoneRequestRelays{1},
 	})
 	tests := []struct {
 		name         string

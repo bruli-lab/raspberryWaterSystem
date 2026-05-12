@@ -15,7 +15,7 @@ func CreateWeeklyProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), "CreateWeeklyProgramRequest")
 		defer span.End()
-		var req CreateWeeklyProgramRequestJson
+		var req WeeklyProgramRequest
 		if err := ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -51,7 +51,7 @@ func CreateWeeklyProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.Handle
 	}
 }
 
-func buildCreateWeeklyProgramCommand(req CreateWeeklyProgramRequestJson) (*program.Weekly, error) {
+func buildCreateWeeklyProgramCommand(req WeeklyProgramRequest) (*program.Weekly, error) {
 	day, err := program.ParseWeekDay(req.WeekDay)
 	if err != nil {
 		return nil, err

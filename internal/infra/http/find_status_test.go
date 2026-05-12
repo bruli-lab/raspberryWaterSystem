@@ -55,7 +55,7 @@ func TestFindStatus(t *testing.T) {
 			resp := writer.Result()
 			require.Equal(t, tt.expectedCode, resp.StatusCode)
 			if resp.StatusCode == http2.StatusOK {
-				var schema http.StatusResponseJson
+				var schema http.StatusResponse
 				readResponse(t, resp, &schema)
 			}
 		})

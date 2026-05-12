@@ -1,0 +1,259 @@
+openapi: 3.0.3
+
+info:
+  title: Water System
+  version: 1.0.0
+
+paths: {}
+
+components:
+  schemas:
+    weatherResponse:
+        type: object
+        properties:
+            temperature:
+                type: number
+            humidity:
+                type: number
+            is_raining:
+                type: boolean
+        required:
+            - temperature
+            - humidity
+            - is_raining
+    statusResponse:
+        type: object
+        properties:
+            system_started_at:
+                type: string
+            updated_at:
+                type: string
+            temperature:
+                type: number
+            humidity:
+                type: number
+            is_raining:
+                type: boolean
+            active:
+                type: boolean
+            is_day:
+                type: boolean
+        required:
+            - system_started_at
+            - temperature
+            - humidity
+            - is_raining
+            - active
+            - is_day
+    programsResponse:
+        type: object
+        properties:
+            daily:
+                type: array
+                items:
+                    $ref: "#/components/schemas/programItemResponse"
+            odd:
+                type: array
+                items:
+                    $ref: "#/components/schemas/programItemResponse"
+            even:
+                type: array
+                items:
+                    $ref: "#/components/schemas/programItemResponse"
+            weekly:
+                type: array
+                items:
+                    $ref: "#/components/schemas/weeklyItemResponse"
+            temperature:
+                type: array
+                items:
+                    $ref: "#/components/schemas/temperatureItemResponse"
+        required:
+            - daily
+            - odd
+            - even
+            - weekly
+            - temperature
+    temperatureItemResponse:
+        type: object
+        properties:
+            temperature:
+                type: number
+            programs:
+                type: array
+                items:
+                    $ref: "#/components/schemas/programItemResponse"
+        required:
+            - temperature
+            - programs
+    weeklyItemResponse:
+       type: object
+       properties:
+           week_day:
+               type: string
+           programs:
+               type: array
+               items:
+                   $ref: "#/components/schemas/programItemResponse"
+       required:
+           - week_day
+           - programs
+    programItemResponse:
+        type: object
+        properties:
+            hour:
+                type: string
+            executions:
+                type: array
+                items:
+                    $ref: "#/components/schemas/executionItemResponse"
+        required:
+            - executions
+            - hour
+    executionItemResponse:
+        type: object
+        properties:
+            seconds:
+                type: integer
+            zones:
+                type: array
+                items:
+                    type: string
+        required:
+            - seconds
+            - zones
+    executionLogsResponse:
+        type: object
+        properties:
+            seconds:
+                type: integer
+            zone_name:
+                type: string
+            executed_at:
+                type: string
+        required:
+            - seconds
+            - zone_name
+            - executed_at
+    executeZoneRequest:
+        type: object
+        properties:
+            seconds:
+                type: integer
+        required:
+            - seconds
+    zone:
+        type: object
+        properties:
+            id:
+                type: string
+            name:
+                type: string
+            relays:
+                type: array
+                items:
+                    type: integer
+                    enum:
+                        - 1
+                        - 2
+                        - 3
+        required:
+            - id
+            - name
+            - relays
+    updateZoneRequest:
+        type: object
+        properties:
+            name:
+                type: string
+            relays:
+                type: array
+                items:
+                    type: integer
+                    enum:
+                        - 1
+                        - 2
+                        - 3
+        required:
+            - name
+            - relays
+    WeeklyProgramRequest:
+        type: object
+        properties:
+            week_day:
+                type: string
+            programs:
+                type: array
+                items:
+                    $ref: "#/components/schemas/program"
+        required:
+            - week_day
+            - programs
+    UpdateTemperatureProgramRequest:
+        type: object
+        properties:
+            programs:
+               type: array
+               items:
+                 $ref: "#/components/schemas/program"
+        required:
+            - programs
+    TemperatureProgramRequest:
+        type: object
+        properties:
+            temperature:
+                type: number
+            programs:
+               type: array
+               items:
+                 $ref: "#/components/schemas/program"
+        required:
+            - temperature
+            - programs
+    program:
+        type: object
+        properties:
+            hour:
+                type: string
+            executions:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExecutionRequest"
+        required:
+            - executions
+            - hour
+    FertilizerProgram:
+      type: object
+      required:
+        - executions
+        - hour
+        - fertilizer
+      properties:
+        hour:
+          type: string
+
+        fertilizer:
+          type: boolean
+          default: false
+
+        executions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExecutionRequest"
+
+    ExecutionRequest:
+      type: object
+      required:
+        - seconds
+        - zones
+      properties:
+        seconds:
+          type: integer
+        zones:
+          type: array
+          items:
+            type: string
+
+    zonesResponse:
+        type: object
+        properties:

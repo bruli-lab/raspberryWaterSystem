@@ -16,7 +16,7 @@ import (
 )
 
 func TestExecuteZone(t *testing.T) {
-	body := buildRequestJsonToString(t, http.ExecuteZoneRequestJson{Seconds: 20})
+	body := buildRequestJsonToString(t, http.ExecutionRequest{Seconds: 20})
 	tests := []struct {
 		name, body   string
 		chErr        error

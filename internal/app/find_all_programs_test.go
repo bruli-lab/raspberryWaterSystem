@@ -17,14 +17,14 @@ import (
 
 func TestFindAllProgramsHandle(t *testing.T) {
 	errTest := errors.New("")
-	dailies := []program.Program{
-		fixtures.ProgramBuilder{}.Build(),
+	dailies := []program.FertilizerProgram{
+		fixtures.FertilizerProgramBuilder{}.Build(),
 	}
-	odds := []program.Program{
-		fixtures.ProgramBuilder{}.Build(),
+	odds := []program.FertilizerProgram{
+		fixtures.FertilizerProgramBuilder{}.Build(),
 	}
-	evens := []program.Program{
-		fixtures.ProgramBuilder{}.Build(),
+	evens := []program.FertilizerProgram{
+		fixtures.FertilizerProgramBuilder{}.Build(),
 	}
 	weeklies := []program.Weekly{
 		fixtures.WeeklyBuilder{}.Build(),
@@ -39,7 +39,7 @@ func TestFindAllProgramsHandle(t *testing.T) {
 		oddErr, evenErr,
 		weeklyErr, tempErr error
 		expectedResult     any
-		dailies, odd, even []program.Program
+		dailies, odd, even []program.FertilizerProgram
 		weeklies           []program.Weekly
 		temps              []program.Temperature
 	}{
@@ -52,8 +52,8 @@ func TestFindAllProgramsHandle(t *testing.T) {
 			name:        "and odd repository returns an error, then it returns same error",
 			oddErr:      errTest,
 			expectedErr: errTest,
-			dailies: []program.Program{
-				fixtures.ProgramBuilder{}.Build(),
+			dailies: []program.FertilizerProgram{
+				fixtures.FertilizerProgramBuilder{}.Build(),
 			},
 		},
 		{
@@ -106,17 +106,17 @@ func TestFindAllProgramsHandle(t *testing.T) {
 				},
 			}
 			daily := &ProgramRepositoryMock{
-				FindAllFunc: func(_ context.Context) ([]program.Program, error) {
+				FindAllFunc: func(_ context.Context) ([]program.FertilizerProgram, error) {
 					return tt.dailies, tt.dailyErr
 				},
 			}
 			odd := &ProgramRepositoryMock{
-				FindAllFunc: func(_ context.Context) ([]program.Program, error) {
+				FindAllFunc: func(_ context.Context) ([]program.FertilizerProgram, error) {
 					return tt.odd, tt.oddErr
 				},
 			}
 			even := &ProgramRepositoryMock{
-				FindAllFunc: func(_ context.Context) ([]program.Program, error) {
+				FindAllFunc: func(_ context.Context) ([]program.FertilizerProgram, error) {
 					return tt.even, tt.evenErr
 				},
 			}

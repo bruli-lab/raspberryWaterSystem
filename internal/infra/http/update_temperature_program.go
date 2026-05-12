@@ -28,7 +28,7 @@ func UpdateTemperatureProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.H
 			})
 			return
 		}
-		var req UpdateTemperatureProgramRequestJson
+		var req TemperatureProgramRequest
 		if err = ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -65,9 +65,9 @@ func UpdateTemperatureProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.H
 	}
 }
 
-func buildUpdateTempPrograms(req UpdateTemperatureProgramRequestJson) ([]program.Program, error) {
-	prgms := make([]program.Program, len(req))
-	for i, p := range req {
+func buildUpdateTempPrograms(req TemperatureProgramRequest) ([]program.Program, error) {
+	prgms := make([]program.Program, len(req.Programs))
+	for i, p := range req.Programs {
 		hour, err := program.ParseHour(p.Hour)
 		if err != nil {
 			return nil, err

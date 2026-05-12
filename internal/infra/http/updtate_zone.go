@@ -17,16 +17,20 @@ func UpdateZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFunc {
 		ctx, span := tracer.Start(r.Context(), "UpdateZoneRequest")
 		defer span.End()
 		id := chi.URLParam(r, "id")
-		var req UpdateZoneRequestJson
+		var req UpdateZoneRequest
 		if err := ReadRequest(w, r, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
 		}
+		relays := make([]int, len(req.Relays))
+		for i, relay := range req.Relays {
+			relays[i] = int(relay)
+		}
 		if _, err := ch.Handle(ctx, app.UpdateZoneCommand{
 			ID:       id,
 			ZoneName: req.Name,
-			Relays:   req.Relays,
+			Relays:   relays,
 		}); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())

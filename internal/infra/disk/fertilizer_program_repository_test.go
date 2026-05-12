@@ -7,17 +7,18 @@ import (
 	"testing"
 
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
+	"github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
 	"github.com/stretchr/testify/require"
 )
 
-func TestProgramRepository(t *testing.T) {
-	t.Run(`Given a ProgramRepository, `, func(t *testing.T) {
+func TestFertilizerProgramRepository(t *testing.T) {
+	t.Run(`Given a FertilizerProgramRepository, `, func(t *testing.T) {
 		ctx := context.Background()
 		path := "/tmp/programs.yml"
 		defer populateFile(t, path)
-		repo := disk.NewProgramRepository(path, tracer())
+		repo := disk.NewFertilizerProgramRepository(path, tracer())
 		hour, err := program.ParseHour("12:15")
 		require.NoError(t, err)
 		t.Run(`when Save method is called,
@@ -29,10 +30,14 @@ func TestProgramRepository(t *testing.T) {
 				fixtures.ExecutionBuilder{}.Build(),
 				fixtures.ExecutionBuilder{}.Build(),
 			}
-			programs := []program.Program{
-				fixtures.ProgramBuilder{Hour: &hour, Executions: exec}.Build(),
-				fixtures.ProgramBuilder{Hour: &hour2}.Build(),
-				fixtures.ProgramBuilder{}.Build(),
+			programs := []program.FertilizerProgram{
+				fixtures.FertilizerProgramBuilder{Hour: &hour, Executions: exec}.Build(),
+				fixtures.FertilizerProgramBuilder{
+					Hour:       &hour2,
+					Executions: nil,
+					Fertilizer: true,
+				}.Build(),
+				fixtures.FertilizerProgramBuilder{}.Build(),
 			}
 			for _, p := range programs {
 				err = repo.Save(ctx, &p)

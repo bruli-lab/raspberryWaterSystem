@@ -22,7 +22,7 @@ func TestCreateProgram(t *testing.T) {
 			Zones:   zones,
 		},
 	}
-	body := buildRequestJsonToString(t, http2.CreateProgramRequestJson{
+	body := buildRequestJsonToString(t, http2.Program{
 		Executions: []http2.ExecutionRequest{
 			{
 				Seconds: 20,
@@ -44,7 +44,7 @@ func TestCreateProgram(t *testing.T) {
 		},
 		{
 			name: "with an invalid hour in request, then it returns a bad request",
-			body: buildRequestJsonToString(t, http2.CreateProgramRequestJson{
+			body: buildRequestJsonToString(t, http2.Program{
 				Executions: exec,
 				Hour:       "invalid",
 			}),
@@ -52,7 +52,7 @@ func TestCreateProgram(t *testing.T) {
 		},
 		{
 			name: "with an invalid seconds in request, then it returns a bad request",
-			body: buildRequestJsonToString(t, http2.CreateProgramRequestJson{
+			body: buildRequestJsonToString(t, http2.Program{
 				Executions: []http2.ExecutionRequest{
 					{
 						Seconds: -10,

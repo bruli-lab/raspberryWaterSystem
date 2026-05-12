@@ -66,7 +66,7 @@ func TestFindExecutionLogs(t *testing.T) {
 			resp := writer.Result()
 			require.Equal(t, tt.expectedCode, resp.StatusCode)
 			if resp.StatusCode == http2.StatusOK {
-				var schema []http.ExecutionLogItemResponse
+				var schema []http.ExecutionLogsResponse
 				readResponse(t, resp, &schema)
 				require.Len(t, schema, 2)
 			}

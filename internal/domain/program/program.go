@@ -10,6 +10,45 @@ var (
 	ErrInvalidTemperature  = errors.New("invalid temperature")
 )
 
+type FertilizerProgram struct {
+	hour       Hour
+	fertilizer bool
+	executions []Execution
+}
+
+func (p *FertilizerProgram) Hour() Hour {
+	return p.hour
+}
+
+func (p *FertilizerProgram) IsFertilizer() bool {
+	return p.fertilizer
+}
+
+func (p *FertilizerProgram) Executions() []Execution {
+	return p.executions
+}
+
+func (p *FertilizerProgram) validate() error {
+	if len(p.executions) == 0 {
+		return ErrEmptyPrograms
+	}
+	return nil
+}
+
+func (p *FertilizerProgram) Hydrate(hour Hour, fertilizer bool, executions []Execution) {
+	p.hour = hour
+	p.fertilizer = fertilizer
+	p.executions = executions
+}
+
+func NewFertilizerProgram(hour Hour, fertilizer bool, executions []Execution) (*FertilizerProgram, error) {
+	fp := FertilizerProgram{hour: hour, fertilizer: fertilizer, executions: executions}
+	if err := fp.validate(); err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
 type Program struct {
 	hour       Hour
 	executions []Execution

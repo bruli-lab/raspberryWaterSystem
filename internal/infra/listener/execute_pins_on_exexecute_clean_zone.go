@@ -35,7 +35,7 @@ func (e ExecutePinsOnExecuteCleanZone) Listen(ctx context.Context, ev cqs.Event)
 	if _, err := e.ch.Handle(ctx, app.ActivateDeactivateServerCmd{Active: false}); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		 return err
+		return err
 	}
 	defer func() {
 		if _, err := e.ch.Handle(ctx, app.ActivateDeactivateServerCmd{Active: true}); err != nil {

@@ -23,13 +23,13 @@ func FinZones(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
 			return
 		}
 		zones, _ := result.([]*zone.Zone)
-		resp := make([]ZonesItemResponse, len(zones))
+		resp := make([]Zone, len(zones))
 		for i, zon := range zones {
-			relays := make([]int, len(zon.Relays()))
+			relays := make([]ZoneRelays, len(zon.Relays()))
 			for n, rel := range zon.Relays() {
-				relays[n] = rel.Id().Int()
+				relays[n] = ZoneRelays(rel.Id().Int())
 			}
-			resp[i] = ZonesItemResponse{
+			resp[i] = Zone{
 				Id:     zon.Id(),
 				Name:   zon.Name(),
 				Relays: relays,

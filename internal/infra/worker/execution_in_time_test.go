@@ -28,6 +28,7 @@ func TestExecutionInTime(t *testing.T) {
 	require.NoError(t, err)
 	errTest := errors.New("")
 	status := fixtures.StatusBuilder{Active: true}.Build()
+	fertilizerProgram := fixtures.FertilizerProgramBuilder{Hour: &hour}.Build()
 	prog := fixtures.ProgramBuilder{Hour: &hour}.Build()
 	day := program.WeekDay(now.Weekday())
 	weekly := fixtures.WeeklyBuilder{WeekDay: &day, Programs: []program.Program{
@@ -37,9 +38,9 @@ func TestExecutionInTime(t *testing.T) {
 		prog,
 	}}.Build()
 	progams := app.ProgramsInTime{
-		Daily:       &prog,
-		Odd:         &prog,
-		Even:        &prog,
+		Daily:       &fertilizerProgram,
+		Odd:         &fertilizerProgram,
+		Even:        &fertilizerProgram,
 		Weekly:      &weekly,
 		Temperature: &temperature,
 	}
