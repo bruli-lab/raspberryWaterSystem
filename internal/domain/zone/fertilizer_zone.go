@@ -1,6 +1,7 @@
 package zone
 
 import (
+	"sync"
 	"time"
 
 	"github.com/bruli/raspberryWaterSystem/internal/cqs"
@@ -19,6 +20,7 @@ type FertilizerZone struct {
 	fertilizerPump    *FertilizerPumpZone
 	cleanValvule      *CleanValvuleZone
 	fertilizerValvule *FertilizerValvuleZone
+	mutex             sync.Mutex
 }
 
 func (z *FertilizerZone) Execute(seconds uint) error {
@@ -48,6 +50,27 @@ func (z *FertilizerZone) Execute(seconds uint) error {
 	return nil
 }
 
+func (z *FertilizerZone) ExecuteWithStatus(active, raining bool, seconds uint) error {
+	z.mutex.Lock()
+	defer z.mutex.Unlock()
+	event := Ignored{
+		BasicEvent: cqs.NewBasicEvent(IgnoredEventName, uuid.New(), z.zone.id),
+		ZoneName:   z.zone.name,
+	}
+	switch {
+	case !active:
+		event.Reason = DeactivatedIgnoredReason
+		z.Record(event)
+		return nil
+	case raining:
+		event.Reason = RainingIgnoredReason
+		z.Record(event)
+		return nil
+	default:
+		return z.Execute(seconds)
+	}
+}
+
 func NewFertilizerZone(zone *Zone) *FertilizerZone {
 	return &FertilizerZone{
 		BasicAggregateRoot: cqs.NewBasicAggregateRoot(),
@@ -56,6 +79,7 @@ func NewFertilizerZone(zone *Zone) *FertilizerZone {
 		fertilizerPump:     &FertilizerPumpZone{},
 		cleanValvule:       &CleanValvuleZone{},
 		fertilizerValvule:  &FertilizerValvuleZone{},
+		mutex:              sync.Mutex{},
 	}
 }
 

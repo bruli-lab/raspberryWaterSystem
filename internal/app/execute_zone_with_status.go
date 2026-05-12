@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/bruli-lab/go-core/cqs"
-	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -28,7 +28,7 @@ type ExecuteZoneWithStatus struct {
 	tracer trace.Tracer
 }
 
-func (e ExecuteZoneWithStatus) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
+func (e ExecuteZoneWithStatus) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
 	ctx, span := e.tracer.Start(ctx, "ExecuteZoneWithStatusCmd")
 	defer span.End()
 	co, ok := cmd.(ExecuteZoneWithStatusCmd)
@@ -50,16 +50,11 @@ func (e ExecuteZoneWithStatus) Handle(ctx context.Context, cmd cqs.Command) ([]e
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	if st.IsClean() {
-		zo.IgnoreWhileCleaning()
-		span.SetStatus(codes.Ok, "zone ignored while cleaning")
-		return zo.Events(), nil
-	}
 	switch {
 	case co.WithFertilizer:
 		fzo := zone.NewFertilizerZone(zo)
 		if err = fzo.ExecuteWithStatus(st.IsActive(), st.Weather().IsRaining(), co.Seconds); err != nil {
-			err = ExecuteZoneWithStatusError{m: err.Error(), cause: err}
+			err = ExecuteZoneWithStatusError{m: err.Error()}
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
@@ -70,7 +65,7 @@ func (e ExecuteZoneWithStatus) Handle(ctx context.Context, cmd cqs.Command) ([]e
 	}
 
 	if err = zo.ExecuteWithStatus(st.IsActive(), st.Weather().IsRaining(), co.Seconds); err != nil {
-		err = ExecuteZoneWithStatusError{m: err.Error(), cause: err}
+		err = ExecuteZoneWithStatusError{m: err.Error()}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -84,14 +79,9 @@ func NewExecuteZoneWithStatus(zr ZoneRepository, st StatusRepository, tracer tra
 }
 
 type ExecuteZoneWithStatusError struct {
-	m     string
-	cause error
-}
-
-func (e ExecuteZoneWithStatusError) Unwrap() error {
-	return e.cause
+	m string
 }
 
 func (e ExecuteZoneWithStatusError) Error() string {
-	return "failed to execute zone with status: " + e.m
+	return fmt.Sprintf("failed to execute zone with status: %s", e.m)
 }
