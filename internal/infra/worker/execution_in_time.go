@@ -138,8 +138,9 @@ func executeFertilizerProgram(ctx context.Context, ch cqs.CommandHandler, prg pr
 		for _, exec := range prg.Executions() {
 			for _, zo := range exec.Zones() {
 				if _, err := ch.Handle(ctx, app.ExecuteZoneWithStatusCmd{
-					Seconds: uint(exec.Seconds().Int()),
-					ZoneID:  zo,
+					Seconds:        uint(exec.Seconds().Int()),
+					ZoneID:         zo,
+					WithFertilizer: prg.IsFertilizer(),
 				}); err != nil {
 					return err
 				}

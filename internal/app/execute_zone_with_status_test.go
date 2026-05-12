@@ -69,6 +69,28 @@ func TestExecuteZoneWithStatusHandle(t *testing.T) {
 			expectedEvent: zone.ExecutedEventName,
 		},
 		{
+			name: "with fertilizer and execute returns error, then it returns an execute zone with status error",
+			zone: fixtures.ZoneBuilder{}.Build(),
+			st:   st,
+			command: app.ExecuteZoneWithStatusCmd{
+				Seconds:        360,
+				ZoneID:         "name",
+				WithFertilizer: true,
+			},
+			expectedErr: app.ExecuteZoneWithStatusError{},
+		},
+		{
+			name: "with fertilizer and execute returns , then it returns a fertilizer zone executed event",
+			zone: fixtures.ZoneBuilder{}.Build(),
+			st:   st,
+			command: app.ExecuteZoneWithStatusCmd{
+				Seconds:        36,
+				ZoneID:         "name",
+				WithFertilizer: true,
+			},
+			expectedEvent: zone.FertilizerZoneExecutedEventName,
+		},
+		{
 			name: "and its raining, then it returns an ignored event",
 			zone: fixtures.ZoneBuilder{}.Build(),
 			st:   statusRaining,
