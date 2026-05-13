@@ -97,6 +97,7 @@ func buildFromFertilizerProgramsResponse(programs []program.FertilizerProgram) [
 		}
 		programItemResponses[i] = ProgramItemResponse{
 			Executions: exec,
+			Fertilizer: d.IsFertilizer(),
 			Hour:       d.Hour().String(),
 		}
 	}

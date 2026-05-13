@@ -103,6 +103,8 @@ components:
         properties:
             hour:
                 type: string
+            fertilizer:
+                type: boolean
             executions:
                 type: array
                 items:
@@ -110,6 +112,7 @@ components:
         required:
             - executions
             - hour
+            - fertilizer
     executionItemResponse:
         type: object
         properties:
