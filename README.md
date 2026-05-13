@@ -1,9 +1,9 @@
 # RaspberryWaterSystem
 
 ![CI - make test](https://github.com/bruli/raspberryWaterSystem/actions/workflows/test.yml/badge.svg)
-![Go version](https://img.shields.io/badge/Go-1.27.4-00ADD8?logo=go\&logoColor=white)
+![Go version](https://img.shields.io/badge/Go-1.25.3-00ADD8?logo=go\&logoColor=white)
 ![Issues](https://img.shields.io/github/issues/bruli/raspberryWaterSystem)
-[![codecov](https://codecov.io/gh/bruli/raspberryWaterSystem/branch/main/graph/badge.svg)](https://codecov.io/gh/bruli/raspberryWaterSystem)
+[![codecov](https://codecov.io/gh/bruli/pinger/branch/main/graph/badge.svg)](https://codecov.io/gh/bruli/raspberryWaterSystem)
 
 ## Overview
 
@@ -76,8 +76,8 @@ Typical installations may include:
 * Solenoid valves.
 * Peristaltic pumps.
 * Water pumps.
-* BME280 temperature/humidity sensor (I2C).
-* Rain sensor (SPI ADC).
+* Soil moisture sensors.
+* Temperature sensors.
 
 ---
 
@@ -86,7 +86,7 @@ Typical installations may include:
 ### Requirements
 
 * Raspberry Pi.
-* Go 1.27+.
+* Go 1.25+.
 * Linux-based operating system.
 
 ### Clone repository
@@ -112,32 +112,13 @@ go run ./cmd/server
 
 ## Configuration
 
-The application is configured using environment variables; see `internal/config/config.go` for the full
-list. The required ones are:
+The application can be configured using environment variables.
+
+Example:
 
 ```bash
-SERVER_URL=:8080
-ENVIRONMENT=development
-ZONES_FILE=/data/zones.yaml
-AUTH_TOKEN=change-me
-DAILY_PROGRAMS_FILE=/data/daily_programs.yml
-ODD_PROGRAMS_FILE=/data/odd_programs.yml
-EVEN_PROGRAMS_FILE=/data/even_programs.yml
-WEEKLY_PROGRAMS_FILE=/data/weekly_programs.yml
-TEMPERATURE_PROGRAMS_FILE=/data/temperature_programs.yml
-EXECUTION_LOGS_FILE=/data/execution_logs.json
-STATUS_FILE=/data/status.json
-PENDING_IRRIGATIONS_DIRECTORY=/data/pending_irrigations
-NATS_SERVER_URL=nats://localhost:4222
-EVENTS_DIRECTORY=/data/events
+HTTP_PORT=8080
 LOG_LEVEL=info
-NTFY_URL=https://ntfy.sh
-NTFY_TOPIC=water-system
-NTFY_USER=user
-NTFY_PASSWORD=change-me
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-OTEL_TRACES_SAMPLER=always_on
-OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 ```
 
 ---

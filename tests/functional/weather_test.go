@@ -1,31 +1,32 @@
 //go:build functional
 
-package functional_test
+package functional
 
 import (
+	"net/http"
 	"testing"
 
-	"github.com/bruli/raspberryWaterSystem/internal/infra/http"
-	"github.com/bruli/raspberryWaterSystem/tests/harness"
+	http2 "github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/stretchr/testify/require"
 )
 
 func TestWeather(t *testing.T) {
-	st := harness.Start(t, appBinary)
-	tests := []struct {
-		name string
-	}{
-		{name: "then it returns the temperature and humidity of the sensor"},
-	}
-	for _, tt := range tests {
-		t.Run(`Given the app running,
-		when the weather is requested `+tt.name, func(t *testing.T) {
-			t.Parallel()
-			var weather http.WeatherResponse
-			st.Get(t, "/weather", &weather)
-
-			require.NotZero(t, weather.Humidity)
-			require.NotZero(t, weather.Temperature)
+	t.Run(`Given a find weather endpoint,`, func(t *testing.T) {
+		t.Run(`when a request without authorization is sent,
+		then it returns an unauthorized`, func(t *testing.T) {
+			resp, err := buildRequestAndSend(ctx, nil, nil, http.MethodGet, "/weather", cl)
+			require.NoError(t, err)
+			require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 		})
-	}
+		t.Run(`when a request with authorization is sent,
+		then it returns an valid response`, func(t *testing.T) {
+			resp, err := buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodGet, "/weather", cl)
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			var schema http2.WeatherResponse
+			readResponse(t, resp, &schema)
+			require.NotEqual(t, float64(0), schema.Humidity)
+			require.NotEqual(t, float64(0), schema.Temperature)
+		})
+	})
 }

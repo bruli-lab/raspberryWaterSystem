@@ -14,11 +14,11 @@ import (
 
 func TestPrograms(t *testing.T) {
 	zo := fixtures.ZoneBuilder{}.Build()
-	relays := make([]int, len(zo.Relays()))
+	relays := make([]http.ZoneRelays, len(zo.Relays()))
 	for i, r := range zo.Relays() {
-		relays[i] = r.Id().Int()
+		relays[i] = http.ZoneRelays(r.Id().Int())
 	}
-	req := http.CreateZoneRequestJson{
+	req := http.Zone{
 		Id:     zo.Id(),
 		Name:   zo.Name(),
 		Relays: relays,
@@ -36,7 +36,7 @@ func TestPrograms(t *testing.T) {
 		})
 		t.Run(`with authorization,
 		then it returns ok`, func(t *testing.T) {
-			createPrReq := http.CreateProgramRequest{
+			createPrReq := http.Program{
 				Executions: []http.ExecutionRequest{
 					{
 						Seconds: 10,
@@ -67,10 +67,10 @@ func TestPrograms(t *testing.T) {
 	})
 	t.Run(`Given a create weekly program endpoint,
 	when a request is sent`, func(t *testing.T) {
-		createWeekly := http.CreateWeeklyProgramRequestJson{
-			Programs: []http.ProgramWeeklyRequest{
+		createWeekly := http.WeeklyProgramRequest{
+			Programs: []http.Program{
 				{
-					Executions: []http.ExecutionWeeklyRequest{
+					Executions: []http.ExecutionRequest{
 						{
 							Seconds: 10,
 							Zones:   []string{zo.Id()},
@@ -96,10 +96,10 @@ func TestPrograms(t *testing.T) {
 	})
 	t.Run(`Given a create temperature program endpoint,
 	when a request is sent`, func(t *testing.T) {
-		createTemp := http.CreateTemperatureProgramRequestJson{
-			Programs: []http.ProgramTemperatureRequest{
+		createTemp := http.TemperatureProgramRequest{
+			Programs: []http.Program{
 				{
-					Executions: []http.ExecutionTemperatureRequest{
+					Executions: []http.ExecutionRequest{
 						{
 							Seconds: 10,
 							Zones:   []string{zo.Id()},
@@ -136,7 +136,7 @@ func TestPrograms(t *testing.T) {
 			resp, err = buildRequestAndSend(ctx, nil, authorizationHeader(), http2.MethodGet, "/programs", cl)
 			require.NoError(t, err)
 			require.Equal(t, http2.StatusOK, resp.StatusCode)
-			var schema http.ProgramsResponseJson
+			var schema http.ProgramsResponse
 			readResponse(t, resp, &schema)
 		})
 	})
@@ -151,15 +151,17 @@ func TestPrograms(t *testing.T) {
 
 		t.Run(`with authorization,
 		then it returns an ok`, func(t *testing.T) {
-			updateTemp := http.UpdateTemperatureProgramRequestJson{
-				{
-					Executions: []http.UpdateExecutionTemperatureRequest{
-						{
-							Seconds: 10,
-							Zones:   []string{zo.Id()},
+			updateTemp := http.UpdateTemperatureProgramRequest{
+				Programs: []http.Program{
+					{
+						Executions: []http.ExecutionRequest{
+							{
+								Seconds: 10,
+								Zones:   []string{zo.Id()},
+							},
 						},
+						Hour: "17:00",
 					},
-					Hour: "17:00",
 				},
 			}
 			resp, err = buildRequestAndSend(ctx, updateTemp, authorizationHeader(), http2.MethodPut, "/programs/temperature/20", cl)
