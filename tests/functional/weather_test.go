@@ -23,7 +23,7 @@ func TestWeather(t *testing.T) {
 			resp, err := buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodGet, "/weather", cl)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, resp.StatusCode)
-			var schema http2.WeatherResponseJson
+			var schema http2.WeatherResponse
 			readResponse(t, resp, &schema)
 			require.NotEqual(t, float64(0), schema.Humidity)
 			require.NotEqual(t, float64(0), schema.Temperature)

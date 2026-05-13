@@ -23,7 +23,7 @@ func TestStatus(t *testing.T) {
 			resp, err := buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodGet, "/status", cl)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, resp.StatusCode)
-			var schema http2.StatusResponseJson
+			var schema http2.StatusResponse
 			readResponse(t, resp, &schema)
 			require.NotEmpty(t, schema.SystemStartedAt)
 			require.True(t, schema.Active)
@@ -44,7 +44,7 @@ func TestStatus(t *testing.T) {
 			respStatus, err := buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodGet, "/status", cl)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, resp.StatusCode)
-			var schema http2.StatusResponseJson
+			var schema http2.StatusResponse
 			readResponse(t, respStatus, &schema)
 			require.False(t, schema.Active)
 

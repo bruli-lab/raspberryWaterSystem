@@ -23,7 +23,7 @@ func TestExecutionLogs(t *testing.T) {
 			resp, err := buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodGet, "/logs", cl)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, resp.StatusCode)
-			var schema []http2.ExecutionLogItemResponse
+			var schema []http2.ExecutionLogsResponse
 			readResponse(t, resp, &schema)
 		})
 	})
