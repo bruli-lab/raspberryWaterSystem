@@ -102,6 +102,7 @@ type Program struct {
 // ProgramItemResponse defines model for programItemResponse.
 type ProgramItemResponse struct {
 	Executions []ExecutionItemResponse `json:"executions"`
+	Fertilizer bool                    `json:"fertilizer"`
 	Hour       string                  `json:"hour"`
 }
 
