@@ -52,6 +52,13 @@ func TestExecuteZoneWithStatusHandle(t *testing.T) {
 			expectedErr: errTest,
 		},
 		{
+			name:        "and status repository returns a clean status, then it returns an execute zone with status error",
+			command:     cmd,
+			zone:        fixtures.ZoneBuilder{}.Build(),
+			st:          fixtures.StatusBuilder{Clean: true}.Build(),
+			expectedErr: app.ExecuteZoneWithStatusError{},
+		},
+		{
 			name:        "and execute returns an error, then it returns an execute zone with status error",
 			zone:        fixtures.ZoneBuilder{}.Build(),
 			st:          st,

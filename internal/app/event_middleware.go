@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+
 func NewEventMiddleware(evCh chan<- tracing.Event, tracer trace.Tracer) cqs.CommandHandlerMiddleware {
 	return func(h cqs.CommandHandler) cqs.CommandHandler {
 		return cqs.CommandHandlerFunc(func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
