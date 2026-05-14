@@ -16,11 +16,13 @@ type StatusBuilder struct {
 }
 
 func (b StatusBuilder) Build() status.Status {
+	var st status.Status
 	start := setData(time.Now(), b.SystemStartedAt)
 	weath := setData(WeatherBuilder{}.Build(), b.Weather)
 	updateAt := setData(start.Add(3*time.Hour), b.UpdatedAt)
 
-	return status.HydrateStatus(start, weath, &updateAt, b.Active, LightBuilder{}.Build(), b.Clean)
+	st.Hydrate(start, weath, &updateAt, b.Active, LightBuilder{}.Build(), b.Clean)
+	return st
 }
 
 type LightBuilder struct {

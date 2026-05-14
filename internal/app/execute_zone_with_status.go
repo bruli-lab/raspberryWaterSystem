@@ -50,6 +50,12 @@ func (e ExecuteZoneWithStatus) Handle(ctx context.Context, cmd cqs.Command) ([]c
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
+	if st.IsClean() {
+		err := ExecuteZoneWithStatusError{m: "system on clean mode"}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
 	switch {
 	case co.WithFertilizer:
 		fzo := zone.NewFertilizerZone(zo)

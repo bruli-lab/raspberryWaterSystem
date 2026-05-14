@@ -23,6 +23,7 @@ func (e ExecuteFertilizerZoneCmd) Name() string {
 
 type ExecuteFertilizerZone struct {
 	zr     ZoneRepository
+	stRepo StatusRepository
 	tracer trace.Tracer
 }
 
@@ -32,6 +33,18 @@ func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]c
 	co, ok := cmd.(ExecuteFertilizerZoneCmd)
 	if !ok {
 		err := cqs.NewInvalidCommandError(ExecuteFertilizerZoneCmdName, cmd.Name())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	st, err := e.stRepo.Find(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	if st.IsClean() {
+		err = ExecuteFertilizerZoneError{m: "system on clean mode"}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -54,8 +67,8 @@ func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]c
 	return fzo.Events(), nil
 }
 
-func NewExecuteFertilizerZone(zr ZoneRepository, tracer trace.Tracer) ExecuteFertilizerZone {
-	return ExecuteFertilizerZone{zr: zr, tracer: tracer}
+func NewExecuteFertilizerZone(zr ZoneRepository, stRepo StatusRepository, tracer trace.Tracer) ExecuteFertilizerZone {
+	return ExecuteFertilizerZone{zr: zr, stRepo: stRepo, tracer: tracer}
 }
 
 type ExecuteFertilizerZoneError struct {

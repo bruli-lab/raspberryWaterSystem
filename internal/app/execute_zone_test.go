@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
@@ -87,7 +87,7 @@ func TestExecuteZoneHandle(t *testing.T) {
 			handler := app.NewExecuteZone(zr, statusRepo, tracer())
 			events, err := handler.Handle(context.Background(), tt.command)
 			if err != nil {
-				require.IsType(t, tt.expectedErr, err)
+				require.ErrorAs(t, err, &tt.expectedErr)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

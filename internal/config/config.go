@@ -9,23 +9,26 @@ type Environment struct {
 }
 
 type Config struct {
-	ServerURL               string `env:"SERVER_URL,required"`
-	Environment             EnvironmentType
-	ZonesFile               string `env:"ZONES_FILE,required"`
-	AuthToken               string `env:"AUTH_TOKEN,required"`
-	DailyProgramsFile       string `env:"DAILY_PROGRAMS_FILE,required"`
-	OddProgramsFile         string `env:"ODD_PROGRAMS_FILE,required"`
-	EvenProgramsFile        string `env:"EVEN_PROGRAMS_FILE,required"`
-	WeeklyProgramsFile      string `env:"WEEKLY_PROGRAMS_FILE,required"`
-	TemperatureProgramsFile string `env:"TEMPERATURE_PROGRAMS_FILE,required"`
-	ExecutionLogsFile       string `env:"EXECUTION_LOGS_FILE,required"`
-	NatsServerURL           string `env:"NATS_SERVER_URL,required"`
-	EventsDirectory         string `env:"EVENTS_DIRECTORY,required"`
-	LogLevel                string `env:"LOG_LEVEL,required"`
-	NtfyURL                 string `env:"NTFY_URL,required"`
-	NtfyTopic               string `env:"NTFY_TOPIC,required"`
-	NtfyUser                string `env:"NTFY_USER,required"`
-	NtfyPassword            string `env:"NTFY_PASSWORD,required"`
+	ServerURL                string `env:"SERVER_URL,required"`
+	Environment              EnvironmentType
+	ZonesFile                string `env:"ZONES_FILE,required"`
+	AuthToken                string `env:"AUTH_TOKEN,required"`
+	DailyProgramsFile        string `env:"DAILY_PROGRAMS_FILE,required"`
+	OddProgramsFile          string `env:"ODD_PROGRAMS_FILE,required"`
+	EvenProgramsFile         string `env:"EVEN_PROGRAMS_FILE,required"`
+	WeeklyProgramsFile       string `env:"WEEKLY_PROGRAMS_FILE,required"`
+	TemperatureProgramsFile  string `env:"TEMPERATURE_PROGRAMS_FILE,required"`
+	ExecutionLogsFile        string `env:"EXECUTION_LOGS_FILE,required"`
+	NatsServerURL            string `env:"NATS_SERVER_URL,required"`
+	EventsDirectory          string `env:"EVENTS_DIRECTORY,required"`
+	LogLevel                 string `env:"LOG_LEVEL,required"`
+	NtfyURL                  string `env:"NTFY_URL,required"`
+	NtfyTopic                string `env:"NTFY_TOPIC,required"`
+	NtfyUser                 string `env:"NTFY_USER,required"`
+	NtfyPassword             string `env:"NTFY_PASSWORD,required"`
+	OtelExporterOTLFEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT,required"`
+	OtelTracesSampler        string `env:"OTEL_TRACES_SAMPLER,required"`
+	OtelExporterOTLPProtocol string `env:"OTEL_EXPORTER_OTLP_PROTOCOL,required"`
 }
 
 func New() (*Config, error) {

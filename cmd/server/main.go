@@ -77,7 +77,7 @@ func run() error {
 
 	tr := temperatureRepository(tracer)
 	rr := rainRepository(tracer)
-	sr := memory.NewStatusRepository(tracer)
+	statusRepo := memory.NewStatusRepository(tracer)
 	zr := disk.NewZoneRepository(conf.ZonesFile, tracer)
 	dailyRepo := disk.NewFertilizerProgramRepository(conf.DailyProgramsFile, tracer)
 	oddRepo := disk.NewFertilizerProgramRepository(conf.OddProgramsFile, tracer)
@@ -105,7 +105,7 @@ func run() error {
 		log.ErrorContext(ctx, "failed ensuring execution logs stream", slog.String("error", err.Error()))
 		return err
 	}
-	findStatusQH := app.NewFindStatus(sr, tracer)
+	findStatusQH := app.NewFindStatus(statusRepo, tracer)
 
 	cronJob, err := buildCron()
 	if err != nil {
@@ -124,18 +124,18 @@ func run() error {
 	qhBus.Subscribe(app.FindZonesQueryName, logQHMdw(app.NewFindZones(zr, tracer)))
 
 	chBus := app.NewCommandBus()
-	chBus.Subscribe(app.CreateStatusCmdName, logCHMdw(app.NewCreateStatus(sr, lightRepo, tracer)))
-	chBus.Subscribe(app.UpdateStatusCmdName, logCHMdw(app.NewUpdateStatus(sr, lightRepo, tracer)))
+	chBus.Subscribe(app.CreateStatusCmdName, logCHMdw(app.NewCreateStatus(statusRepo, lightRepo, tracer)))
+	chBus.Subscribe(app.UpdateStatusCmdName, logCHMdw(app.NewUpdateStatus(statusRepo, lightRepo, tracer)))
 	chBus.Subscribe(app.CreateZoneCmdName, logCHMdw(app.NewCreateZone(zr, tracer)))
-	chBus.Subscribe(app.ExecuteZoneCmdName, eventsMultiCHMdw(app.NewExecuteZone(zr, tracer)))
-	chBus.Subscribe(app.ExecuteFertilizerZoneCmdName, eventsMultiCHMdw(app.NewExecuteFertilizerZone(zr, tracer)))
+	chBus.Subscribe(app.ExecuteZoneCmdName, eventsMultiCHMdw(app.NewExecuteZone(zr, statusRepo, tracer)))
+	chBus.Subscribe(app.ExecuteFertilizerZoneCmdName, eventsMultiCHMdw(app.NewExecuteFertilizerZone(zr, statusRepo, tracer)))
 	chBus.Subscribe(app.ExecuteCleanZoneCmdName, eventsMultiCHMdw(app.NewExecuteCleanZone(zr, tracer)))
 	chBus.Subscribe(app.ExecutePinsCmdName, logCHMdw(app.NewExecutePins(pe, tracer)))
 	chBus.Subscribe(app.SaveExecutionLogCmdName, logCHMdw(app.NewSaveExecutionLog(execLogRepo, tracer)))
 	chBus.Subscribe(app.PublishMessageCmdName, logCHMdw(app.NewPublishMessage(ntfyPublisher, tracer)))
 	chBus.Subscribe(app.RemoveZoneCmdName, logCHMdw(app.NewRemoveZone(zr, tracer)))
-	chBus.Subscribe(app.ActivateDeactivateServerCmdName, logCHMdw(app.NewActivateDeactivateServer(sr, tracer)))
-	chBus.Subscribe(app.ExecuteZoneWithStatusCmdName, eventsMultiCHMdw(app.NewExecuteZoneWithStatus(zr, sr, tracer)))
+	chBus.Subscribe(app.ActivateDeactivateServerCmdName, logCHMdw(app.NewActivateDeactivateServer(statusRepo, tracer)))
+	chBus.Subscribe(app.ExecuteZoneWithStatusCmdName, eventsMultiCHMdw(app.NewExecuteZoneWithStatus(zr, statusRepo, tracer)))
 	chBus.Subscribe(app.UpdateZoneCommandName, logCHMdw(app.NewUpdateZone(zr, tracer)))
 	chBus.Subscribe(app.CreateDailyProgramCommandName, logCHMdw(app.NewCreateDailyProgram(dailyRepo, zr, tracer)))
 	chBus.Subscribe(app.CreateOddProgramCommandName, logCHMdw(app.NewCreateOddProgram(oddRepo, zr, tracer)))
@@ -148,6 +148,7 @@ func run() error {
 	chBus.Subscribe(app.CreateTemperatureProgramCommandName, logCHMdw(app.NewCreateTemperatureProgram(tempProgRepo, tracer)))
 	chBus.Subscribe(app.RemoveTemperatureProgramCommandName, logCHMdw(app.NewRemoveTemperatureProgram(tempProgRepo, tracer)))
 	chBus.Subscribe(app.UpdateTemperatureProgramCommandName, logCHMdw(app.NewUpdateTemperatureProgram(tempProgRepo, tracer)))
+	chBus.Subscribe(app.ChangeCleanStatusCmdName, logCHMdw(app.NewChangeCleanStatus(statusRepo, tracer)))
 
 	eventBus := cqs.NewEventBus()
 	eventBus.Subscribe(zone.Executed{

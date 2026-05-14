@@ -118,6 +118,7 @@ type ProgramsResponse struct {
 // StatusResponse defines model for statusResponse.
 type StatusResponse struct {
 	Active          bool    `json:"active"`
+	Clean           bool    `json:"clean"`
 	Humidity        float32 `json:"humidity"`
 	IsDay           bool    `json:"is_day"`
 	IsRaining       bool    `json:"is_raining"`

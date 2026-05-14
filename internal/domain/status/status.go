@@ -46,15 +46,13 @@ func (s *Status) Update(w weather.Weather, light *Light) {
 	s.light = light
 }
 
-func HydrateStatus(start time.Time, we weather.Weather, updated *time.Time, active bool, light *Light, clean bool) Status {
-	return Status{
-		systemStartedAt: start,
-		weather:         we,
-		updatedAt:       updated,
-		active:          active,
-		light:           light,
-		clean:           clean,
-	}
+func (s *Status) Hydrate(start time.Time, we weather.Weather, updated *time.Time, active bool, light *Light, clean bool) {
+	s.systemStartedAt = start
+	s.weather = we
+	s.updatedAt = updated
+	s.active = active
+	s.light = light
+	s.clean = clean
 }
 
 func (s *Status) Activate() {

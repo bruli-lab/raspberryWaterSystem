@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/stretchr/testify/require"
 )
@@ -52,22 +52,11 @@ func TestExecuteZoneWithStatusHandle(t *testing.T) {
 			expectedErr: errTest,
 		},
 		{
-			name:          "and status repository returns a clean status, then it returns an ignored event",
-			command:       cmd,
-			zone:          fixtures.ZoneBuilder{}.Build(),
-			st:            fixtures.StatusBuilder{Clean: true}.Build(),
-			expectedEvent: zone.IgnoredEventName,
-		},
-		{
-			name: "with fertilizer and status repository returns a clean status, then it returns an ignored event",
-			command: app.ExecuteZoneWithStatusCmd{
-				Seconds:        36,
-				ZoneID:         "name",
-				WithFertilizer: true,
-			},
-			zone:          fixtures.ZoneBuilder{}.Build(),
-			st:            fixtures.StatusBuilder{Clean: true}.Build(),
-			expectedEvent: zone.IgnoredEventName,
+			name:        "and status repository returns a clean status, then it returns an execute zone with status error",
+			command:     cmd,
+			zone:        fixtures.ZoneBuilder{}.Build(),
+			st:          fixtures.StatusBuilder{Clean: true}.Build(),
+			expectedErr: app.ExecuteZoneWithStatusError{},
 		},
 		{
 			name:        "and execute returns an error, then it returns an execute zone with status error",
@@ -145,7 +134,7 @@ func TestExecuteZoneWithStatusHandle(t *testing.T) {
 			handler := app.NewExecuteZoneWithStatus(zr, sr, tracer())
 			events, err := handler.Handle(context.Background(), tt.command)
 			if err != nil {
-				require.IsType(t, tt.expectedErr, err)
+				require.ErrorAs(t, err, &tt.expectedErr)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

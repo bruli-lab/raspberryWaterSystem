@@ -25,15 +25,15 @@ func Test_executePinsOnExecuteCleanZone_Listen(t *testing.T) {
 		log.DebugContext(ctx, "publish message command handler")
 		return nil, nil
 	}
-	activateCh := &CommandHandlerMock{}
-	activateCh.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
-		log.DebugContext(ctx, "activate deactivate server command handler")
+	cleanCh := &CommandHandlerMock{}
+	cleanCh.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+		log.DebugContext(ctx, "activate deactivate clean statu command handler")
 		return nil, nil
 	}
 	chBus := app.NewCommandBus()
 	chBus.Subscribe(app.ExecutePinsCmdName, execCh)
 	chBus.Subscribe(app.PublishMessageCmdName, publishCH)
-	chBus.Subscribe(app.ActivateDeactivateServerCmdName, activateCh)
+	chBus.Subscribe(app.ChangeCleanStatusCmdName, cleanCh)
 	list := listener.NewExecutePinsOnExecuteCleanZone(chBus, tr, log)
 	seconds := uint(10)
 	event := zone.CleanZoneExecuted{
