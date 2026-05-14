@@ -19,8 +19,6 @@ type Config struct {
 	WeeklyProgramsFile      string `env:"WEEKLY_PROGRAMS_FILE,required"`
 	TemperatureProgramsFile string `env:"TEMPERATURE_PROGRAMS_FILE,required"`
 	ExecutionLogsFile       string `env:"EXECUTION_LOGS_FILE,required"`
-	TelegramToken           string `env:"TELEGRAM_TOKEN,required"`
-	TelegramChatID          int    `env:"TELEGRAM_CHAT_ID,required"`
 	NatsServerURL           string `env:"NATS_SERVER_URL,required"`
 	EventsDirectory         string `env:"EVENTS_DIRECTORY,required"`
 	LogLevel                string `env:"LOG_LEVEL,required"`
