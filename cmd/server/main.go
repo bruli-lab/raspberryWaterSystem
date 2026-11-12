@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/config"
@@ -23,6 +25,7 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/infra/memory"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/nats"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/ntfy"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/solar"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/worker"
 	"github.com/robfig/cron/v3"
@@ -33,7 +36,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const serviceName = "raspberryWaterSystem"
+const (
+	serviceName = "raspberryWaterSystem"
+	timeZone    = "Europe/Madrid"
+	latitude    = 41.545
+	longitude   = 2.109
+)
 
 func main() {
 	if err := run(); err != nil {
@@ -85,8 +93,19 @@ func run() error {
 	weeklyRepo := disk.NewWeeklyRepository(conf.WeeklyProgramsFile, tracer)
 	tempProgRepo := disk.NewTemperatureProgramRepository(conf.TemperatureProgramsFile, tracer)
 	execLogRepo := disk.NewExecutionLogRepository(conf.ExecutionLogsFile, tracer)
-	lightRepo := api.NewSunriseSunsetRepository(5 * time.Second)
-	go lightRepo.CleanYesterday(ctx)
+	location, err := time.LoadLocation(timeZone)
+	if err != nil {
+		log.ErrorContext(ctx, "failed loading time zone", slog.String("error", err.Error()))
+		return err
+	}
+	sunriseSunsetRepo := api.NewSunriseSunsetRepository(latitude, longitude, location, 5*time.Second)
+	go sunriseSunsetRepo.CleanYesterday(ctx)
+	lightRepo := solar.NewFallbackLightRepository(
+		sunriseSunsetRepo,
+		solar.NewLightRepository(latitude, longitude, location, tracer),
+		tracer,
+		log,
+	)
 	pe := pinsExecutor(tracer)
 	ntfyPublisher, err := ntfy.NewPublisher(conf.NtfyUser, conf.NtfyPassword, conf.NtfyURL, conf.NtfyTopic, tracer)
 	if err != nil {
@@ -95,16 +114,12 @@ func run() error {
 	}
 	eventsRepo := disk.NewEventsRepository(conf.EventsDirectory, tracer)
 
-	eventsPublisher, err := nats.NewPublisher(conf.NatsServerURL, tracer)
+	eventsPublisher, err := nats.NewPublisher(conf.NatsServerURL, []string{disk.ExecutionLogsEventType, disk.TerraceWeatherEventType}, tracer)
 	if err != nil {
-		log.ErrorContext(ctx, "failed building execution logs", slog.String("error", err.Error()))
+		log.ErrorContext(ctx, "failed building events publisher", slog.String("error", err.Error()))
 		return err
 	}
 	defer eventsPublisher.Close()
-	if err := eventsPublisher.EnsureStream([]string{disk.ExecutionLogsEventType, disk.TerraceWeatherEventType}); err != nil {
-		log.ErrorContext(ctx, "failed ensuring execution logs stream", slog.String("error", err.Error()))
-		return err
-	}
 	findStatusQH := app.NewFindStatus(statusRepo, tracer)
 
 	cronJob, err := buildCron()
@@ -244,7 +259,7 @@ func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.Even
 }
 
 func buildCron() (*cron.Cron, error) {
-	loc, err := time.LoadLocation("Europe/Madrid")
+	loc, err := time.LoadLocation(timeZone)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +285,10 @@ func readingEvents(
 			return
 
 		case <-tick.C:
+			if !publisher.IsConnected() {
+				log.WarnContext(ctx, "[WORKER] Reading Events: nats not connected, keeping events in outbox")
+				continue
+			}
 			events, err := eventsRepo.FindAll(ctx)
 			if err != nil {
 				log.ErrorContext(ctx, "[WORKER] Reading Events: failed reading events",
@@ -285,13 +304,17 @@ func readingEvents(
 				batchCtx := prop.Extract(ctx, carrier)
 				tracer := otel.Tracer("reading-events")
 				ctx, span := tracer.Start(batchCtx, ev.EventType)
-				if err = publishEvent(ctx, eventsRepo, publisher, &ev, span); err != nil {
-					span.RecordError(err)
-					log.ErrorContext(ctx, "[WORKER] Reading Events: failed publishing event",
-						slog.String("event_id", ev.ID),
-						slog.String("error", err.Error()))
-				}
+				err = publishEvent(ctx, eventsRepo, publisher, &ev, span)
 				span.End()
+				if err == nil {
+					continue
+				}
+				log.ErrorContext(ctx, "[WORKER] Reading Events: failed publishing event",
+					slog.String("event_id", ev.ID),
+					slog.String("error", err.Error()))
+				if errors.As(err, &nats.NotConnectedError{}) {
+					break
+				}
 			}
 		}
 	}
@@ -360,7 +383,7 @@ func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.Comm
 }
 
 func now() time.Time {
-	loc, _ := time.LoadLocation("Europe/Madrid")
+	loc, _ := time.LoadLocation(timeZone)
 	return time.Now().In(loc)
 }
 

@@ -43,7 +43,7 @@ func startNtfy(t *testing.T) string {
 
 func pollMessages(ctx context.Context, t *testing.T, serverURL, topic string) []ntfyMessage {
 	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s/json?poll=1", serverURL, topic), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s/json?poll=1", serverURL, topic), http.NoBody)
 	require.NoError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)

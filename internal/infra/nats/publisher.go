@@ -2,7 +2,9 @@ package nats
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -14,63 +16,91 @@ import (
 
 const StreamName = "WATER_SYSTEM"
 
+type NotConnectedError struct{}
+
+func (NotConnectedError) Error() string {
+	return "nats server is not connected"
+}
+
 type Publisher struct {
-	nc     *nats.Conn
-	js     nats.JetStreamContext
-	tracer trace.Tracer
+	nc          *nats.Conn
+	js          nats.JetStreamContext
+	tracer      trace.Tracer
+	subjects    []string
+	m           sync.Mutex
+	streamReady bool
+}
+
+func (p *Publisher) IsConnected() bool {
+	return p.nc.IsConnected()
 }
 
 func (p *Publisher) PublishEvent(ctx context.Context, id, subject string, payload []byte) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		_, span := p.tracer.Start(ctx, "publish-nats-event")
-		defer span.End()
-		msg := nats.Msg{
-			Subject: subject,
-			Data:    payload,
-			Header: nats.Header{
-				"Nats-Msg-Id": []string{id},
-			},
-		}
-		otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(msg.Header))
-		ack, err := p.js.PublishMsg(&msg)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			return fmt.Errorf("failed to publish event: %w", err)
-		}
-
-		if ack == nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			return fmt.Errorf("failed to publish event: nil puback")
-		}
-		span.SetStatus(codes.Ok, "event published")
-		return nil
+	ctx, span := p.tracer.Start(ctx, "publish-nats-event")
+	defer span.End()
+	if err := ctx.Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
+	if !p.IsConnected() {
+		err := NotConnectedError{}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	if err := p.ensureStream(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	msg := nats.Msg{
+		Subject: subject,
+		Data:    payload,
+		Header: nats.Header{
+			"Nats-Msg-Id": []string{id},
+		},
+	}
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(msg.Header))
+	ack, err := p.js.PublishMsg(&msg, nats.Context(ctx))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return fmt.Errorf("failed to publish event: %w", err)
+	}
+	if ack == nil {
+		err = errors.New("failed to publish event: nil puback")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	span.SetStatus(codes.Ok, "event published")
+	return nil
 }
 
-func (p *Publisher) EnsureStream(subjects []string) error {
-	_, err := p.js.StreamInfo(StreamName)
-	if err == nil {
+func (p *Publisher) ensureStream() error {
+	p.m.Lock()
+	defer p.m.Unlock()
+	if p.streamReady {
 		return nil
 	}
-
-	_, err = p.js.AddStream(&nats.StreamConfig{
-		Name:       StreamName,
-		Subjects:   subjects,
-		Storage:    nats.FileStorage,
-		Retention:  nats.WorkQueuePolicy,
-		MaxAge:     7 * 24 * time.Hour,
-		Replicas:   1,
-		Duplicates: 10 * time.Minute,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create stream: %w", err)
+	if _, err := p.js.StreamInfo(StreamName); err != nil {
+		if !errors.Is(err, nats.ErrStreamNotFound) {
+			return fmt.Errorf("failed to get stream info: %w", err)
+		}
+		if _, err = p.js.AddStream(&nats.StreamConfig{
+			Name:       StreamName,
+			Subjects:   p.subjects,
+			Storage:    nats.FileStorage,
+			Retention:  nats.WorkQueuePolicy,
+			MaxAge:     7 * 24 * time.Hour,
+			Replicas:   1,
+			Duplicates: 10 * time.Minute,
+		}); err != nil {
+			return fmt.Errorf("failed to create stream: %w", err)
+		}
 	}
-
+	p.streamReady = true
 	return nil
 }
 
@@ -80,10 +110,11 @@ func (p *Publisher) Close() {
 	}
 }
 
-func NewPublisher(natsURL string, tracer trace.Tracer) (*Publisher, error) {
+func NewPublisher(natsURL string, subjects []string, tracer trace.Tracer) (*Publisher, error) {
 	nc, err := nats.Connect(
 		natsURL,
 		nats.Name("water-system"),
+		nats.RetryOnFailedConnect(true),
 		nats.MaxReconnects(-1),
 		nats.ReconnectWait(2*time.Second),
 	)
@@ -98,8 +129,9 @@ func NewPublisher(natsURL string, tracer trace.Tracer) (*Publisher, error) {
 	}
 
 	return &Publisher{
-		nc:     nc,
-		js:     js,
-		tracer: tracer,
+		nc:       nc,
+		js:       js,
+		tracer:   tracer,
+		subjects: subjects,
 	}, nil
 }
