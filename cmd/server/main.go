@@ -53,6 +53,11 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	pe := pinsExecutor(otel.Tracer(serviceName))
+	if err := pe.TurnOffAll(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed turning off relays at startup", slog.String("error", err.Error()))
+	}
+
 	conf, err := config.New()
 	if err != nil {
 		fmt.Printf("failed building config: %s", err.Error())
@@ -74,6 +79,14 @@ func run() error {
 		}
 	}()
 
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := pe.Stop(stopCtx); err != nil {
+			log.ErrorContext(stopCtx, "failed turning off relays at shutdown", slog.String("error", err.Error()))
+		}
+	}()
+
 	tracer := otel.Tracer(serviceName)
 
 	eventsCh := make(chan tracing.Event, 5)
@@ -83,7 +96,7 @@ func run() error {
 	eventsMultiCHMdw := cqs.CommandHandlerMultiMiddleware(logCHMdw, eventsCHMdw)
 	logQHMdw := cqs.NewQueryHndErrorMiddleware(log, tracer)
 
-	tr := temperatureRepository(tracer)
+	tr := temperatureRepository(tracer, log)
 	rr := rainRepository(tracer)
 	statusRepo := memory.NewStatusRepository(tracer)
 	zr := disk.NewZoneRepository(conf.ZonesFile, tracer)
@@ -99,14 +112,13 @@ func run() error {
 		return err
 	}
 	sunriseSunsetRepo := api.NewSunriseSunsetRepository(latitude, longitude, location, 5*time.Second)
-	go sunriseSunsetRepo.CleanYesterday(ctx)
+	go superviseWorker(ctx, log, "clean yesterday light", sunriseSunsetRepo.CleanYesterday)
 	lightRepo := solar.NewFallbackLightRepository(
 		sunriseSunsetRepo,
 		solar.NewLightRepository(latitude, longitude, location, tracer),
 		tracer,
 		log,
 	)
-	pe := pinsExecutor(tracer)
 	ntfyPublisher, err := ntfy.NewPublisher(conf.NtfyUser, conf.NtfyPassword, conf.NtfyURL, conf.NtfyTopic, tracer)
 	if err != nil {
 		log.ErrorContext(ctx, "failed building ntfy publisher", slog.String("error", err.Error()))
@@ -122,13 +134,15 @@ func run() error {
 	defer eventsPublisher.Close()
 	findStatusQH := app.NewFindStatus(statusRepo, tracer)
 
-	cronJob, err := buildCron()
+	cronJob, err := buildCron(log)
 	if err != nil {
 		log.ErrorContext(ctx, "failed building cron")
 		return err
 	}
 	go terraceWeatherCron(ctx, cronJob, eventsRepo, findStatusQH, log, tracer)
-	go readingEvents(ctx, eventsRepo, eventsPublisher, log)
+	go superviseWorker(ctx, log, "reading events", func(ctx context.Context) {
+		readingEvents(ctx, eventsRepo, eventsPublisher, log)
+	})
 
 	qhBus := app.NewQueryBus()
 	qhBus.Subscribe(app.FindWeatherQueryName, logQHMdw(app.NewFindWeather(tr, rr, tracer)))
@@ -189,9 +203,15 @@ func run() error {
 
 	errCh := make(chan error, 2)
 
-	go updateStatusWorker(ctx, qhBus, chBus, log)
-	go eventsWorker(ctx, eventsCh, eventBus, log, tracer)
-	go executionInTimeWorker(ctx, qhBus, chBus, log, tracer)
+	go superviseWorker(ctx, log, "update status", func(ctx context.Context) {
+		updateStatusWorker(ctx, qhBus, chBus, log)
+	})
+	go superviseWorker(ctx, log, "events", func(ctx context.Context) {
+		eventsWorker(ctx, eventsCh, eventBus, log, tracer)
+	})
+	go superviseWorker(ctx, log, "execution in time", func(ctx context.Context) {
+		executionInTimeWorker(ctx, qhBus, chBus, log, tracer)
+	})
 
 	go func() {
 		if err := runHTTPServer(ctx, chBus, qhBus, conf, log, tracer); err != nil {
@@ -258,12 +278,13 @@ func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.Even
 	log.InfoContext(ctx, "[WORKER] Terrace Weather: context done")
 }
 
-func buildCron() (*cron.Cron, error) {
+func buildCron(log *slog.Logger) (*cron.Cron, error) {
 	loc, err := time.LoadLocation(timeZone)
 	if err != nil {
 		return nil, err
 	}
-	c := cron.New(cron.WithLocation(loc))
+	cronLog := cron.PrintfLogger(slog.NewLogLogger(log.Handler(), slog.LevelError))
+	c := cron.New(cron.WithLocation(loc), cron.WithChain(cron.Recover(cronLog)))
 	return c, nil
 }
 
