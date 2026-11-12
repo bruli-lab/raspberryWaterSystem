@@ -51,12 +51,7 @@ func (e ExecutePinsOnExecuteCleanZone) Listen(ctx context.Context, ev cqs.Event)
 		return err
 	}
 	sec, _ := program.ParseSeconds(int(event.ZoneSeconds))
-	message := fmt.Sprintf("%s clean zone executed during %vs", event.ZoneName, sec.Int())
-	if _, err := e.ch.Handle(ctx, app.PublishMessageCmd{Message: message}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
+	e.notify(ctx, span, fmt.Sprintf("%s clean zone executed during %vs", event.ZoneName, sec.Int()))
 	e.log.DebugContext(ctx, "wait for clarify process", slog.Duration("duration", event.WaitDuration))
 	timer := time.NewTimer(event.WaitDuration)
 	defer timer.Stop()
@@ -70,16 +65,18 @@ func (e ExecutePinsOnExecuteCleanZone) Listen(ctx context.Context, ev cqs.Event)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	message = fmt.Sprintf("clarify zone %s finished!!", event.ZoneName)
-	if _, err := e.ch.Handle(ctx, app.PublishMessageCmd{Message: message}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
+	e.notify(ctx, span, fmt.Sprintf("clarify zone %s finished!!", event.ZoneName))
 
 	span.SetStatus(codes.Ok, "clean executed")
 
 	return nil
+}
+
+func (e ExecutePinsOnExecuteCleanZone) notify(ctx context.Context, span trace.Span, message string) {
+	if _, err := e.ch.Handle(ctx, app.PublishMessageCmd{Message: message}); err != nil {
+		span.RecordError(err)
+		e.log.ErrorContext(ctx, "failed publishing clean zone notification", slog.String("error", err.Error()))
+	}
 }
 
 func (e ExecutePinsOnExecuteCleanZone) executePin(ctx context.Context, seconds uint, pins []string) error {
