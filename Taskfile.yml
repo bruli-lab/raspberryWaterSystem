@@ -110,6 +110,14 @@ tasks:
         echo "🧪 Running unit tests (race, JSON → tparse)..."
         go test -race ./... -json -cover -coverprofile=coverage.out | go tool tparse -all
 
+  test-infra:
+    desc: Run infra tests (disk, listeners, timers and testcontainers, needs Docker)
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🧪 Running infra tests..."
+        go test -race -tags=infra ./internal/infra/... -count=1
+
   test-functional:
     desc: Run functional tests
     cmds:
