@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
@@ -56,8 +57,8 @@ func TestExecuteZone(t *testing.T) {
 		t.Run(`Given a ExecuteZone http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.chErr
 				},
 			}

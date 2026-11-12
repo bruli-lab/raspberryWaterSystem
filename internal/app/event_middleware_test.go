@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +36,7 @@ func TestNewEventMiddleware(t *testing.T) {
 		eventCh := make(chan tracing.Event)
 		eventMdw := app.NewEventMiddleware(eventCh, tracer())
 		handler := eventMdw(commandHandler{
-			events: []cqs.Event{
+			events: []event.Event{
 				ev,
 			},
 			err: errTest,
@@ -46,8 +47,8 @@ func TestNewEventMiddleware(t *testing.T) {
 				case <-ctx.Done():
 					cancel()
 					return
-				case event := <-eventCh:
-					require.Equal(t, event1, event)
+				case received := <-eventCh:
+					require.Equal(t, event1, received)
 				}
 			}
 		}()
@@ -78,4 +79,21 @@ func (e Event) EventAt() time.Time {
 
 func (e Event) AggregateRootID() string {
 	return e.AggRootID
+}
+
+type command struct {
+	name string
+}
+
+func (c command) Name() string {
+	return c.name
+}
+
+type commandHandler struct {
+	events []event.Event
+	err    error
+}
+
+func (c commandHandler) Handle(_ context.Context, _ cqs.Command) ([]event.Event, error) {
+	return c.events, c.err
 }

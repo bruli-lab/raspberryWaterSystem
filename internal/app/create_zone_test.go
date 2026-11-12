@@ -5,13 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 )
 
 func TestCreateZoneHandle(t *testing.T) {

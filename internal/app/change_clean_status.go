@@ -3,7 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -23,7 +24,7 @@ type ChangeCleanStatus struct {
 	tracer trace.Tracer
 }
 
-func (c ChangeCleanStatus) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (c ChangeCleanStatus) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := c.tracer.Start(ctx, "ChangeCleanStatusCmd")
 	defer span.End()
 	co, ok := cmd.(ChangeCleanStatusCmd)

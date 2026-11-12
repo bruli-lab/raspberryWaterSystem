@@ -12,9 +12,10 @@ import (
 	"time"
 	_ "time/tzdata"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/config"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/weather"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
@@ -147,7 +148,7 @@ func run() error {
 		readingEvents(ctx, eventsRepo, eventsPublisher, log)
 	})
 
-	qhBus := app.NewQueryBus()
+	qhBus := cqs.NewQueryBus()
 	qhBus.Subscribe(app.FindWeatherQueryName, logQHMdw(app.NewFindWeather(tr, rr, tracer)))
 	qhBus.Subscribe(app.FindStatusQueryName, logQHMdw(findStatusQH))
 	qhBus.Subscribe(app.FindAllProgramsQueryName, logQHMdw(app.NewFindAllPrograms(dailyRepo, oddRepo, evenRepo, weeklyRepo, tempProgRepo, tracer)))
@@ -155,7 +156,7 @@ func run() error {
 	qhBus.Subscribe(app.FindExecutionLogsQueryName, logQHMdw(app.NewFindExecutionLogs(execLogRepo, tracer)))
 	qhBus.Subscribe(app.FindZonesQueryName, logQHMdw(app.NewFindZones(zr, tracer)))
 
-	chBus := app.NewCommandBus()
+	chBus := cqs.NewCommandBus()
 	chBus.Subscribe(app.CreateStatusCmdName, logCHMdw(app.NewCreateStatus(statusRepo, lightRepo, tracer)))
 	chBus.Subscribe(app.UpdateStatusCmdName, logCHMdw(app.NewUpdateStatus(statusRepo, lightRepo, tracer)))
 	chBus.Subscribe(app.CreateZoneCmdName, logCHMdw(app.NewCreateZone(zr, tracer)))
@@ -182,22 +183,14 @@ func run() error {
 	chBus.Subscribe(app.UpdateTemperatureProgramCommandName, logCHMdw(app.NewUpdateTemperatureProgram(tempProgRepo, tracer)))
 	chBus.Subscribe(app.ChangeCleanStatusCmdName, logCHMdw(app.NewChangeCleanStatus(statusRepo, tracer)))
 
-	eventBus := cqs.NewEventBus()
-	eventBus.Subscribe(zone.Executed{
-		NameAttr: zone.ExecutedEventName,
-	}, listener.NewExecutePinsOnExecuteZone(chBus, tracer), listener.NewWriteExecutionLogEventOnExecuteZone(eventsRepo, tracer))
+	eventBus := event.NewBus()
+	eventBus.Subscribe(zone.ExecutedEventName, listener.NewExecutePinsOnExecuteZone(chBus, tracer), listener.NewWriteExecutionLogEventOnExecuteZone(eventsRepo, tracer))
 
-	eventBus.Subscribe(zone.Ignored{
-		NameAttr: zone.IgnoredEventName,
-	}, listener.NewPublishMessageOnZoneIgnored(chBus, tracer))
+	eventBus.Subscribe(zone.IgnoredEventName, listener.NewPublishMessageOnZoneIgnored(chBus, tracer))
 
-	eventBus.Subscribe(zone.FertilizerZoneExecuted{
-		NameAttr: zone.FertilizerZoneExecutedEventName,
-	}, listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tracer, log), listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, tracer))
+	eventBus.Subscribe(zone.FertilizerZoneExecutedEventName, listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tracer, log), listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, tracer))
 
-	eventBus.Subscribe(zone.CleanZoneExecuted{
-		NameAttr: zone.CleanZoneExecutedEventName,
-	}, listener.NewExecutePinsOnExecuteCleanZone(chBus, tracer, log))
+	eventBus.Subscribe(zone.CleanZoneExecutedEventName, listener.NewExecutePinsOnExecuteCleanZone(chBus, tracer, log))
 
 	if err = initStatus(ctx, chBus, qhBus); err != nil {
 		log.ErrorContext(ctx, "failed initializing status", slog.String("error", err.Error()))
@@ -356,7 +349,7 @@ func publishEvent(ctx context.Context, evRepo *disk.EventsRepository, publisher 
 	return nil
 }
 
-func runHTTPServer(ctx context.Context, chBus app.CommandBus, qhBus app.QueryBus, conf *config.Config, log *slog.Logger, tracer trace.Tracer) error {
+func runHTTPServer(ctx context.Context, chBus cqs.CommandBus, qhBus cqs.QueryBus, conf *config.Config, log *slog.Logger, tracer trace.Tracer) error {
 	definitions := handlersDefinition(chBus, qhBus, conf.AuthToken, tracer)
 	httpHandlers := infrahttp.NewHandler(definitions)
 	if err := infrahttp.RunServer(ctx, conf.ServerURL, httpHandlers, &infrahttp.CORSOpt{}, log); err != nil {
@@ -401,22 +394,22 @@ func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.Comm
 	}
 }
 
-func eventsWorker(ctx context.Context, ch <-chan tracing.Event, evBus cqs.EventBus, logger *slog.Logger, tracer trace.Tracer) {
+func eventsWorker(ctx context.Context, ch <-chan tracing.Event, evBus event.Bus, logger *slog.Logger, tracer trace.Tracer) {
 	logger.InfoContext(ctx, "[WORKER] Events: started")
 	for {
 		select {
 		case <-ctx.Done():
 			logger.InfoContext(ctx, "[WORKER] Events: context done")
 			return
-		case event, ok := <-ch:
+		case traced, ok := <-ch:
 			if !ok {
 				logger.InfoContext(ctx, "[WORKER] Events: channel closed")
 				return
 			}
-			parentCtx := trace.ContextWithSpanContext(ctx, event.SpanContext)
+			parentCtx := trace.ContextWithSpanContext(ctx, traced.SpanContext)
 			ctx, span := tracer.Start(parentCtx, "eventDispatch")
-			span.SetAttributes(attribute.String("event-name", event.Event.EventName()))
-			if err := evBus.Dispatch(ctx, event.Event); err != nil {
+			span.SetAttributes(attribute.String("event-name", traced.Event.EventName()))
+			if err := evBus.Dispatch(ctx, traced.Event); err != nil {
 				span.RecordError(err)
 				span.SetStatus(codes.Error, err.Error())
 				logger.ErrorContext(ctx, "[WORKER] Events: failed dispatching event", slog.String("error", err.Error()))
@@ -465,7 +458,7 @@ func initStatus(ctx context.Context, ch cqs.CommandHandler, qh cqs.QueryHandler)
 	return err
 }
 
-func handlersDefinition(chBus app.CommandBus, qhBus app.QueryBus, authToken string, tracer trace.Tracer) infrahttp.HandlersDefinition {
+func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken string, tracer trace.Tracer) infrahttp.HandlersDefinition {
 	authMdw := infrahttp.AuthMiddleware(authToken)
 	return infrahttp.HandlersDefinition{
 		{

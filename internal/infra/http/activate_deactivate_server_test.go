@@ -8,7 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -44,8 +45,8 @@ func TestActivateDeactivateServer(t *testing.T) {
 		t.Run(`Given an ActivateDeactivateServer http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.chErr
 				},
 			}

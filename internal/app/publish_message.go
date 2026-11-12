@@ -3,7 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -23,7 +24,7 @@ type PublishMessage struct {
 	tracer trace.Tracer
 }
 
-func (p PublishMessage) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (p PublishMessage) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := p.tracer.Start(ctx, "PublishMessageCmd")
 	defer span.End()
 	co, ok := cmd.(PublishMessageCmd)

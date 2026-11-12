@@ -5,8 +5,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
@@ -45,8 +46,8 @@ func TestExecutePinsOnExecuteZoneListen(t *testing.T) {
 		t.Run(`Given a ExecutePinsOnExecuteZone listener,
 		when Listen method is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{}
-			ch.HandleFunc = func(_ context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{}
+			ch.HandleFunc = func(_ context.Context, cmd cqs.Command) ([]event.Event, error) {
 				_, isExecute := cmd.(app.ExecutePinsCmd)
 				_, isLog := cmd.(app.SaveExecutionLogCmd)
 				_, isPublish := cmd.(app.PublishMessageCmd)

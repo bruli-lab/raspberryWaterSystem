@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"

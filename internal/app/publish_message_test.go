@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/stretchr/testify/require"
 )
 

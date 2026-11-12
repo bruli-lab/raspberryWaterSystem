@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/weather"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"

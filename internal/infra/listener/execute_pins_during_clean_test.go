@@ -5,8 +5,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/listener"
@@ -50,30 +51,30 @@ func TestExecutePinsOnExecuteZoneDuringClean(t *testing.T) {
 			statusRepo := memory.NewStatusRepository(tracer())
 			require.NoError(t, statusRepo.Save(t.Context(), fixtures.StatusBuilder{Active: true, Clean: tt.clean}.Build()))
 			pins := &countingPinsExecutor{}
-			logCH := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			logCH := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, nil
 				},
 			}
-			publishCH := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			publishCH := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, nil
 				},
 			}
-			chBus := app.NewCommandBus()
+			chBus := cqs.NewCommandBus()
 			chBus.Subscribe(app.ExecutePinsCmdName, app.NewExecutePins(pins, statusRepo, tracer()))
 			chBus.Subscribe(app.SaveExecutionLogCmdName, logCH)
 			chBus.Subscribe(app.PublishMessageCmdName, publishCH)
 			list := listener.NewExecutePinsOnExecuteZone(chBus, tracer())
-			event := zone.Executed{
-				BasicEvent: cqs.NewBasicEvent(zone.ExecutedEventName, uuid.New(), uuid.NewString()),
+			executed := zone.Executed{
+				BasicEvent: event.NewBasicEvent(zone.ExecutedEventName, uuid.New(), uuid.NewString()),
 				ZoneID:     "zone-a",
 				ZoneName:   "zone a",
 				Seconds:    10,
 				RelayPins:  []string{"18"},
 			}
 
-			err := list.Listen(t.Context(), event)
+			err := list.Listen(t.Context(), executed)
 
 			require.Equal(t, tt.expectedExecutions, pins.calls.Load())
 			require.Len(t, logCH.HandleCalls(), tt.expectedLogs)

@@ -3,7 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -26,7 +27,7 @@ type ExecutePins struct {
 	tracer trace.Tracer
 }
 
-func (e ExecutePins) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (e ExecutePins) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := e.tracer.Start(ctx, "ExecutePinsCmd")
 	defer span.End()
 	co, ok := cmd.(ExecutePinsCmd)

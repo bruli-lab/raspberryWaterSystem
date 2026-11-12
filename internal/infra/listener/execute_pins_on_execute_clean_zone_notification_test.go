@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/listener"
 	"github.com/google/uuid"
@@ -36,7 +37,7 @@ func (r *cleanCycleRecorder) states() []bool {
 
 func cleanZoneEvent(wait time.Duration) zone.CleanZoneExecuted {
 	return zone.CleanZoneExecuted{
-		BasicEvent:                cqs.NewBasicEvent(zone.CleanZoneExecutedEventName, uuid.New(), uuid.NewString()),
+		BasicEvent:                event.NewBasicEvent(zone.CleanZoneExecutedEventName, uuid.New(), uuid.NewString()),
 		ZoneID:                    "bbf",
 		ZoneName:                  "bonsai big with fertilizer",
 		ZoneSeconds:               1,
@@ -53,7 +54,7 @@ func cleanZoneEvent(wait time.Duration) zone.CleanZoneExecuted {
 func TestExecutePinsOnExecuteCleanZoneInBackground(t *testing.T) {
 	tests := []struct {
 		name                 string
-		event                cqs.Event
+		event                event.Event
 		publishErr           error
 		cancelAfter          time.Duration
 		expectedErr          bool
@@ -85,8 +86,8 @@ func TestExecutePinsOnExecuteCleanZoneInBackground(t *testing.T) {
 		when Listen method is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
 			recorder := &cleanCycleRecorder{}
-			pinsCH := &CommandHandlerMock{
-				HandleFunc: func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+			pinsCH := &cqs.CommandHandlerMock{
+				HandleFunc: func(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 					recorder.m.Lock()
 					recorder.pinsCalls++
 					recorder.m.Unlock()
@@ -101,13 +102,13 @@ func TestExecutePinsOnExecuteCleanZoneInBackground(t *testing.T) {
 					}
 				},
 			}
-			publishCH := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			publishCH := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.publishErr
 				},
 			}
-			cleanCH := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+			cleanCH := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, cmd cqs.Command) ([]event.Event, error) {
 					co, _ := cmd.(app.ChangeCleanStatusCmd)
 					recorder.m.Lock()
 					defer recorder.m.Unlock()
@@ -115,7 +116,7 @@ func TestExecutePinsOnExecuteCleanZoneInBackground(t *testing.T) {
 					return nil, nil
 				},
 			}
-			chBus := app.NewCommandBus()
+			chBus := cqs.NewCommandBus()
 			chBus.Subscribe(app.ExecutePinsCmdName, pinsCH)
 			chBus.Subscribe(app.PublishMessageCmdName, publishCH)
 			chBus.Subscribe(app.ChangeCleanStatusCmdName, cleanCH)

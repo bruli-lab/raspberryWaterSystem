@@ -7,11 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +54,7 @@ func TestFindAllPrograms(t *testing.T) {
 		t.Run(`Given a FindAllPrograms http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			qh := &QueryHandlerMock{
+			qh := &cqs.QueryHandlerMock{
 				HandleFunc: func(_ context.Context, _ cqs.Query) (any, error) {
 					return tt.result, tt.qhErr
 				},

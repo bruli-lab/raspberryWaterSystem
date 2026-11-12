@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/davecgh/go-spew/spew"
@@ -29,7 +30,7 @@ type CreateZone struct {
 	tracer trace.Tracer
 }
 
-func (c CreateZone) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (c CreateZone) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := c.tracer.Start(ctx, "CreateZoneCmd")
 	defer span.End()
 	co, ok := cmd.(CreateZoneCmd)

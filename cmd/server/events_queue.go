@@ -5,13 +5,13 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 )
 
 type pendingIrrigationsStore interface {
-	Save(ctx context.Context, ev cqs.Event) (disk.PendingIrrigation, error)
+	Save(ctx context.Context, ev event.Event) (disk.PendingIrrigation, error)
 	Remove(ctx context.Context, id string) error
 	FindAll(ctx context.Context) ([]disk.PendingIrrigation, error)
 }

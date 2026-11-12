@@ -3,7 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -23,7 +24,7 @@ type ActivateDeactivateServer struct {
 	tracer trace.Tracer
 }
 
-func (a ActivateDeactivateServer) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (a ActivateDeactivateServer) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := a.tracer.Start(ctx, "ActivateDeactivateServerCmd")
 	defer span.End()
 	co, ok := cmd.(ActivateDeactivateServerCmd)

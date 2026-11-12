@@ -3,7 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -24,7 +25,7 @@ type RemoveWeeklyProgram struct {
 	tracer trace.Tracer
 }
 
-func (r RemoveWeeklyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (r RemoveWeeklyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := r.tracer.Start(ctx, "RemoveWeeklyProgramCmd")
 	defer span.End()
 	co, ok := cmd.(RemoveWeeklyProgramCommand)

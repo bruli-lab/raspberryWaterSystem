@@ -3,7 +3,7 @@ package zone
 import (
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/google/uuid"
 )
 
@@ -14,7 +14,7 @@ const (
 )
 
 type CleanZone struct {
-	cqs.BasicAggregateRoot
+	event.BasicAggregateRoot
 	zone              *Zone
 	fertilizerPump    *FertilizerPumpZone
 	fertilizerValvule *FertilizerValvuleZone
@@ -27,7 +27,7 @@ func (z *CleanZone) Execute() {
 	}
 	seconds := uint(DefaultCleanZone.Seconds())
 	z.Record(CleanZoneExecuted{
-		BasicEvent:                cqs.NewBasicEvent(CleanZoneExecutedEventName, uuid.New(), z.zone.Id()),
+		BasicEvent:                event.NewBasicEvent(CleanZoneExecutedEventName, uuid.New(), z.zone.Id()),
 		ZoneID:                    z.zone.Id(),
 		ZoneName:                  z.zone.Name(),
 		ZoneSeconds:               seconds,
@@ -44,7 +44,7 @@ func (z *CleanZone) Execute() {
 
 func NewCleanZone(zone *Zone) *CleanZone {
 	return &CleanZone{
-		BasicAggregateRoot: cqs.NewBasicAggregateRoot(),
+		BasicAggregateRoot: event.NewBasicAggregateRoot(),
 		zone:               zone,
 		fertilizerPump:     &FertilizerPumpZone{},
 		fertilizerValvule:  &FertilizerValvuleZone{},

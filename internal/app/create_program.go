@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"go.opentelemetry.io/otel/codes"
@@ -47,7 +48,7 @@ type CreateDailyProgram struct {
 	tracer trace.Tracer
 }
 
-func (c CreateDailyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (c CreateDailyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := c.tracer.Start(ctx, "CreateDailyProgramCmd")
 	defer span.End()
 	co, ok := cmd.(CreateDailyProgramCommand)
@@ -78,7 +79,7 @@ type CreateOddProgram struct {
 	tracer trace.Tracer
 }
 
-func (c CreateOddProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (c CreateOddProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := c.tracer.Start(ctx, "CreateOddProgramCmd")
 	co, ok := cmd.(CreateOddProgramCommand)
 	if !ok {
@@ -108,7 +109,7 @@ type CreateEvenProgram struct {
 	tracer trace.Tracer
 }
 
-func (c CreateEvenProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (c CreateEvenProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := c.tracer.Start(ctx, "CreateEvenProgramCmd")
 	defer span.End()
 	co, ok := cmd.(CreateEvenProgramCommand)

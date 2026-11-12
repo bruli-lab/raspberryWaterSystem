@@ -3,7 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -44,7 +45,7 @@ type RemoveDailyProgram struct {
 	tracer trace.Tracer
 }
 
-func (r RemoveDailyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (r RemoveDailyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := r.tracer.Start(ctx, "RemoveDailyProgramCmd")
 	defer span.End()
 	co, ok := cmd.(RemoveDailyProgramCommand)
@@ -72,7 +73,7 @@ type RemoveOddProgram struct {
 	tracer trace.Tracer
 }
 
-func (r RemoveOddProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (r RemoveOddProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := r.tracer.Start(ctx, "RemoveOddProgramCmd")
 	defer span.End()
 	co, ok := cmd.(RemoveOddProgramCommand)
@@ -102,7 +103,7 @@ type RemoveEvenProgram struct {
 	tracer trace.Tracer
 }
 
-func (r RemoveEvenProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (r RemoveEvenProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := r.tracer.Start(ctx, "RemoveEvenProgramCmd")
 	defer span.End()
 	co, ok := cmd.(RemoveEvenProgramCommand)

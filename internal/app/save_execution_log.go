@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -30,7 +31,7 @@ type SaveExecutionLog struct {
 	tracer trace.Tracer
 }
 
-func (s SaveExecutionLog) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (s SaveExecutionLog) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := s.tracer.Start(ctx, "SaveExecutionLogCmd")
 	defer span.End()
 	co, ok := cmd.(SaveExecutionLogCmd)

@@ -5,14 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 )
 
 func TestFindAllProgramsHandle(t *testing.T) {

@@ -5,11 +5,10 @@ import (
 	"errors"
 	"sort"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 )
 
 const FindExecutionLogsQueryName = "findExecutionLogs"

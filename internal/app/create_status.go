@@ -5,11 +5,12 @@ import (
 	"errors"
 	"time"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/weather"
 )
@@ -33,7 +34,7 @@ type CreateStatus struct {
 	tracer trace.Tracer
 }
 
-func (c CreateStatus) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (c CreateStatus) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := c.tracer.Start(ctx, "CreateStatusCmd")
 	defer span.End()
 	co, ok := cmd.(CreateStatusCmd)

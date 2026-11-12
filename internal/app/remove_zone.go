@@ -3,7 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -23,7 +24,7 @@ type RemoveZone struct {
 	tracer trace.Tracer
 }
 
-func (r RemoveZone) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (r RemoveZone) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := r.tracer.Start(ctx, "RemoveZoneCmd")
 	defer span.End()
 	co, ok := cmd.(RemoveZoneCmd)

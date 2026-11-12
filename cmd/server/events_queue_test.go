@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
@@ -36,7 +36,7 @@ func newMemoryPendingStore(pendings ...disk.PendingIrrigation) *memoryPendingSto
 	return s
 }
 
-func (s *memoryPendingStore) Save(_ context.Context, ev cqs.Event) (disk.PendingIrrigation, error) {
+func (s *memoryPendingStore) Save(_ context.Context, ev event.Event) (disk.PendingIrrigation, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	if s.saveErr != nil {
@@ -79,14 +79,14 @@ func (s *memoryPendingStore) stored() int {
 
 func zoneExecuted(name string) zone.Executed {
 	return zone.Executed{
-		BasicEvent: cqs.NewBasicEvent(zone.ExecutedEventName, uuid.New(), name),
+		BasicEvent: event.NewBasicEvent(zone.ExecutedEventName, uuid.New(), name),
 		ZoneName:   name,
 	}
 }
 
 func zoneIgnored(name string) zone.Ignored {
 	return zone.Ignored{
-		BasicEvent: cqs.NewBasicEvent(zone.IgnoredEventName, uuid.New(), name),
+		BasicEvent: event.NewBasicEvent(zone.IgnoredEventName, uuid.New(), name),
 		ZoneName:   name,
 	}
 }
@@ -95,7 +95,7 @@ func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func receive(t *testing.T, out <-chan tracing.Event) cqs.Event {
+func receive(t *testing.T, out <-chan tracing.Event) event.Event {
 	t.Helper()
 	select {
 	case ev := <-out:
@@ -149,7 +149,7 @@ func TestQueueEvents(t *testing.T) {
 			go func() {
 				for i := range tt.events {
 					name := strconv.Itoa(i)
-					var ev cqs.Event = zoneIgnored(name)
+					var ev event.Event = zoneIgnored(name)
 					if tt.irrigation {
 						ev = zoneExecuted(name)
 					}

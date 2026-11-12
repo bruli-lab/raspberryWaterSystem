@@ -8,8 +8,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/fake"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/listener"
@@ -21,23 +22,23 @@ func Test_executePinsOnExecuteFertilizerZone_Listen(t *testing.T) {
 	log := buildLog()
 	tr := tracer()
 	execCh := app.NewExecutePins(fake.NewPinsExecutor(), statusRepository(t, false), tr)
-	logCH := &CommandHandlerMock{}
-	logCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+	logCH := &cqs.CommandHandlerMock{}
+	logCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 		log.DebugContext(ctx, "log command handler")
 		return nil, nil
 	}
-	publishCH := &CommandHandlerMock{}
-	publishCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+	publishCH := &cqs.CommandHandlerMock{}
+	publishCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 		log.DebugContext(ctx, "publish message command handler")
 		return nil, nil
 	}
-	chBus := app.NewCommandBus()
+	chBus := cqs.NewCommandBus()
 	chBus.Subscribe(app.ExecutePinsCmdName, execCh)
 	chBus.Subscribe(app.SaveExecutionLogCmdName, logCH)
 	chBus.Subscribe(app.PublishMessageCmdName, publishCH)
 	list := listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tr, log)
-	event := zone.FertilizerZoneExecuted{
-		BasicEvent:                cqs.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
+	executed := zone.FertilizerZoneExecuted{
+		BasicEvent:                event.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
 		ZoneID:                    "bbf",
 		ZoneName:                  "bonsai big with fertilizer",
 		ZoneSeconds:               10,
@@ -52,7 +53,7 @@ func Test_executePinsOnExecuteFertilizerZone_Listen(t *testing.T) {
 		FertilizerValvuleSeconds:  10,
 		FertilizerValvuleRelayPin: "6",
 	}
-	err := list.Listen(t.Context(), event)
+	err := list.Listen(t.Context(), executed)
 	require.NoError(t, err)
 }
 

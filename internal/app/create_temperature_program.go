@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"go.opentelemetry.io/otel/codes"
@@ -27,7 +28,7 @@ type CreateTemperatureProgram struct {
 	tracer trace.Tracer
 }
 
-func (c CreateTemperatureProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (c CreateTemperatureProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := c.tracer.Start(ctx, "CreateTemperatureProgramCmd")
 	defer span.End()
 	co, ok := cmd.(CreateTemperatureProgramCommand)

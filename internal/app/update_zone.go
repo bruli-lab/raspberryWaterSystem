@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"go.opentelemetry.io/otel/codes"
@@ -28,7 +29,7 @@ type UpdateZone struct {
 	tracer trace.Tracer
 }
 
-func (u UpdateZone) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (u UpdateZone) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := u.tracer.Start(ctx, "UpdateZoneCmd")
 	defer span.End()
 	co, ok := cmd.(UpdateZoneCommand)

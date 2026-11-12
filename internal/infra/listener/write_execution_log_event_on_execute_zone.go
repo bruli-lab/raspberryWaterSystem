@@ -3,7 +3,7 @@ package listener
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
 	"go.opentelemetry.io/otel/codes"
@@ -15,14 +15,14 @@ type WriteExecutionLogEventOnExecuteZone struct {
 	tracer     trace.Tracer
 }
 
-func (w WriteExecutionLogEventOnExecuteZone) Listen(ctx context.Context, ev cqs.Event) error {
+func (w WriteExecutionLogEventOnExecuteZone) Listen(ctx context.Context, ev event.Event) error {
 	ctx, span := w.tracer.Start(ctx, "WriteExecutionLogEventOnExecuteZone.Listen")
 	defer span.End()
-	event, _ := ev.(zone.Executed)
+	executed, _ := ev.(zone.Executed)
 	evnt, err := disk.NewFromExecutionLog(ctx, &disk.Log{
-		Seconds:    int(event.Seconds),
-		ZoneName:   event.ZoneName,
-		ExecutedAt: event.EventAt(),
+		Seconds:    int(executed.Seconds),
+		ZoneName:   executed.ZoneName,
+		ExecutedAt: executed.EventAt(),
 	})
 	if err != nil {
 		span.RecordError(err)
