@@ -13,7 +13,7 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 )
 
-//go:generate go tool moq -out zmock_repositories_test.go -pkg app_test . ZoneRepository TemperatureRepository RainRepository StatusRepository ProgramRepository WeeklyProgramRepository TemperatureProgramRepository ExecutionLogRepository LightRepository
+//go:generate go tool moq -out repositories_mock_test.go -pkg app_test . ZoneRepository TemperatureRepository RainRepository StatusRepository ProgramRepository WeeklyProgramRepository TemperatureProgramRepository ExecutionLogRepository LightRepository
 
 type ZoneRepository interface {
 	FindAll(ctx context.Context) ([]*zone.Zone, error)
