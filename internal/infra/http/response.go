@@ -34,12 +34,3 @@ type Error struct {
 const ErrorCodeInvalidRequest ErrorCode = "invalid_request"
 
 type ErrorCode string
-
-func buildInvalidRequestErrorsResponse(message string) (int, []Error) {
-	errs := make([]Error, 1)
-	errs[0] = Error{
-		Code:    ErrorCodeInvalidRequest,
-		Message: message,
-	}
-	return http.StatusBadRequest, errs
-}

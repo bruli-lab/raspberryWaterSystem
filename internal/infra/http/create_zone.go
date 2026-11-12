@@ -16,7 +16,7 @@ func CreateZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFunc {
 		ctx, span := tracer.Start(r.Context(), "CreateZoneRequest")
 		defer span.End()
 		var req Zone
-		if err := ReadRequest(w, r, &req); err != nil {
+		if err := ReadRequest(w, r, zoneRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return

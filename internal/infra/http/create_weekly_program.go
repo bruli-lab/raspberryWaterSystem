@@ -16,7 +16,7 @@ func CreateWeeklyProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.Handle
 		ctx, span := tracer.Start(r.Context(), "CreateWeeklyProgramRequest")
 		defer span.End()
 		var req WeeklyProgramRequest
-		if err := ReadRequest(w, r, &req); err != nil {
+		if err := ReadRequest(w, r, weeklyProgramRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -68,12 +68,21 @@ func buildCreateWeeklyProgramCommand(req WeeklyProgramRequest) (*program.Weekly,
 			if err != nil {
 				return nil, err
 			}
-			exe, _ := program.NewExecution(sec, e.Zones)
+			exe, err := program.NewExecution(sec, e.Zones)
+			if err != nil {
+				return nil, err
+			}
 			exec[j] = exe
 		}
-		pr, _ := program.New(hour, exec)
+		pr, err := program.New(hour, exec)
+		if err != nil {
+			return nil, err
+		}
 		prgms[i] = *pr
 	}
-	weekly, _ := program.NewWeekly(day, prgms)
+	weekly, err := program.NewWeekly(day, prgms)
+	if err != nil {
+		return nil, err
+	}
 	return &weekly, nil
 }

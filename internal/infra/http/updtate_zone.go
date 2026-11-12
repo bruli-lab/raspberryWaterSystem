@@ -18,7 +18,7 @@ func UpdateZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFunc {
 		defer span.End()
 		id := chi.URLParam(r, "id")
 		var req UpdateZoneRequest
-		if err := ReadRequest(w, r, &req); err != nil {
+		if err := ReadRequest(w, r, updateZoneRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
