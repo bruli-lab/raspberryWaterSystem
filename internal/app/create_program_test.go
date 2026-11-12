@@ -21,7 +21,7 @@ func TestCreateProgram_Handle(t *testing.T) {
 		ctx context.Context
 		cmd cqs.Command
 	}
-	prog := fixtures.FertilizerProgramBuilder{}.Build()
+	prog := fixtures.ProgramBuilder{}.Build()
 	defaultArgs := args{
 		ctx: ctx,
 		cmd: app.CreateDailyProgramCommand{
@@ -85,10 +85,10 @@ func TestCreateProgram_Handle(t *testing.T) {
 		when Handle method is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
 			programRepo := &ProgramRepositoryMock{
-				FindByHourFunc: func(_ context.Context, _ *program.Hour) (*program.FertilizerProgram, error) {
+				FindByHourFunc: func(_ context.Context, _ *program.Hour) (*program.Program, error) {
 					return nil, tt.findErr
 				},
-				SaveFunc: func(_ context.Context, _ *program.FertilizerProgram) error {
+				SaveFunc: func(_ context.Context, _ *program.Program) error {
 					return tt.saveErr
 				},
 			}

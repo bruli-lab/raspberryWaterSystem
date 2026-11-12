@@ -79,7 +79,7 @@ func NewFindAllPrograms(
 }
 
 type AllPrograms struct {
-	Daily, Odd, Even []program.FertilizerProgram
+	Daily, Odd, Even []program.Program
 	Weekly           []program.Weekly
 	Temperature      []program.Temperature
 }

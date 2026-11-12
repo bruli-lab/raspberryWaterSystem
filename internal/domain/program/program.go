@@ -10,50 +10,18 @@ var (
 	ErrInvalidTemperature  = errors.New("invalid temperature")
 )
 
-type FertilizerProgram struct {
+type Program struct {
 	hour       Hour
 	fertilizer bool
 	executions []Execution
 }
 
-func (p *FertilizerProgram) Hour() Hour {
-	return p.hour
-}
-
-func (p *FertilizerProgram) IsFertilizer() bool {
-	return p.fertilizer
-}
-
-func (p *FertilizerProgram) Executions() []Execution {
-	return p.executions
-}
-
-func (p *FertilizerProgram) validate() error {
-	if len(p.executions) == 0 {
-		return ErrEmptyPrograms
-	}
-	return nil
-}
-
-func HydrateFertilizerProgram(hour Hour, fertilizer bool, executions []Execution) FertilizerProgram {
-	return FertilizerProgram{hour: hour, fertilizer: fertilizer, executions: executions}
-}
-
-func NewFertilizerProgram(hour Hour, fertilizer bool, executions []Execution) (*FertilizerProgram, error) {
-	fp := FertilizerProgram{hour: hour, fertilizer: fertilizer, executions: executions}
-	if err := fp.validate(); err != nil {
-		return nil, err
-	}
-	return &fp, nil
-}
-
-type Program struct {
-	hour       Hour
-	executions []Execution
-}
-
 func (p *Program) Hour() Hour {
 	return p.hour
+}
+
+func (p *Program) IsFertilizer() bool {
+	return p.fertilizer
 }
 
 func (p *Program) Executions() []Execution {
@@ -67,12 +35,20 @@ func (p *Program) validate() error {
 	return nil
 }
 
-func HydrateProgram(hour Hour, executions []Execution) Program {
-	return Program{hour: hour, executions: executions}
+func HydrateProgram(hour Hour, fertilizer bool, executions []Execution) Program {
+	return Program{hour: hour, fertilizer: fertilizer, executions: executions}
 }
 
-func New(hour Hour, executions []Execution) (*Program, error) {
-	pr := Program{hour: hour, executions: executions}
+func HydrateProgramWithoutFertilizer(hour Hour, executions []Execution) Program {
+	return HydrateProgram(hour, false, executions)
+}
+
+func NewWithoutFertilizer(hour Hour, executions []Execution) (*Program, error) {
+	return New(hour, false, executions)
+}
+
+func New(hour Hour, fertilizer bool, executions []Execution) (*Program, error) {
+	pr := Program{hour: hour, fertilizer: fertilizer, executions: executions}
 	if err := pr.validate(); err != nil {
 		return nil, err
 	}

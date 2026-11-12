@@ -77,11 +77,11 @@ func TestZoneRepositoryWithInvalidStoredRelay(t *testing.T) {
 
 func TestProgramRepositoriesWithInvalidStoredEntries(t *testing.T) {
 	tracer := noop.NewTracerProvider().Tracer("test")
-	t.Run(`Given a FertilizerProgramRepository with a program stored with an invalid hour,
+	t.Run(`Given a ProgramRepository with a program stored with an invalid hour,
 	when FindAll method is called,
 	then it skips the invalid program and returns the valid ones`, func(t *testing.T) {
 		t.Parallel()
-		repo := disk.NewFertilizerProgramRepository(writeStoredFile(t, programsWithInvalidHourYaml), tracer)
+		repo := disk.NewProgramRepository(writeStoredFile(t, programsWithInvalidHourYaml), tracer)
 		programs, err := repo.FindAll(t.Context())
 		require.NoError(t, err)
 		require.Len(t, programs, 1)

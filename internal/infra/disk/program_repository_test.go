@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFertilizerProgramRepository(t *testing.T) {
-	t.Run(`Given a FertilizerProgramRepository, `, func(t *testing.T) {
+func TestProgramRepository(t *testing.T) {
+	t.Run(`Given a ProgramRepository, `, func(t *testing.T) {
 		ctx := context.Background()
 		path := "/tmp/programs.yml"
 		defer populateFile(t, path)
-		repo := disk.NewFertilizerProgramRepository(path, tracer())
+		repo := disk.NewProgramRepository(path, tracer())
 		hour, err := program.ParseHour("12:15")
 		require.NoError(t, err)
 		t.Run(`when Save method is called,
@@ -30,14 +30,14 @@ func TestFertilizerProgramRepository(t *testing.T) {
 				fixtures.ExecutionBuilder{}.Build(),
 				fixtures.ExecutionBuilder{}.Build(),
 			}
-			programs := []program.FertilizerProgram{
-				fixtures.FertilizerProgramBuilder{Hour: &hour, Executions: exec}.Build(),
-				fixtures.FertilizerProgramBuilder{
+			programs := []program.Program{
+				fixtures.ProgramBuilder{Hour: &hour, Executions: exec}.Build(),
+				fixtures.ProgramBuilder{
 					Hour:       &hour2,
 					Executions: nil,
 					Fertilizer: true,
 				}.Build(),
-				fixtures.FertilizerProgramBuilder{}.Build(),
+				fixtures.ProgramBuilder{}.Build(),
 			}
 			for _, p := range programs {
 				err = repo.Save(ctx, &p)

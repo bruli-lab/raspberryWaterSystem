@@ -165,7 +165,7 @@ func (t TemperatureProgramRepository) FindByTemperatureAndHour(ctx context.Conte
 func buildProgramTemperature(temperature float32, hour program.Hour, prgms []executions) program.Temperature {
 	programs := make([]program.Program, len(prgms))
 	for i, pd := range prgms {
-		programs[i] = program.HydrateProgram(hour, buildExecutions(pd))
+		programs[i] = program.HydrateProgramWithoutFertilizer(hour, buildExecutions(pd))
 	}
 	return program.HydrateTemperature(temperature, programs)
 }

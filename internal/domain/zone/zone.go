@@ -116,20 +116,26 @@ func (z *Zone) IgnoreWhileCleaning() {
 func (z *Zone) ExecuteWithStatus(active, raining bool, seconds uint) error {
 	z.mutex.Lock()
 	defer z.mutex.Unlock()
-	ignored := Ignored{
-		BasicEvent: event.NewBasicEvent(IgnoredEventName, uuid.New(), z.id),
-		ZoneName:   z.name,
+	if ignored, isIgnored := ignoredByStatus(z.id, z.name, active, raining); isIgnored {
+		z.Record(ignored)
+		return nil
 	}
+	return z.Execute(seconds)
+}
+
+func ignoredByStatus(zoneID, zoneName string, active, raining bool) (Ignored, bool) {
+	var reason string
 	switch {
 	case !active:
-		ignored.Reason = DeactivatedIgnoredReason
-		z.Record(ignored)
-		return nil
+		reason = DeactivatedIgnoredReason
 	case raining:
-		ignored.Reason = RainingIgnoredReason
-		z.Record(ignored)
-		return nil
+		reason = RainingIgnoredReason
 	default:
-		return z.Execute(seconds)
+		return Ignored{}, false
 	}
+	return Ignored{
+		BasicEvent: event.NewBasicEvent(IgnoredEventName, uuid.New(), zoneID),
+		ZoneName:   zoneName,
+		Reason:     reason,
+	}, true
 }
