@@ -118,7 +118,7 @@ func buildExecutionLogs(logs []Log) []program.ExecutionLog {
 	execLogs := make([]program.ExecutionLog, len(logs))
 	for i, l := range logs {
 		var el program.ExecutionLog
-		sec, _ := program.ParseSeconds(l.Seconds)
+		sec := program.HydrateSeconds(l.Seconds)
 		el.Hydrate(sec, l.ZoneName, l.ExecutedAt)
 		execLogs[i] = el
 	}

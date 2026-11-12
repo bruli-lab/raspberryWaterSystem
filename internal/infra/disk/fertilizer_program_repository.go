@@ -193,7 +193,7 @@ func buildFertilizerProgram(pgr []executions, hour string, fertilizer bool) *pro
 	exec := make([]program.Execution, len(pgr))
 	for i, p := range pgr {
 		var pExec program.Execution
-		sec, _ := program.ParseSeconds(p.Seconds)
+		sec := program.HydrateSeconds(p.Seconds)
 		pExec.Hydrate(sec, p.Zones)
 		exec[i] = pExec
 	}
@@ -207,7 +207,7 @@ func buildProgram(pgr []executions, hour string) *program.Program {
 	exec := make([]program.Execution, len(pgr))
 	for i, p := range pgr {
 		var pExec program.Execution
-		sec, _ := program.ParseSeconds(p.Seconds)
+		sec := program.HydrateSeconds(p.Seconds)
 		pExec.Hydrate(sec, p.Zones)
 		exec[i] = pExec
 	}

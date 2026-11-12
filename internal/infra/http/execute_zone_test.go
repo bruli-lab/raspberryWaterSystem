@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,12 @@ func TestExecuteZone(t *testing.T) {
 			expectedCode: http2.StatusNotFound,
 			body:         body,
 			chErr:        errs.NotFoundError{},
+		},
+		{
+			name:         "with a valid request and the domain rejects the seconds, then it returns bad request",
+			expectedCode: http2.StatusBadRequest,
+			body:         body,
+			chErr:        program.InvalidSecondsError{},
 		},
 		{
 			name:         "with a valid request and command handler returns en error, then it returns internal server error",

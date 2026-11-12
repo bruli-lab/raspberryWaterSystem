@@ -172,7 +172,7 @@ func buildProgramTemperature(temperature float32, hour program.Hour, prgms []exe
 func buildExecutions(pd executions) []program.Execution {
 	executions := make([]program.Execution, 1)
 	var execution program.Execution
-	sec, _ := program.ParseSeconds(pd.Seconds)
+	sec := program.HydrateSeconds(pd.Seconds)
 	execution.Hydrate(sec, pd.Zones)
 	executions[0] = execution
 	return executions

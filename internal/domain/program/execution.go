@@ -14,6 +14,9 @@ func (e *Execution) Zones() []string {
 }
 
 func (e *Execution) validate() error {
+	if _, err := ParseSeconds(e.seconds.Int()); err != nil {
+		return err
+	}
 	if len(e.zones) == 0 {
 		return ErrEmptyExecutionZones
 	}

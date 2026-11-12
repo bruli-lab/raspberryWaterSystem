@@ -58,7 +58,7 @@ func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]c
 	fzo := zone.NewFertilizerZone(zo)
 
 	if err = fzo.Execute(co.Seconds); err != nil {
-		err = ExecuteFertilizerZoneError{m: err.Error()}
+		err = ExecuteFertilizerZoneError{m: err.Error(), cause: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -72,7 +72,12 @@ func NewExecuteFertilizerZone(zr ZoneRepository, stRepo StatusRepository, tracer
 }
 
 type ExecuteFertilizerZoneError struct {
-	m string
+	m     string
+	cause error
+}
+
+func (e ExecuteFertilizerZoneError) Unwrap() error {
+	return e.cause
 }
 
 func (e ExecuteFertilizerZoneError) Error() string {

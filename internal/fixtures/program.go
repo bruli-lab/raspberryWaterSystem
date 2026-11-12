@@ -77,7 +77,7 @@ type ExecutionBuilder struct {
 
 func (b ExecutionBuilder) Build() program.Execution {
 	var ex program.Execution
-	sec, _ := program.ParseSeconds(20)
+	sec := program.HydrateSeconds(20)
 	if b.Seconds != nil {
 		sec = *b.Seconds
 	}

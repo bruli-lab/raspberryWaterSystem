@@ -112,7 +112,7 @@ func buildProgramWeeklyByHour(day *program.WeekDay, hour *program.Hour, prgms []
 	exec := make([]program.Execution, 0, len(prgms))
 	for _, pd := range prgms {
 		var execution program.Execution
-		sec, _ := program.ParseSeconds(pd.Seconds)
+		sec := program.HydrateSeconds(pd.Seconds)
 		execution.Hydrate(sec, pd.Zones)
 		exec = append(exec, execution)
 		pg.Hydrate(*hour, exec)

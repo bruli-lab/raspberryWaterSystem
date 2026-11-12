@@ -55,7 +55,7 @@ func (e ExecuteZone) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, 
 		return nil, err
 	}
 	if err = zo.Execute(co.Seconds); err != nil {
-		err = ExecuteZoneError{m: err.Error()}
+		err = ExecuteZoneError{m: err.Error(), cause: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -69,7 +69,12 @@ func NewExecuteZone(zr ZoneRepository, statusRepo StatusRepository, tracer trace
 }
 
 type ExecuteZoneError struct {
-	m string
+	m     string
+	cause error
+}
+
+func (e ExecuteZoneError) Unwrap() error {
+	return e.cause
 }
 
 func (e ExecuteZoneError) Error() string {

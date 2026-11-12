@@ -37,7 +37,7 @@ func (e ExecutePinsOnExecuteFertilizerZone) Listen(ctx context.Context, ev cqs.E
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	sec, _ := program.ParseSeconds(int(event.ZoneSeconds))
+	sec := program.HydrateSeconds(int(event.ZoneSeconds))
 	if _, err := e.ch.Handle(ctx, app.SaveExecutionLogCmd{
 		ZoneName:   event.ZoneName,
 		Seconds:    sec,
