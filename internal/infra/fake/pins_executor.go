@@ -20,3 +20,11 @@ func (p PinsExecutor) Execute(ctx context.Context, seconds uint, _ []string) err
 		return nil
 	}
 }
+
+func (p PinsExecutor) TurnOffAll(_ context.Context) error {
+	return nil
+}
+
+func (p PinsExecutor) Stop(_ context.Context) error {
+	return nil
+}
