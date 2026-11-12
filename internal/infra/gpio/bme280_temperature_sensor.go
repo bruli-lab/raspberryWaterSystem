@@ -17,19 +17,19 @@ import (
 
 type Bme280TemperatureSensor struct {
 	bus    i2c.BusCloser
-	m      sync.RWMutex
+	m      sync.Mutex
 	tracer trace.Tracer
 }
 
 func (b *Bme280TemperatureSensor) Find(ctx context.Context) (weather.Temperature, weather.Humidity, error) {
 	select {
 	case <-ctx.Done():
-		_ = b.bus.Close()
 		return 0, 0, ctx.Err()
 	default:
 		_, span := b.tracer.Start(ctx, "Bme280TemperatureSensor.Find")
 		defer span.End()
-		b.m.RLock()
+		b.m.Lock()
+		defer b.m.Unlock()
 		sensor, err := bmxx80.NewI2C(b.bus, 0x76, &bmxx80.DefaultOpts)
 		if err != nil {
 			span.RecordError(err)
@@ -38,7 +38,6 @@ func (b *Bme280TemperatureSensor) Find(ctx context.Context) (weather.Temperature
 		}
 		defer func() {
 			_ = sensor.Halt()
-			b.m.RUnlock()
 		}()
 		var env physic.Env
 		if err = sensor.Sense(&env); err != nil {

@@ -41,6 +41,8 @@ const (
 	timeZone    = "Europe/Madrid"
 	latitude    = 41.545
 	longitude   = 2.109
+
+	sensorReadingMaxAge = time.Hour
 )
 
 func main() {
@@ -89,16 +91,18 @@ func run() error {
 
 	tracer := otel.Tracer(serviceName)
 
-	eventsCh := make(chan tracing.Event, 5)
+	eventsCh := make(chan tracing.Event)
+	dispatchCh := make(chan tracing.Event)
+	go forwardWithoutBlocking(ctx, eventsCh, dispatchCh)
 
 	logCHMdw := cqs.NewCommandHndErrorMiddleware(log, tracer)
 	eventsCHMdw := app.NewEventMiddleware(eventsCh, tracer)
 	eventsMultiCHMdw := cqs.CommandHandlerMultiMiddleware(logCHMdw, eventsCHMdw)
 	logQHMdw := cqs.NewQueryHndErrorMiddleware(log, tracer)
 
-	tr := temperatureRepository(tracer, log)
-	rr := rainRepository(tracer)
-	statusRepo := memory.NewStatusRepository(tracer)
+	tr := memory.NewLastKnownTemperatureRepository(temperatureRepository(tracer, log), sensorReadingMaxAge, time.Now, tracer)
+	rr := memory.NewLastKnownRainRepository(rainRepository(tracer), sensorReadingMaxAge, time.Now, tracer)
+	statusRepo := disk.NewPersistentStatusRepository(memory.NewStatusRepository(tracer), conf.StatusFile, tracer)
 	zr := disk.NewZoneRepository(conf.ZonesFile, tracer)
 	dailyRepo := disk.NewFertilizerProgramRepository(conf.DailyProgramsFile, tracer)
 	oddRepo := disk.NewFertilizerProgramRepository(conf.OddProgramsFile, tracer)
@@ -134,11 +138,7 @@ func run() error {
 	defer eventsPublisher.Close()
 	findStatusQH := app.NewFindStatus(statusRepo, tracer)
 
-	cronJob, err := buildCron(log)
-	if err != nil {
-		log.ErrorContext(ctx, "failed building cron")
-		return err
-	}
+	cronJob := buildCron(location, log)
 	go terraceWeatherCron(ctx, cronJob, eventsRepo, findStatusQH, log, tracer)
 	go superviseWorker(ctx, log, "reading events", func(ctx context.Context) {
 		readingEvents(ctx, eventsRepo, eventsPublisher, log)
@@ -207,10 +207,10 @@ func run() error {
 		updateStatusWorker(ctx, qhBus, chBus, log)
 	})
 	go superviseWorker(ctx, log, "events", func(ctx context.Context) {
-		eventsWorker(ctx, eventsCh, eventBus, log, tracer)
+		eventsWorker(ctx, dispatchCh, eventBus, log, tracer)
 	})
 	go superviseWorker(ctx, log, "execution in time", func(ctx context.Context) {
-		executionInTimeWorker(ctx, qhBus, chBus, log, tracer)
+		executionInTimeWorker(ctx, qhBus, chBus, location, log, tracer)
 	})
 
 	go func() {
@@ -278,14 +278,9 @@ func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.Even
 	log.InfoContext(ctx, "[WORKER] Terrace Weather: context done")
 }
 
-func buildCron(log *slog.Logger) (*cron.Cron, error) {
-	loc, err := time.LoadLocation(timeZone)
-	if err != nil {
-		return nil, err
-	}
+func buildCron(location *time.Location, log *slog.Logger) *cron.Cron {
 	cronLog := cron.PrintfLogger(slog.NewLogLogger(log.Handler(), slog.LevelError))
-	c := cron.New(cron.WithLocation(loc), cron.WithChain(cron.Recover(cronLog)))
-	return c, nil
+	return cron.New(cron.WithLocation(location), cron.WithChain(cron.Recover(cronLog)))
 }
 
 func readingEvents(
@@ -386,7 +381,7 @@ func buildLog(level string) *slog.Logger {
 	return log
 }
 
-func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, logger *slog.Logger, tracer trace.Tracer) {
+func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, location *time.Location, logger *slog.Logger, tracer trace.Tracer) {
 	logger.InfoContext(ctx, "[WORKER] Execution in time: started")
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
@@ -396,16 +391,11 @@ func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.Comm
 			logger.InfoContext(ctx, "[WORKER] Execution in time: context done")
 			return
 		case <-ticker.C:
-			if err := worker.ExecutionInTime(ctx, qh, ch, now(), tracer); err != nil {
+			if err := worker.ExecutionInTime(ctx, qh, ch, time.Now().In(location), tracer); err != nil {
 				logger.ErrorContext(ctx, "[WORKER] failed execution in time", slog.String("error", err.Error()))
 			}
 		}
 	}
-}
-
-func now() time.Time {
-	loc, _ := time.LoadLocation(timeZone)
-	return time.Now().In(loc)
 }
 
 func eventsWorker(ctx context.Context, ch <-chan tracing.Event, evBus cqs.EventBus, logger *slog.Logger, tracer trace.Tracer) {
