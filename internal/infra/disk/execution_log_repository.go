@@ -33,7 +33,6 @@ func (e ExecutionLogRepository) Save(ctx context.Context, execLogs []program.Exe
 	default:
 		_, span := e.tracer.Start(ctx, "ExecutionLogRepository.Save")
 		defer span.End()
-		defer lockFile(e.path)()
 		logs := buildLogs(execLogs)
 		if err := writeJsonFile(e.path, logs); err != nil {
 			span.RecordError(err)
@@ -64,7 +63,6 @@ func (e ExecutionLogRepository) FindAll(ctx context.Context) ([]program.Executio
 	default:
 		_, span := e.tracer.Start(ctx, "ExecutionLogRepository.FindAll")
 		defer span.End()
-		defer lockFile(e.path)()
 		logs, err := e.readLogs()
 		if err != nil {
 			span.RecordError(err)
@@ -119,7 +117,10 @@ func (c CorruptExecutionLogError) Error() string {
 func buildExecutionLogs(logs []Log) []program.ExecutionLog {
 	execLogs := make([]program.ExecutionLog, len(logs))
 	for i, l := range logs {
-		execLogs[i] = program.HydrateExecutionLog(program.HydrateSeconds(l.Seconds), l.ZoneName, l.ExecutedAt)
+		var el program.ExecutionLog
+		sec, _ := program.ParseSeconds(l.Seconds)
+		el.Hydrate(sec, l.ZoneName, l.ExecutedAt)
+		execLogs[i] = el
 	}
 	return execLogs
 }

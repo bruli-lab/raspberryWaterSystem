@@ -18,6 +18,7 @@ services:
       - WEEKLY_PROGRAMS_FILE=${WEEKLY_PROGRAMS_FILE:-/tmp/weekly_programs.yml}
       - TEMPERATURE_PROGRAMS_FILE=${TEMPERATURE_PROGRAMS_FILE:-/tmp/temperature_programs.yml}
       - EXECUTION_LOGS_FILE=${EXECUTION_LOGS_FILE:-/tmp/execution_logs.json}
+      - STATUS_FILE=${STATUS_FILE:-/tmp/status.json}
       - NATS_SERVER_URL=${NATS_SERVER_URL:-nats://nats:4222}
       - EVENTS_DIRECTORY=${EVENTS_DIRECTORY:-/tmp/events}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
