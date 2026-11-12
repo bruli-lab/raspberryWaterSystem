@@ -15,6 +15,7 @@ const (
 
 	RainingIgnoredReason     = "It's raining!!"
 	DeactivatedIgnoredReason = "Deactivated!!"
+	CleaningIgnoredReason    = "Cleaning!!"
 
 	DefaultStabilizationFlux = 3 * time.Second
 )
@@ -100,6 +101,16 @@ func (z *Zone) Execute(seconds uint) error {
 		RelayPins:            pins,
 	})
 	return nil
+}
+
+func (z *Zone) IgnoreWhileCleaning() {
+	z.mutex.Lock()
+	defer z.mutex.Unlock()
+	z.Record(Ignored{
+		BasicEvent: cqs.NewBasicEvent(IgnoredEventName, uuid.New(), z.id),
+		ZoneName:   z.name,
+		Reason:     CleaningIgnoredReason,
+	})
 }
 
 func (z *Zone) ExecuteWithStatus(active, raining bool, seconds uint) error {

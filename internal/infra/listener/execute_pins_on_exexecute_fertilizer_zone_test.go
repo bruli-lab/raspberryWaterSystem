@@ -20,7 +20,7 @@ import (
 func Test_executePinsOnExecuteFertilizerZone_Listen(t *testing.T) {
 	log := buildLog()
 	tr := tracer()
-	execCh := app.NewExecutePins(fake.NewPinsExecutor(), tr)
+	execCh := app.NewExecutePins(fake.NewPinsExecutor(), statusRepository(t, false), tr)
 	logCH := &CommandHandlerMock{}
 	logCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
 		log.DebugContext(ctx, "log command handler")

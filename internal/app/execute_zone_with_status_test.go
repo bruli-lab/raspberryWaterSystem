@@ -52,11 +52,22 @@ func TestExecuteZoneWithStatusHandle(t *testing.T) {
 			expectedErr: errTest,
 		},
 		{
-			name:        "and status repository returns a clean status, then it returns an execute zone with status error",
-			command:     cmd,
-			zone:        fixtures.ZoneBuilder{}.Build(),
-			st:          fixtures.StatusBuilder{Clean: true}.Build(),
-			expectedErr: app.ExecuteZoneWithStatusError{},
+			name:          "and status repository returns a clean status, then it returns an ignored event",
+			command:       cmd,
+			zone:          fixtures.ZoneBuilder{}.Build(),
+			st:            fixtures.StatusBuilder{Clean: true}.Build(),
+			expectedEvent: zone.IgnoredEventName,
+		},
+		{
+			name: "with fertilizer and status repository returns a clean status, then it returns an ignored event",
+			command: app.ExecuteZoneWithStatusCmd{
+				Seconds:        36,
+				ZoneID:         "name",
+				WithFertilizer: true,
+			},
+			zone:          fixtures.ZoneBuilder{}.Build(),
+			st:            fixtures.StatusBuilder{Clean: true}.Build(),
+			expectedEvent: zone.IgnoredEventName,
 		},
 		{
 			name:        "and execute returns an error, then it returns an execute zone with status error",

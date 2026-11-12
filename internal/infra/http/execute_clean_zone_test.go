@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
@@ -25,6 +26,11 @@ func TestExecuteCleanZone(t *testing.T) {
 			name:         "and command handler returns not found error, then it returns not found",
 			expectedCode: http2.StatusNotFound,
 			chErr:        errs.NotFoundError{},
+		},
+		{
+			name:         "and command handler returns a clean in progress error, then it returns conflict",
+			expectedCode: http2.StatusConflict,
+			chErr:        app.CleanInProgressError{},
 		},
 		{
 			name:         "with a valid request and command handler returns en error, then it returns internal server error",

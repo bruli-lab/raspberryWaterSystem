@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/stretchr/testify/require"
@@ -81,7 +81,7 @@ func TestExecutePinsHandle(t *testing.T) {
 			events, err := handler.Handle(context.Background(), tt.cmd)
 			require.Len(t, pe.ExecuteCalls(), tt.expectedExecutions)
 			if tt.expectedErr != nil {
-				require.IsType(t, tt.expectedErr, err)
+				require.ErrorAs(t, err, &tt.expectedErr)
 				return
 			}
 			require.NoError(t, err)
