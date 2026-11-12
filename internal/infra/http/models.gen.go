@@ -8,6 +8,7 @@ const (
 	UpdateZoneRequestRelaysN1 UpdateZoneRequestRelays = 1
 	UpdateZoneRequestRelaysN2 UpdateZoneRequestRelays = 2
 	UpdateZoneRequestRelaysN3 UpdateZoneRequestRelays = 3
+	UpdateZoneRequestRelaysN4 UpdateZoneRequestRelays = 4
 )
 
 // Valid indicates whether the value is a known member of the UpdateZoneRequestRelays enum.
@@ -19,6 +20,8 @@ func (e UpdateZoneRequestRelays) Valid() bool {
 		return true
 	case UpdateZoneRequestRelaysN3:
 		return true
+	case UpdateZoneRequestRelaysN4:
+		return true
 	default:
 		return false
 	}
@@ -29,6 +32,7 @@ const (
 	ZoneRelaysN1 ZoneRelays = 1
 	ZoneRelaysN2 ZoneRelays = 2
 	ZoneRelaysN3 ZoneRelays = 3
+	ZoneRelaysN4 ZoneRelays = 4
 )
 
 // Valid indicates whether the value is a known member of the ZoneRelays enum.
@@ -39,6 +43,8 @@ func (e ZoneRelays) Valid() bool {
 	case ZoneRelaysN2:
 		return true
 	case ZoneRelaysN3:
+		return true
+	case ZoneRelaysN4:
 		return true
 	default:
 		return false
@@ -54,7 +60,7 @@ type ExecutionRequest struct {
 // FertilizerProgram defines model for FertilizerProgram.
 type FertilizerProgram struct {
 	Executions []ExecutionRequest `json:"executions"`
-	Fertilizer bool               `json:"fertilizer"`
+	Fertilizer *bool              `json:"fertilizer,omitempty"`
 	Hour       string             `json:"hour"`
 }
 

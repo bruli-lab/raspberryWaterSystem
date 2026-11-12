@@ -22,7 +22,7 @@ func CreateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 		ctx, span := tracer.Start(r.Context(), "CreateProgramRequest")
 		defer span.End()
 		var req FertilizerProgram
-		if err := ReadRequest(w, r, &req); err != nil {
+		if err := ReadRequest(w, r, fertilizerProgramRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -46,9 +46,10 @@ func CreateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 			default:
 				WriteErrorResponse(w, http.StatusInternalServerError)
 			}
+			return
 		}
 		span.SetStatus(codes.Ok, "program created")
-		WriteErrorResponse(w, http.StatusOK)
+		WriteResponse(w, http.StatusOK, nil)
 	}
 }
 
@@ -90,9 +91,17 @@ func buildFertilizerProgram(w http.ResponseWriter, req FertilizerProgram) (*prog
 				Code:    ErrorCodeInvalidRequest,
 				Message: err.Error(),
 			})
+			return nil, err
 		}
 		exec[i] = e
 	}
-	prog, _ := program.NewFertilizerProgram(hour, req.Fertilizer, exec)
-	return prog, err
+	prog, err := program.NewFertilizerProgram(hour, req.Fertilizer != nil && *req.Fertilizer, exec)
+	if err != nil {
+		WriteErrorResponse(w, http.StatusBadRequest, Error{
+			Code:    ErrorCodeInvalidRequest,
+			Message: err.Error(),
+		})
+		return nil, err
+	}
+	return prog, nil
 }

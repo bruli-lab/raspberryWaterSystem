@@ -17,7 +17,7 @@ func ExecuteFertilizerZone(ch cqs.CommandHandler, tracer trace.Tracer) http.Hand
 		ctx, span := tracer.Start(r.Context(), "ExecuteFertilizerZoneRequest")
 		defer span.End()
 		var req ExecuteZoneRequest
-		if err := ReadRequest(w, r, &req); err != nil {
+		if err := ReadRequest(w, r, executeZoneRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return

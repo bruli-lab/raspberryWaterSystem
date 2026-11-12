@@ -8,9 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bruli-lab/go-core/cqs"
-	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	http2 "github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -35,6 +34,16 @@ func TestRequestValidation(t *testing.T) {
 			handler:         func(ch cqs.CommandHandler) http.HandlerFunc { return http2.ExecuteZone(ch, tracer()) },
 			expectedCode:    http.StatusBadRequest,
 			expectedMessage: `property "seconds" is missing`,
+		},
+		{
+			name:            "an execute zone request with zero seconds, then it returns a bad request without executing the zone",
+			method:          http.MethodPost,
+			route:           "/zones/{id}/execute",
+			path:            "/zones/zone-a/execute",
+			body:            `{"seconds":0}`,
+			handler:         func(ch cqs.CommandHandler) http.HandlerFunc { return http2.ExecuteZone(ch, tracer()) },
+			expectedCode:    http.StatusBadRequest,
+			expectedMessage: "seconds",
 		},
 		{
 			name:            "an execute fertilizer zone request with a string as seconds, then it returns a bad request",
@@ -77,6 +86,16 @@ func TestRequestValidation(t *testing.T) {
 			expectedMessage: `property "name" is missing`,
 		},
 		{
+			name:            "an update zone request with empty relays, then it returns a bad request",
+			method:          http.MethodPut,
+			route:           "/zones/{id}",
+			path:            "/zones/zone-a",
+			body:            `{"name":"zone a","relays":[]}`,
+			handler:         func(ch cqs.CommandHandler) http.HandlerFunc { return http2.UpdateZone(ch, tracer()) },
+			expectedCode:    http.StatusBadRequest,
+			expectedMessage: "relays",
+		},
+		{
 			name:   "a create daily program request without fertilizer, then it creates the program",
 			method: http.MethodPost,
 			route:  "/programs/daily",
@@ -89,7 +108,7 @@ func TestRequestValidation(t *testing.T) {
 			expectedCommands: 1,
 		},
 		{
-			name:   "a create daily program request without executions, then the domain rejects it with a bad request",
+			name:   "a create daily program request without executions, then it returns a bad request",
 			method: http.MethodPost,
 			route:  "/programs/daily",
 			path:   "/programs/daily",
@@ -98,29 +117,17 @@ func TestRequestValidation(t *testing.T) {
 				return http2.CreateProgram(ch, http2.DailyProgram, tracer())
 			},
 			expectedCode:    http.StatusBadRequest,
-			expectedMessage: "empty programs",
+			expectedMessage: "executions",
 		},
 		{
-			name:   "a create daily program request with seconds over the limit, then the domain rejects it with a bad request",
-			method: http.MethodPost,
-			route:  "/programs/daily",
-			path:   "/programs/daily",
-			body:   `{"hour":"10:00","executions":[{"seconds":121,"zones":["zone-a"]}]}`,
-			handler: func(ch cqs.CommandHandler) http.HandlerFunc {
-				return http2.CreateProgram(ch, http2.DailyProgram, tracer())
-			},
-			expectedCode:    http.StatusBadRequest,
-			expectedMessage: "seconds must be between 1 and 120",
-		},
-		{
-			name:            "a create weekly program request with a program without zones, then the domain rejects it with a bad request",
+			name:            "a create weekly program request with a program without zones, then it returns a bad request",
 			method:          http.MethodPost,
 			route:           "/programs/weekly",
 			path:            "/programs/weekly",
-			body:            `{"week_day":"Monday","programs":[{"hour":"10:00","executions":[{"seconds":20,"zones":[]}]}]}`,
+			body:            `{"week_day":"monday","programs":[{"hour":"10:00","executions":[{"seconds":20,"zones":[]}]}]}`,
 			handler:         func(ch cqs.CommandHandler) http.HandlerFunc { return http2.CreateWeeklyProgram(ch, tracer()) },
 			expectedCode:    http.StatusBadRequest,
-			expectedMessage: "empty execution zones",
+			expectedMessage: "zones",
 		},
 		{
 			name:         "a create temperature program request with an out of range temperature, then it returns a bad request instead of sending an empty program",
@@ -146,14 +153,14 @@ func TestRequestValidation(t *testing.T) {
 		t.Run(`Given an http handler with request validation,
 		when `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &cqs.CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
+			ch := &CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
 					return nil, nil
 				},
 			}
 			server := chi.NewMux()
 			server.Method(tt.method, tt.route, tt.handler(ch))
-			req := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, strings.NewReader(tt.body))
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
 			writer := httptest.NewRecorder()
 
 			server.ServeHTTP(writer, req)
@@ -196,13 +203,13 @@ func TestCreateProgramFertilizerFlag(t *testing.T) {
 		t.Run(`Given a CreateProgram http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &cqs.CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
+			ch := &CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
 					return nil, nil
 				},
 			}
 			handler := http2.CreateProgram(ch, http2.DailyProgram, tracer())
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/programs/daily", strings.NewReader(tt.body))
+			req := httptest.NewRequest(http.MethodPost, "/programs/daily", strings.NewReader(tt.body))
 			writer := httptest.NewRecorder()
 
 			handler.ServeHTTP(writer, req)

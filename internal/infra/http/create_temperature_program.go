@@ -16,7 +16,7 @@ func CreateTemperatureProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.H
 		ctx, span := tracer.Start(r.Context(), "CreateTemperatureProgramRequest")
 		defer span.End()
 		var req TemperatureProgramRequest
-		if err := ReadRequest(w, r, &req); err != nil {
+		if err := ReadRequest(w, r, temperatureProgramRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -66,12 +66,21 @@ func buildCreateTemperatureProgram(req TemperatureProgramRequest) (*program.Temp
 			if err != nil {
 				return nil, err
 			}
-			exe, _ := program.NewExecution(sec, e.Zones)
+			exe, err := program.NewExecution(sec, e.Zones)
+			if err != nil {
+				return nil, err
+			}
 			exec[j] = exe
 		}
-		pr, _ := program.New(hour, exec)
+		pr, err := program.New(hour, exec)
+		if err != nil {
+			return nil, err
+		}
 		prgms[i] = *pr
 	}
-	temp, _ := program.NewTemperature(float32(req.Temperature), prgms)
+	temp, err := program.NewTemperature(float32(req.Temperature), prgms)
+	if err != nil {
+		return nil, err
+	}
 	return temp, nil
 }
