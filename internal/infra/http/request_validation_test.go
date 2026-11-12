@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	http2 "github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -145,8 +146,8 @@ func TestRequestValidation(t *testing.T) {
 		t.Run(`Given an http handler with request validation,
 		when `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, nil
 				},
 			}
@@ -195,8 +196,8 @@ func TestCreateProgramFertilizerFlag(t *testing.T) {
 		t.Run(`Given a CreateProgram http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, nil
 				},
 			}

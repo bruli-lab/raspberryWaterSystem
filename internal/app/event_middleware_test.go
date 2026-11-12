@@ -8,6 +8,7 @@ import (
 
 	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 
@@ -20,7 +21,6 @@ func TestNewEventMiddleware(t *testing.T) {
 	when is built with an event channel,
 	and command handler return events,
 	then all events are write in channel`, func(t *testing.T) {
-		t.Parallel()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		errTest := errors.New("")
 		ev := Event{
@@ -29,11 +29,11 @@ func TestNewEventMiddleware(t *testing.T) {
 			At:        time.Now(),
 			AggRootID: "dkdkdkd",
 		}
-		event1 := app.TracedEvent{
+		event1 := tracing.Event{
 			SpanContext: trace.SpanContext{},
 			Event:       ev,
 		}
-		eventCh := make(chan app.TracedEvent)
+		eventCh := make(chan tracing.Event)
 		eventMdw := app.NewEventMiddleware(eventCh, tracer())
 		handler := eventMdw(commandHandler{
 			events: []event.Event{
@@ -41,27 +41,20 @@ func TestNewEventMiddleware(t *testing.T) {
 			},
 			err: errTest,
 		})
-		received := make(chan app.TracedEvent, 1)
 		go func() {
 			for {
 				select {
 				case <-ctx.Done():
 					cancel()
 					return
-				case tracedEvent := <-eventCh:
-					received <- tracedEvent
+				case received := <-eventCh:
+					require.Equal(t, event1, received)
 				}
 			}
 		}()
 		evnts, err := handler.Handle(ctx, command{})
 		require.Nil(t, evnts)
 		require.Equal(t, errTest, err)
-		select {
-		case r := <-received:
-			require.Equal(t, event1, r)
-		case <-time.After(time.Second):
-			t.Fatal("event not received")
-		}
 	})
 }
 

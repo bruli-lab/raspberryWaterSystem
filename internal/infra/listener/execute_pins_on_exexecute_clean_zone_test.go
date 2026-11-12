@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/fake"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/listener"
@@ -20,26 +21,26 @@ func Test_executePinsOnExecuteCleanZone_Listen(t *testing.T) {
 	log := buildLog()
 	tr := tracer()
 	execCh := app.NewExecutePins(fake.NewPinsExecutor(), statusRepository(t, true), tr)
-	publishCH := &CommandHandlerMock{}
-	publishCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+	publishCH := &cqs.CommandHandlerMock{}
+	publishCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 		log.DebugContext(ctx, "publish message command handler")
 		return nil, nil
 	}
 	cleanFinished := make(chan struct{})
-	cleanCh := &CommandHandlerMock{}
-	cleanCh.HandleFunc = func(ctx context.Context, _ cqs.Command) ([]cqs.Event, error) {
+	cleanCh := &cqs.CommandHandlerMock{}
+	cleanCh.HandleFunc = func(ctx context.Context, _ cqs.Command) ([]event.Event, error) {
 		log.DebugContext(ctx, "activate deactivate clean statu command handler")
 		close(cleanFinished)
 		return nil, nil
 	}
-	chBus := app.NewCommandBus()
+	chBus := cqs.NewCommandBus()
 	chBus.Subscribe(app.ExecutePinsCmdName, execCh)
 	chBus.Subscribe(app.PublishMessageCmdName, publishCH)
 	chBus.Subscribe(app.ChangeCleanStatusCmdName, cleanCh)
 	list := listener.NewExecutePinsOnExecuteCleanZone(chBus, tr, log)
 	seconds := uint(10)
-	event := zone.CleanZoneExecuted{
-		BasicEvent:                cqs.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
+	executed := zone.CleanZoneExecuted{
+		BasicEvent:                event.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
 		ZoneID:                    "bbf",
 		ZoneName:                  "bonsai big with fertilizer",
 		ZoneSeconds:               seconds,
@@ -52,7 +53,7 @@ func Test_executePinsOnExecuteCleanZone_Listen(t *testing.T) {
 		WaitDuration:              20 * time.Second,
 		ClarifyDuration:           15 * time.Second,
 	}
-	err := list.Listen(t.Context(), event)
+	err := list.Listen(t.Context(), executed)
 	require.NoError(t, err)
 	select {
 	case <-cleanFinished:

@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -13,7 +15,6 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bruli/raspberryWaterSystem/internal/infra/worker"
@@ -115,7 +116,7 @@ func TestExecutionInTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(`Given a ExecutionInTime function,
 		when is called `+tt.name, func(t *testing.T) {
-			qh := &QueryHandlerMock{
+			qh := &cqs.QueryHandlerMock{
 				HandleFunc: func(_ context.Context, query cqs.Query) (any, error) {
 					_, findStatus := query.(app.FindStatusQuery)
 					if findStatus {
@@ -128,8 +129,8 @@ func TestExecutionInTime(t *testing.T) {
 					return nil, nil
 				},
 			}
-			ch := &CommandHandlerMock{}
-			ch.HandleFunc = func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{}
+			ch.HandleFunc = func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 				switch len(ch.HandleCalls()) {
 				case 1:
 					return nil, tt.dailyErr

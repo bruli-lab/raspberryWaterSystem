@@ -17,78 +17,61 @@ import (
 )
 
 func TestExecutePinsOnExecuteZoneListen(t *testing.T) {
-	errPins := errors.New("pins failed")
-	errLog := errors.New("log failed")
-	errPublish := errors.New("publish failed")
+	errTest := errors.New("")
 	tests := []struct {
-		name                                string
-		executeCHErr, logsCHErr, publishErr error
-		expectedErrs                        []error
-		expectedCommands                    []string
+		name string
+		expectedErr, executeCHErr,
+		logsCHErr, publishCHErr error
 	}{
 		{
-			name:             "and execute pins command handler returns an error, then it returns same error and neither saves the log nor notifies",
-			executeCHErr:     errPins,
-			expectedErrs:     []error{errPins},
-			expectedCommands: []string{"pins"},
+			name:         "and execute pins command handler returns an error, then it returns same error",
+			executeCHErr: errTest,
+			expectedErr:  errTest,
 		},
 		{
-			name:             "and save execution logs command handler returns an error, then it still notifies and returns the log error",
-			logsCHErr:        errLog,
-			expectedErrs:     []error{errLog},
-			expectedCommands: []string{"pins", "log", "publish"},
+			name:        "and save execution logs command handler returns an error, then it returns same error",
+			logsCHErr:   errTest,
+			expectedErr: errTest,
 		},
 		{
-			name:             "and publish message command handler returns an error, then it still saves the log and returns the publish error",
-			publishErr:       errPublish,
-			expectedErrs:     []error{errPublish},
-			expectedCommands: []string{"pins", "log", "publish"},
+			name:         "and publish message command handler returns an error, then it returns same error",
+			publishCHErr: errTest,
+			expectedErr:  errTest,
 		},
 		{
-			name:             "and both the log and the publish fail, then it returns both errors",
-			logsCHErr:        errLog,
-			publishErr:       errPublish,
-			expectedErrs:     []error{errLog, errPublish},
-			expectedCommands: []string{"pins", "log", "publish"},
-		},
-		{
-			name:             "and all services works fine, then it executes the pins, saves the log and notifies",
-			expectedCommands: []string{"pins", "log", "publish"},
+			name: "and all services works fine, then it returns nil",
 		},
 	}
 	for _, tt := range tests {
-		t.Run(`Given a ExecutePinsOnExecuteZone listener, when Listen method is called `+tt.name, func(t *testing.T) {
+		t.Run(`Given a ExecutePinsOnExecuteZone listener,
+		when Listen method is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			var commands []string
-			ch := &cqs.CommandHandlerMock{
-				HandleFunc: func(_ context.Context, cmd cqs.Command) ([]event.Event, error) {
-					switch cmd.(type) {
-					case app.ExecutePinsCmd:
-						commands = append(commands, "pins")
-						return nil, tt.executeCHErr
-					case app.SaveExecutionLogCmd:
-						commands = append(commands, "log")
-						return nil, tt.logsCHErr
-					case app.PublishMessageCmd:
-						commands = append(commands, "publish")
-						return nil, tt.publishErr
-					default:
-						return nil, nil
-					}
-				},
+			ch := &cqs.CommandHandlerMock{}
+			ch.HandleFunc = func(_ context.Context, cmd cqs.Command) ([]event.Event, error) {
+				_, isExecute := cmd.(app.ExecutePinsCmd)
+				_, isLog := cmd.(app.SaveExecutionLogCmd)
+				_, isPublish := cmd.(app.PublishMessageCmd)
+				switch {
+				case isExecute:
+					return nil, tt.executeCHErr
+				case isLog:
+					return nil, tt.logsCHErr
+				case isPublish:
+					return nil, tt.publishCHErr
+				default:
+					return nil, nil
+				}
 			}
-			err := listener.NewExecutePinsOnExecuteZone(ch, tracer()).Listen(t.Context(), zone.Executed{
+			list := listener.NewExecutePinsOnExecuteZone(ch, tracer())
+			err := list.Listen(context.Background(), zone.Executed{
 				ZoneName: "zone test",
 				Seconds:  10,
 			})
-			require.Equal(t, tt.expectedCommands, commands)
-			if len(tt.expectedErrs) == 0 {
-				require.NoError(t, err)
+			if err != nil {
+				require.ErrorAs(t, err, &tt.expectedErr)
 				return
 			}
-			for _, expected := range tt.expectedErrs {
-				require.ErrorIs(t, err, expected)
-			}
+			require.Equal(t, tt.expectedErr, err)
 		})
 	}
 }

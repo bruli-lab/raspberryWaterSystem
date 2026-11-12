@@ -4,11 +4,10 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 )
 
 func CreateZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFunc {

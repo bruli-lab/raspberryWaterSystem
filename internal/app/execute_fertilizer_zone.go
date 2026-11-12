@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -27,7 +28,7 @@ type ExecuteFertilizerZone struct {
 	tracer trace.Tracer
 }
 
-func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+func (e ExecuteFertilizerZone) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
 	ctx, span := e.tracer.Start(ctx, "ExecuteFertilizerZoneCmd")
 	defer span.End()
 	co, ok := cmd.(ExecuteFertilizerZoneCmd)

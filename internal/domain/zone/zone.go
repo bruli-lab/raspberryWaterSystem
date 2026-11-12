@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bruli-lab/go-core/event"
 	"github.com/google/uuid"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 )
 
@@ -26,7 +26,7 @@ var (
 )
 
 type Zone struct {
-	cqs.BasicAggregateRoot
+	event.BasicAggregateRoot
 	id, name string
 	relays   []Relay
 	mutex    sync.RWMutex
@@ -50,7 +50,7 @@ func (z *Zone) StabilizationFlux() time.Duration {
 
 func New(id, name string, relays []Relay) (*Zone, error) {
 	z := Zone{
-		BasicAggregateRoot: cqs.NewBasicAggregateRoot(),
+		BasicAggregateRoot: event.NewBasicAggregateRoot(),
 		id:                 id,
 		name:               name,
 		relays:             relays,
@@ -93,7 +93,7 @@ func (z *Zone) Execute(seconds uint) error {
 		pins[i] = p.pin
 	}
 	z.Record(Executed{
-		BasicEvent:           cqs.NewBasicEvent(ExecutedEventName, uuid.New(), z.id),
+		BasicEvent:           event.NewBasicEvent(ExecutedEventName, uuid.New(), z.id),
 		ZoneID:               z.id,
 		ZoneName:             z.name,
 		Seconds:              seconds,
@@ -107,7 +107,7 @@ func (z *Zone) IgnoreWhileCleaning() {
 	z.mutex.Lock()
 	defer z.mutex.Unlock()
 	z.Record(Ignored{
-		BasicEvent: cqs.NewBasicEvent(IgnoredEventName, uuid.New(), z.id),
+		BasicEvent: event.NewBasicEvent(IgnoredEventName, uuid.New(), z.id),
 		ZoneName:   z.name,
 		Reason:     CleaningIgnoredReason,
 	})
@@ -116,18 +116,18 @@ func (z *Zone) IgnoreWhileCleaning() {
 func (z *Zone) ExecuteWithStatus(active, raining bool, seconds uint) error {
 	z.mutex.Lock()
 	defer z.mutex.Unlock()
-	event := Ignored{
-		BasicEvent: cqs.NewBasicEvent(IgnoredEventName, uuid.New(), z.id),
+	ignored := Ignored{
+		BasicEvent: event.NewBasicEvent(IgnoredEventName, uuid.New(), z.id),
 		ZoneName:   z.name,
 	}
 	switch {
 	case !active:
-		event.Reason = DeactivatedIgnoredReason
-		z.Record(event)
+		ignored.Reason = DeactivatedIgnoredReason
+		z.Record(ignored)
 		return nil
 	case raining:
-		event.Reason = RainingIgnoredReason
-		z.Record(event)
+		ignored.Reason = RainingIgnoredReason
+		z.Record(ignored)
 		return nil
 	default:
 		return z.Execute(seconds)

@@ -89,6 +89,7 @@ require (
 )
 
 require (
+	github.com/bruli-lab/go-core v1.9.0
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/getkin/kin-openapi v0.153.0

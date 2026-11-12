@@ -3,7 +3,7 @@ package zone
 import (
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/event"
 )
 
 const (
@@ -14,7 +14,7 @@ const (
 )
 
 type Executed struct {
-	cqs.BasicEvent
+	event.BasicEvent
 	ZoneID               string
 	ZoneName             string
 	Seconds              uint
@@ -23,13 +23,13 @@ type Executed struct {
 }
 
 type Ignored struct {
-	cqs.BasicEvent
+	event.BasicEvent
 	ZoneName string
 	Reason   string
 }
 
 type FertilizerZoneExecuted struct {
-	cqs.BasicEvent
+	event.BasicEvent
 	ZoneID                    string
 	ZoneName                  string
 	ZoneSeconds               uint
@@ -45,7 +45,7 @@ type FertilizerZoneExecuted struct {
 	FertilizerValvuleRelayPin string
 }
 type CleanZoneExecuted struct {
-	cqs.BasicEvent
+	event.BasicEvent
 	ZoneID                    string
 	ZoneName                  string
 	ZoneSeconds               uint

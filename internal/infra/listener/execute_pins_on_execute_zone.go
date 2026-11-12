@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"go.opentelemetry.io/otel/codes"
@@ -17,29 +18,29 @@ type ExecutePinsOnExecuteZone struct {
 	tracer trace.Tracer
 }
 
-func (e ExecutePinsOnExecuteZone) Listen(ctx context.Context, ev cqs.Event) error {
+func (e ExecutePinsOnExecuteZone) Listen(ctx context.Context, ev event.Event) error {
 	ctx, span := e.tracer.Start(ctx, "ExecutePinsOnExecuteZone.Listen")
 	defer span.End()
-	event, _ := ev.(zone.Executed)
+	executed, _ := ev.(zone.Executed)
 	if _, err := e.ch.Handle(ctx, app.ExecutePinsCmd{
-		Seconds: event.Seconds + event.StabilizationSeconds,
-		Pins:    event.RelayPins,
+		Seconds: executed.Seconds + executed.StabilizationSeconds,
+		Pins:    executed.RelayPins,
 	}); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	sec := program.HydrateSeconds(int(event.Seconds))
+	sec := program.HydrateSeconds(int(executed.Seconds))
 	if _, err := e.ch.Handle(ctx, app.SaveExecutionLogCmd{
-		ZoneName:   event.ZoneName,
+		ZoneName:   executed.ZoneName,
 		Seconds:    sec,
-		ExecutedAt: event.EventAt(),
+		ExecutedAt: executed.EventAt(),
 	}); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	message := fmt.Sprintf("%s zone executed during %vs", event.ZoneName, sec.Int())
+	message := fmt.Sprintf("%s zone executed during %vs", executed.ZoneName, sec.Int())
 	if _, err := e.ch.Handle(ctx, app.PublishMessageCmd{Message: message}); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())

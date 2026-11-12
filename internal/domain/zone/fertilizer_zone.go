@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/google/uuid"
 )
@@ -15,7 +15,7 @@ const (
 )
 
 type FertilizerZone struct {
-	cqs.BasicAggregateRoot
+	event.BasicAggregateRoot
 	zone              *Zone
 	airZone           *AireZone
 	fertilizerPump    *FertilizerPumpZone
@@ -33,7 +33,7 @@ func (z *FertilizerZone) Execute(seconds uint) error {
 		pins[i] = p.pin
 	}
 	z.Record(FertilizerZoneExecuted{
-		BasicEvent:                cqs.NewBasicEvent(FertilizerZoneExecutedEventName, uuid.New(), z.zone.Id()),
+		BasicEvent:                event.NewBasicEvent(FertilizerZoneExecutedEventName, uuid.New(), z.zone.Id()),
 		ZoneID:                    z.zone.Id(),
 		ZoneName:                  z.zone.Name(),
 		ZoneSeconds:               seconds,
@@ -54,18 +54,18 @@ func (z *FertilizerZone) Execute(seconds uint) error {
 func (z *FertilizerZone) ExecuteWithStatus(active, raining bool, seconds uint) error {
 	z.mutex.Lock()
 	defer z.mutex.Unlock()
-	event := Ignored{
-		BasicEvent: cqs.NewBasicEvent(IgnoredEventName, uuid.New(), z.zone.id),
+	ignored := Ignored{
+		BasicEvent: event.NewBasicEvent(IgnoredEventName, uuid.New(), z.zone.id),
 		ZoneName:   z.zone.name,
 	}
 	switch {
 	case !active:
-		event.Reason = DeactivatedIgnoredReason
-		z.Record(event)
+		ignored.Reason = DeactivatedIgnoredReason
+		z.Record(ignored)
 		return nil
 	case raining:
-		event.Reason = RainingIgnoredReason
-		z.Record(event)
+		ignored.Reason = RainingIgnoredReason
+		z.Record(ignored)
 		return nil
 	default:
 		return z.Execute(seconds)
@@ -74,7 +74,7 @@ func (z *FertilizerZone) ExecuteWithStatus(active, raining bool, seconds uint) e
 
 func NewFertilizerZone(zone *Zone) *FertilizerZone {
 	return &FertilizerZone{
-		BasicAggregateRoot: cqs.NewBasicAggregateRoot(),
+		BasicAggregateRoot: event.NewBasicAggregateRoot(),
 		zone:               zone,
 		airZone:            &AireZone{},
 		fertilizerPump:     &FertilizerPumpZone{},
