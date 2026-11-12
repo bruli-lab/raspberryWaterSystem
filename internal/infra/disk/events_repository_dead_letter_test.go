@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
-	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 )
@@ -52,7 +51,7 @@ func TestEventsRepositoryFindAllWithUnreadableFiles(t *testing.T) {
 			repo := disk.NewEventsRepository(dir, noop.NewTracerProvider().Tracer("test"))
 			if tt.createDir {
 				for i := range 2 {
-					ev, err := outbox.NewFromWeather(t.Context(), outbox.Weather{Temperature: 20, Humidity: 50}, time.Now())
+					ev, err := disk.NewFromWeather(t.Context(), &disk.Weather{Temperature: 20, Humidity: 50})
 					require.NoError(t, err)
 					ev.EventAt = ev.EventAt.Add(time.Duration(i) * time.Second)
 					require.NoError(t, repo.Save(t.Context(), ev))
@@ -67,7 +66,7 @@ func TestEventsRepositoryFindAllWithUnreadableFiles(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, events, tt.expectedEvents)
 			for _, ev := range events {
-				require.Equal(t, outbox.TerraceWeatherEventType, ev.EventType)
+				require.Equal(t, disk.TerraceWeatherEventType, ev.EventType)
 			}
 			for _, name := range tt.expectedDeadLetters {
 				require.FileExists(t, filepath.Join(dir, disk.DeadLetterDirectory, name))

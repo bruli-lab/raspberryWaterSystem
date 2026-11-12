@@ -67,7 +67,6 @@ func writeJsonFile(path string, data any) error {
 
 const (
 	filePermissions = 0o644
-	DirPermissions  = 0o750
 	tempFileSuffix  = ".tmp"
 	tempFilePrefix  = "."
 )
