@@ -22,7 +22,7 @@ func Test_executePinsOnExecuteCleanZone_Listen(t *testing.T) {
 	tr := tracer()
 	execCh := app.NewExecutePins(fake.NewPinsExecutor(), statusRepository(t, true), tr)
 	publishCH := &cqs.CommandHandlerMock{}
-	publishCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
+	publishCH.HandleFunc = func(ctx context.Context, _ cqs.Command) ([]event.Event, error) {
 		log.DebugContext(ctx, "publish message command handler")
 		return nil, nil
 	}
@@ -40,18 +40,18 @@ func Test_executePinsOnExecuteCleanZone_Listen(t *testing.T) {
 	list := listener.NewExecutePinsOnExecuteCleanZone(chBus, tr, log)
 	seconds := uint(10)
 	executed := zone.CleanZoneExecuted{
-		BasicEvent:                event.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
-		ZoneID:                    "bbf",
-		ZoneName:                  "bonsai big with fertilizer",
-		ZoneSeconds:               seconds,
-		StabilizationZoneSeconds:  3,
-		ZoneRelayPins:             []string{"1", "2"},
-		FertilizerPumpSeconds:     seconds,
-		FertilizerPumpRelayPin:    "4",
-		FertilizerValvuleSeconds:  seconds,
-		FertilizerValvuleRelayPin: "6",
-		WaitDuration:              20 * time.Second,
-		ClarifyDuration:           15 * time.Second,
+		BasicEvent:               event.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
+		ZoneID:                   "bbf",
+		ZoneName:                 "bonsai big with fertilizer",
+		ZoneSeconds:              seconds,
+		StabilizationZoneSeconds: 3,
+		ZoneRelayPins:            []string{"1", "2"},
+		FertilizerPumpSeconds:    seconds,
+		FertilizerPumpRelayPin:   "4",
+		FertilizerValveSeconds:   seconds,
+		FertilizerValveRelayPin:  "6",
+		WaitDuration:             20 * time.Second,
+		ClarifyDuration:          15 * time.Second,
 	}
 	err := list.Listen(t.Context(), executed)
 	require.NoError(t, err)

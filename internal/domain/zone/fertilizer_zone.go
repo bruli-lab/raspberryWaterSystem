@@ -10,18 +10,18 @@ import (
 )
 
 const (
-	AirZoneDefaultTime      = 15 * time.Second
-	CleanValvuleDefaultTime = 15 * time.Second
+	AirZoneDefaultTime    = 15 * time.Second
+	CleanValveDefaultTime = 15 * time.Second
 )
 
 type FertilizerZone struct {
 	event.BasicAggregateRoot
-	zone              *Zone
-	airZone           *AireZone
-	fertilizerPump    *FertilizerPumpZone
-	cleanValvule      *CleanValvuleZone
-	fertilizerValvule *FertilizerValvuleZone
-	mutex             sync.Mutex
+	zone            *Zone
+	airZone         *AirZone
+	fertilizerPump  *FertilizerPumpZone
+	cleanValve      *CleanValveZone
+	fertilizerValve *FertilizerValveZone
+	mutex           sync.Mutex
 }
 
 func (z *FertilizerZone) Execute(seconds uint) error {
@@ -33,20 +33,20 @@ func (z *FertilizerZone) Execute(seconds uint) error {
 		pins[i] = p.pin
 	}
 	z.Record(FertilizerZoneExecuted{
-		BasicEvent:                event.NewBasicEvent(FertilizerZoneExecutedEventName, uuid.New(), z.zone.Id()),
-		ZoneID:                    z.zone.Id(),
-		ZoneName:                  z.zone.Name(),
-		ZoneSeconds:               seconds,
-		StabilizationZoneSeconds:  uint(z.zone.StabilizationFlux().Seconds()),
-		ZoneRelayPins:             pins,
-		CleanValvuleSeconds:       uint(z.cleanValvule.Seconds().Seconds()),
-		CleanValvuleRelayPin:      z.cleanValvule.Relay().Pin(),
-		FertilizerPumpSeconds:     seconds + uint(z.cleanValvule.Seconds().Seconds()),
-		FertilizerPumpRelayPin:    z.fertilizerPump.Relay().Pin(),
-		AirZoneSeconds:            uint(z.airZone.Seconds().Seconds()),
-		AirZoneRelayPin:           z.airZone.Relay().Pin(),
-		FertilizerValvuleSeconds:  seconds,
-		FertilizerValvuleRelayPin: z.fertilizerValvule.Relay().Pin(),
+		BasicEvent:               event.NewBasicEvent(FertilizerZoneExecutedEventName, uuid.New(), z.zone.Id()),
+		ZoneID:                   z.zone.Id(),
+		ZoneName:                 z.zone.Name(),
+		ZoneSeconds:              seconds,
+		StabilizationZoneSeconds: uint(z.zone.StabilizationFlux().Seconds()),
+		ZoneRelayPins:            pins,
+		CleanValveSeconds:        uint(z.cleanValve.Seconds().Seconds()),
+		CleanValveRelayPin:       z.cleanValve.Relay().Pin(),
+		FertilizerPumpSeconds:    seconds + uint(z.cleanValve.Seconds().Seconds()),
+		FertilizerPumpRelayPin:   z.fertilizerPump.Relay().Pin(),
+		AirZoneSeconds:           uint(z.airZone.Seconds().Seconds()),
+		AirZoneRelayPin:          z.airZone.Relay().Pin(),
+		FertilizerValveSeconds:   seconds,
+		FertilizerValveRelayPin:  z.fertilizerValve.Relay().Pin(),
 	})
 	return nil
 }
@@ -76,29 +76,29 @@ func NewFertilizerZone(zone *Zone) *FertilizerZone {
 	return &FertilizerZone{
 		BasicAggregateRoot: event.NewBasicAggregateRoot(),
 		zone:               zone,
-		airZone:            &AireZone{},
+		airZone:            &AirZone{},
 		fertilizerPump:     &FertilizerPumpZone{},
-		cleanValvule:       &CleanValvuleZone{},
-		fertilizerValvule:  &FertilizerValvuleZone{},
+		cleanValve:         &CleanValveZone{},
+		fertilizerValve:    &FertilizerValveZone{},
 		mutex:              sync.Mutex{},
 	}
 }
 
-type FertilizerValvuleZone struct{}
+type FertilizerValveZone struct{}
 
-func (f FertilizerValvuleZone) Relay() *Relay {
-	r, _ := ParseRelay(FertilizerValvuleID)
+func (f FertilizerValveZone) Relay() *Relay {
+	r, _ := ParseRelay(FertilizerValveID)
 	return &r
 }
 
-type CleanValvuleZone struct{}
+type CleanValveZone struct{}
 
-func (c CleanValvuleZone) Seconds() time.Duration {
-	return CleanValvuleDefaultTime
+func (c CleanValveZone) Seconds() time.Duration {
+	return CleanValveDefaultTime
 }
 
-func (c CleanValvuleZone) Relay() *Relay {
-	r, _ := ParseRelay(CleanValvuleID)
+func (c CleanValveZone) Relay() *Relay {
+	r, _ := ParseRelay(CleanValveID)
 	return &r
 }
 
@@ -109,13 +109,13 @@ func (f FertilizerPumpZone) Relay() *Relay {
 	return &r
 }
 
-type AireZone struct{}
+type AirZone struct{}
 
-func (a AireZone) Seconds() time.Duration {
+func (a AirZone) Seconds() time.Duration {
 	return AirZoneDefaultTime
 }
 
-func (a AireZone) Relay() *Relay {
+func (a AirZone) Relay() *Relay {
 	r, _ := ParseRelay(AirRelayID)
 	return &r
 }

@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func FinZones(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
+func FindZones(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), "FindZonesRequest")
 		defer span.End()

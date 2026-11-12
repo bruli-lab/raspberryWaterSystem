@@ -23,12 +23,12 @@ func Test_executePinsOnExecuteFertilizerZone_Listen(t *testing.T) {
 	tr := tracer()
 	execCh := app.NewExecutePins(fake.NewPinsExecutor(), statusRepository(t, false), tr)
 	logCH := &cqs.CommandHandlerMock{}
-	logCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
+	logCH.HandleFunc = func(ctx context.Context, _ cqs.Command) ([]event.Event, error) {
 		log.DebugContext(ctx, "log command handler")
 		return nil, nil
 	}
 	publishCH := &cqs.CommandHandlerMock{}
-	publishCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]event.Event, error) {
+	publishCH.HandleFunc = func(ctx context.Context, _ cqs.Command) ([]event.Event, error) {
 		log.DebugContext(ctx, "publish message command handler")
 		return nil, nil
 	}
@@ -38,20 +38,20 @@ func Test_executePinsOnExecuteFertilizerZone_Listen(t *testing.T) {
 	chBus.Subscribe(app.PublishMessageCmdName, publishCH)
 	list := listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tr, log)
 	executed := zone.FertilizerZoneExecuted{
-		BasicEvent:                event.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
-		ZoneID:                    "bbf",
-		ZoneName:                  "bonsai big with fertilizer",
-		ZoneSeconds:               10,
-		StabilizationZoneSeconds:  3,
-		ZoneRelayPins:             []string{"1", "2"},
-		CleanValvuleSeconds:       15,
-		CleanValvuleRelayPin:      "3",
-		FertilizerPumpSeconds:     10,
-		FertilizerPumpRelayPin:    "4",
-		AirZoneSeconds:            15,
-		AirZoneRelayPin:           "5",
-		FertilizerValvuleSeconds:  10,
-		FertilizerValvuleRelayPin: "6",
+		BasicEvent:               event.NewBasicEvent("event-test", uuid.New(), uuid.NewString()),
+		ZoneID:                   "bbf",
+		ZoneName:                 "bonsai big with fertilizer",
+		ZoneSeconds:              10,
+		StabilizationZoneSeconds: 3,
+		ZoneRelayPins:            []string{"1", "2"},
+		CleanValveSeconds:        15,
+		CleanValveRelayPin:       "3",
+		FertilizerPumpSeconds:    10,
+		FertilizerPumpRelayPin:   "4",
+		AirZoneSeconds:           15,
+		AirZoneRelayPin:          "5",
+		FertilizerValveSeconds:   10,
+		FertilizerValveRelayPin:  "6",
 	}
 	err := list.Listen(t.Context(), executed)
 	require.NoError(t, err)

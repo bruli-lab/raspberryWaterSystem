@@ -73,10 +73,10 @@ func (e ExecutePinsOnExecuteFertilizerZone) executePin(ctx context.Context, seco
 	return err
 }
 
-func (e ExecutePinsOnExecuteFertilizerZone) fertilizerValvule(ctx context.Context, executed *zone.FertilizerZoneExecuted) error {
-	e.log.DebugContext(ctx, "execute fertilizer valvule", slog.Uint64("seconds", uint64(executed.FertilizerValvuleSeconds)))
-	defer e.log.DebugContext(ctx, "fertilizer valvule stopped")
-	return e.executePin(ctx, executed.FertilizerValvuleSeconds, []string{executed.FertilizerValvuleRelayPin})
+func (e ExecutePinsOnExecuteFertilizerZone) fertilizerValve(ctx context.Context, executed *zone.FertilizerZoneExecuted) error {
+	e.log.DebugContext(ctx, "execute fertilizer valve", slog.Uint64("seconds", uint64(executed.FertilizerValveSeconds)))
+	defer e.log.DebugContext(ctx, "fertilizer valve stopped")
+	return e.executePin(ctx, executed.FertilizerValveSeconds, []string{executed.FertilizerValveRelayPin})
 }
 
 func (e ExecutePinsOnExecuteFertilizerZone) fertilizerPump(ctx context.Context, executed *zone.FertilizerZoneExecuted) error {
@@ -89,7 +89,7 @@ func (e ExecutePinsOnExecuteFertilizerZone) fertilizerPump(ctx context.Context, 
 func (e ExecutePinsOnExecuteFertilizerZone) zone(ctx context.Context, executed *zone.FertilizerZoneExecuted) error {
 	e.log.DebugContext(ctx, "execute zone", slog.Uint64("seconds", uint64(executed.ZoneSeconds)))
 	defer e.log.DebugContext(ctx, "zone stopped")
-	seconds := executed.ZoneSeconds + executed.StabilizationZoneSeconds + executed.CleanValvuleSeconds
+	seconds := executed.ZoneSeconds + executed.StabilizationZoneSeconds + executed.CleanValveSeconds
 	return e.executePin(ctx, seconds, executed.ZoneRelayPins)
 }
 
@@ -113,7 +113,7 @@ func (e ExecutePinsOnExecuteFertilizerZone) execution(ctx context.Context, execu
 	case <-timer.C:
 	}
 	g.Go(func() error {
-		if err := e.fertilizerValvule(ctx, executed); err != nil {
+		if err := e.fertilizerValve(ctx, executed); err != nil {
 			return err
 		}
 		return e.clean(ctx, executed)
@@ -127,9 +127,9 @@ func (e ExecutePinsOnExecuteFertilizerZone) execution(ctx context.Context, execu
 }
 
 func (e ExecutePinsOnExecuteFertilizerZone) clean(ctx context.Context, executed *zone.FertilizerZoneExecuted) error {
-	e.log.DebugContext(ctx, "execute clean valvule", slog.Uint64("seconds", uint64(executed.CleanValvuleSeconds)))
-	defer e.log.DebugContext(ctx, "clean valvule stopped")
-	return e.executePin(ctx, executed.CleanValvuleSeconds, []string{executed.CleanValvuleRelayPin})
+	e.log.DebugContext(ctx, "execute clean valve", slog.Uint64("seconds", uint64(executed.CleanValveSeconds)))
+	defer e.log.DebugContext(ctx, "clean valve stopped")
+	return e.executePin(ctx, executed.CleanValveSeconds, []string{executed.CleanValveRelayPin})
 }
 
 func NewExecutePinsOnExecuteFertilizerZone(ch cqs.CommandHandler, tracer trace.Tracer, log *slog.Logger) *ExecutePinsOnExecuteFertilizerZone {
