@@ -3,8 +3,12 @@ package disk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +21,7 @@ import (
 const (
 	ExecutionLogsEventType  = "execution_logs"
 	TerraceWeatherEventType = "terrace_weather"
+	DeadLetterDirectory     = "dead-letter"
 )
 
 type Event struct {
@@ -124,21 +129,49 @@ func (e EventsRepository) FindAll(ctx context.Context) ([]Event, error) {
 		defer span.End()
 		files, err := os.ReadDir(e.eventsDir)
 		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				span.SetStatus(codes.Ok, "events directory does not exist yet")
+				return nil, nil
+			}
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, fmt.Errorf("failed to read events directory: %w", err)
 		}
-		events := make([]Event, len(files))
-		for i, f := range files {
-			if err := readJsonFile(fmt.Sprintf("%s/%s", e.eventsDir, f.Name()), &events[i]); err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-				return nil, fmt.Errorf("failed to read event file: %w", err)
+		events := make([]Event, 0, len(files))
+		for _, f := range files {
+			if !isEventFile(f) {
+				continue
 			}
+			path := filepath.Join(e.eventsDir, f.Name())
+			var ev Event
+			if err := readJsonFile(path, &ev); err != nil {
+				span.RecordError(fmt.Errorf("failed to read event file %s: %w", f.Name(), err))
+				if err := e.moveToDeadLetter(path); err != nil {
+					span.RecordError(err)
+				}
+				continue
+			}
+			events = append(events, ev)
 		}
 		span.SetStatus(codes.Ok, "events found")
 		return events, nil
 	}
+}
+
+func (e EventsRepository) moveToDeadLetter(path string) error {
+	deadLetterDir := filepath.Join(e.eventsDir, DeadLetterDirectory)
+	if err := os.MkdirAll(deadLetterDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create dead letter directory: %w", err)
+	}
+	if err := os.Rename(path, filepath.Join(deadLetterDir, filepath.Base(path))); err != nil {
+		return fmt.Errorf("failed to move event file to dead letter directory: %w", err)
+	}
+	return nil
+}
+
+func isEventFile(f fs.DirEntry) bool {
+	name := f.Name()
+	return f.Type().IsRegular() && filepath.Ext(name) == ".json" && !strings.HasPrefix(name, tempFilePrefix)
 }
 
 func NewEventsRepository(eventsDir string, tracer trace.Tracer) *EventsRepository {

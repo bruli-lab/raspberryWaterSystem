@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -40,7 +41,7 @@ func checkFile(path string) error {
 	_, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			if err := os.WriteFile(path, nil, 0o755); err != nil {
+			if err := writeFileAtomically(path, nil); err != nil {
 				return err
 			}
 		}
@@ -53,7 +54,7 @@ func writeYamlFile(path string, data any) error {
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
-	return os.WriteFile(path, dataFile, 0o755)
+	return writeFileAtomically(path, dataFile)
 }
 
 func writeJsonFile(path string, data any) error {
@@ -61,5 +62,58 @@ func writeJsonFile(path string, data any) error {
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
-	return os.WriteFile(path, dataFile, 0o755)
+	return writeFileAtomically(path, dataFile)
+}
+
+const (
+	filePermissions = 0o644
+	tempFileSuffix  = ".tmp"
+	tempFilePrefix  = "."
+)
+
+func writeFileAtomically(path string, data []byte) (err error) {
+	dir, name := filepath.Split(path)
+	if dir == "" {
+		dir = "."
+	}
+	tmp, err := os.CreateTemp(dir, tempFilePrefix+name+".*"+tempFileSuffix)
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file for %s: %w", path, err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tmp.Close()
+			_ = os.Remove(tmp.Name())
+		}
+	}()
+	if _, err = tmp.Write(data); err != nil {
+		return fmt.Errorf("failed to write temporary file for %s: %w", path, err)
+	}
+	if err = tmp.Chmod(filePermissions); err != nil {
+		return fmt.Errorf("failed to set permissions on temporary file for %s: %w", path, err)
+	}
+	if err = tmp.Sync(); err != nil {
+		return fmt.Errorf("failed to sync temporary file for %s: %w", path, err)
+	}
+	if err = tmp.Close(); err != nil {
+		return fmt.Errorf("failed to close temporary file for %s: %w", path, err)
+	}
+	if err = os.Rename(tmp.Name(), path); err != nil {
+		return fmt.Errorf("failed to replace %s: %w", path, err)
+	}
+	return syncDir(dir)
+}
+
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return fmt.Errorf("failed to open directory %s: %w", dir, err)
+	}
+	defer func() {
+		_ = d.Close()
+	}()
+	if err = d.Sync(); err != nil {
+		return fmt.Errorf("failed to sync directory %s: %w", dir, err)
+	}
+	return nil
 }
