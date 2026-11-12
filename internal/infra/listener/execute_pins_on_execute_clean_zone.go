@@ -20,7 +20,6 @@ import (
 
 type ExecutePinsOnExecuteCleanZone struct {
 	ch    cqs.CommandHandler
-	wait  Wait
 	trace trace.Tracer
 	log   *slog.Logger
 }
@@ -68,8 +67,12 @@ func (e ExecutePinsOnExecuteCleanZone) cleanCycle(ctx context.Context, span trac
 	sec := program.HydrateSeconds(int(executed.ZoneSeconds))
 	e.notify(ctx, span, fmt.Sprintf("%s clean zone executed during %vs", executed.ZoneName, sec.Int()))
 	e.log.DebugContext(ctx, "wait for clarify process", slog.Duration("duration", executed.WaitDuration))
-	if err := e.wait(ctx, executed.WaitDuration); err != nil {
-		return err
+	timer := time.NewTimer(executed.WaitDuration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
 	}
 	if err := e.clarifyExecution(ctx, executed); err != nil {
 		return err
@@ -128,8 +131,13 @@ func (e ExecutePinsOnExecuteCleanZone) cleanExecution(ctx context.Context, execu
 		return e.zone(ctx, seconds, executed.ZoneRelayPins)
 	})
 
-	if err := e.wait(ctx, time.Duration(executed.StabilizationZoneSeconds)*time.Second); err != nil {
-		return err
+	timer := time.NewTimer(time.Duration(executed.StabilizationZoneSeconds) * time.Second)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
 	}
 	g.Go(func() error {
 		return e.fertilizerValve(ctx, executed.FertilizerValveSeconds, executed.FertilizerValveRelayPin)
@@ -146,12 +154,17 @@ func (e ExecutePinsOnExecuteCleanZone) clarifyExecution(ctx context.Context, exe
 	e.log.DebugContext(ctx, "execution clarify process", slog.Duration("duration", executed.ClarifyDuration))
 
 	g, ctx := errgroup.WithContext(ctx)
+	timer := time.NewTimer(time.Duration(executed.StabilizationZoneSeconds) * time.Second)
+	defer timer.Stop()
+
 	seconds := uint(executed.ClarifyDuration.Seconds())
 	g.Go(func() error {
 		return e.zone(ctx, seconds+executed.StabilizationZoneSeconds, executed.ZoneRelayPins)
 	})
-	if err := e.wait(ctx, time.Duration(executed.StabilizationZoneSeconds)*time.Second); err != nil {
-		return err
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
 	}
 	g.Go(func() error {
 		return e.fertilizerPump(ctx, seconds, executed.FertilizerPumpRelayPin)
@@ -163,6 +176,6 @@ func (e ExecutePinsOnExecuteCleanZone) clarifyExecution(ctx context.Context, exe
 	return g.Wait()
 }
 
-func NewExecutePinsOnExecuteCleanZone(ch cqs.CommandHandler, wait Wait, tracer trace.Tracer, log *slog.Logger) *ExecutePinsOnExecuteCleanZone {
-	return &ExecutePinsOnExecuteCleanZone{ch: ch, wait: wait, trace: tracer, log: log}
+func NewExecutePinsOnExecuteCleanZone(ch cqs.CommandHandler, tracer trace.Tracer, log *slog.Logger) *ExecutePinsOnExecuteCleanZone {
+	return &ExecutePinsOnExecuteCleanZone{ch: ch, trace: tracer, log: log}
 }

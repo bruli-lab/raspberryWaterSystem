@@ -139,27 +139,39 @@ func (d FertilizerProgramRepository) FindAll(ctx context.Context) ([]program.Fer
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
+		programs, skipped := buildFertilizerPrograms(dailyPgrms)
+		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "programs found")
-		return buildFertilizerPrograms(dailyPgrms), nil
+		return programs, nil
 	}
 }
 
-func buildFertilizerPrograms(pr fertilizerMap) []program.FertilizerProgram {
+func buildFertilizerPrograms(pr fertilizerMap) ([]program.FertilizerProgram, []error) {
 	dailies := make([]program.FertilizerProgram, 0, len(pr))
+	var skipped []error
 	for hour, pg := range pr {
-		p := buildFertilizerProgram(pg.Executions, hour, pg.Fertilizer)
+		p, err := buildFertilizerProgram(pg.Executions, hour, pg.Fertilizer)
+		if err != nil {
+			skipped = append(skipped, err)
+			continue
+		}
 		dailies = append(dailies, *p)
 	}
-	return dailies
+	return dailies, skipped
 }
 
-func buildPrograms(pr programMap) []program.Program {
+func buildPrograms(pr programMap) ([]program.Program, []error) {
 	dailies := make([]program.Program, 0, len(pr))
+	var skipped []error
 	for hour, pg := range pr {
-		p := buildProgram(pg, hour)
+		p, err := buildProgram(pg, hour)
+		if err != nil {
+			skipped = append(skipped, err)
+			continue
+		}
 		dailies = append(dailies, *p)
 	}
-	return dailies
+	return dailies, skipped
 }
 
 func (d FertilizerProgramRepository) FindByHour(ctx context.Context, hour *program.Hour) (*program.FertilizerProgram, error) {
@@ -182,21 +194,33 @@ func (d FertilizerProgramRepository) FindByHour(ctx context.Context, hour *progr
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
+		prog, err := buildFertilizerProgram(pgr.Executions, hour.String(), pgr.Fertilizer)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
 		span.SetStatus(codes.Ok, "program found")
-		return buildFertilizerProgram(pgr.Executions, hour.String(), pgr.Fertilizer), nil
+		return prog, nil
 	}
 }
 
-func buildFertilizerProgram(pgr []executions, hour string, fertilizer bool) *program.FertilizerProgram {
-	ho, _ := program.ParseHour(hour)
+func buildFertilizerProgram(pgr []executions, hour string, fertilizer bool) (*program.FertilizerProgram, error) {
+	ho, err := program.ParseHour(hour)
+	if err != nil {
+		return nil, InvalidStoredEntryError{key: hour, cause: err}
+	}
 	prog := program.HydrateFertilizerProgram(ho, fertilizer, buildProgramExecutions(pgr))
-	return &prog
+	return &prog, nil
 }
 
-func buildProgram(pgr []executions, hour string) *program.Program {
-	ho, _ := program.ParseHour(hour)
+func buildProgram(pgr []executions, hour string) (*program.Program, error) {
+	ho, err := program.ParseHour(hour)
+	if err != nil {
+		return nil, InvalidStoredEntryError{key: hour, cause: err}
+	}
 	prog := program.HydrateProgram(ho, buildProgramExecutions(pgr))
-	return &prog
+	return &prog, nil
 }
 
 func buildProgramExecutions(pgr []executions) []program.Execution {

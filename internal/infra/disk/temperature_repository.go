@@ -39,14 +39,17 @@ func (t TemperatureProgramRepository) FindByTemperature(ctx context.Context, tem
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
+		tempPrgm, skipped := buildTemperatureProgram(temperature, byTemp)
+		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "temperature found")
-		return buildTemperatureProgram(temperature, byTemp), nil
+		return tempPrgm, nil
 	}
 }
 
-func buildTemperatureProgram(temperature float32, prgms programMap) *program.Temperature {
-	tempPrgm := program.HydrateTemperature(temperature, buildPrograms(prgms))
-	return &tempPrgm
+func buildTemperatureProgram(temperature float32, prgms programMap) (*program.Temperature, []error) {
+	programs, skipped := buildPrograms(prgms)
+	tempPrgm := program.HydrateTemperature(temperature, programs)
+	return &tempPrgm, skipped
 }
 
 func (t TemperatureProgramRepository) Remove(ctx context.Context, temperature float32) error {
@@ -110,17 +113,22 @@ func (t TemperatureProgramRepository) FindAll(ctx context.Context) ([]program.Te
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
+		temperatures, skipped := buildTemperaturePrograms(temperature)
+		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "temperatures found")
-		return buildTemperaturePrograms(temperature), nil
+		return temperatures, nil
 	}
 }
 
-func buildTemperaturePrograms(temperature temperatureMap) []program.Temperature {
+func buildTemperaturePrograms(temperature temperatureMap) ([]program.Temperature, []error) {
 	prgms := make([]program.Temperature, 0, len(temperature))
+	var skipped []error
 	for temp, t := range temperature {
-		prgms = append(prgms, program.HydrateTemperature(temp, buildPrograms(t)))
+		programs, skippedPrograms := buildPrograms(t)
+		skipped = append(skipped, skippedPrograms...)
+		prgms = append(prgms, program.HydrateTemperature(temp, programs))
 	}
-	return prgms
+	return prgms, skipped
 }
 
 func (t TemperatureProgramRepository) FindByTemperatureAndHour(ctx context.Context, temperature float32, hour program.Hour) (program.Temperature, error) {

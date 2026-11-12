@@ -240,9 +240,10 @@ func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.Even
 		}
 		st, ok := result.(status.Status)
 		if !ok {
+			err := UnexpectedQueryResultError{result: result}
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			log.ErrorContext(ctx, "[WORKER] Terrace Weather: failed casting weather", slog.String("type", fmt.Sprintf("%T", result)))
+			log.ErrorContext(ctx, "[WORKER] Terrace Weather: failed casting weather", slog.String("error", err.Error()))
 			return
 		}
 		tw := disk.Weather{
@@ -261,6 +262,7 @@ func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.Even
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			log.ErrorContext(ctx, "[WORKER] Terrace Weather: failed saving weather event", slog.String("error", err.Error()))
+			return
 		}
 		span.SetStatus(codes.Ok, "Weather updated")
 	})
@@ -372,9 +374,7 @@ func buildLog(level string) *slog.Logger {
 		Level: l,
 	})
 
-	log := slog.New(handler)
-	log.With("service", serviceName)
-	return log
+	return slog.New(handler).With(slog.String("service", serviceName))
 }
 
 func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, location *time.Location, logger *slog.Logger, tracer trace.Tracer) {
@@ -474,7 +474,7 @@ func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken stri
 		{
 			Endpoint:    "/zones",
 			Method:      http.MethodGet,
-			HandlerFunc: authMdw(infrahttp.FinZones(qhBus, tracer)),
+			HandlerFunc: authMdw(infrahttp.FindZones(qhBus, tracer)),
 		},
 		{
 			Endpoint:    "/zones/{id}/execute",

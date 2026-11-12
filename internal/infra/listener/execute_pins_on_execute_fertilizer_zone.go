@@ -19,7 +19,6 @@ import (
 
 type ExecutePinsOnExecuteFertilizerZone struct {
 	ch    cqs.CommandHandler
-	wait  Wait
 	trace trace.Tracer
 	log   *slog.Logger
 }
@@ -40,12 +39,24 @@ func (e ExecutePinsOnExecuteFertilizerZone) Listen(ctx context.Context, ev event
 		return err
 	}
 	sec := program.HydrateSeconds(int(executed.ZoneSeconds))
-	return recordIrrigation(ctx, e.ch, span, irrigationRecord{
-		zoneName:   executed.ZoneName,
-		seconds:    sec,
-		executedAt: executed.EventAt(),
-		message:    fmt.Sprintf("%s fertilizer zone executed during %vs", executed.ZoneName, sec.Int()),
-	})
+	if _, err := e.ch.Handle(ctx, app.SaveExecutionLogCmd{
+		ZoneName:   executed.ZoneName,
+		Seconds:    sec,
+		ExecutedAt: executed.EventAt(),
+	}); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	message := fmt.Sprintf("%s fertilizer zone executed during %vs", executed.ZoneName, sec.Int())
+	if _, err := e.ch.Handle(ctx, app.PublishMessageCmd{Message: message}); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	span.SetStatus(codes.Ok, "pins executed")
+
+	return nil
 }
 
 func (e ExecutePinsOnExecuteFertilizerZone) airZone(ctx context.Context, executed *zone.FertilizerZoneExecuted) error {
@@ -93,8 +104,13 @@ func (e ExecutePinsOnExecuteFertilizerZone) execution(ctx context.Context, execu
 		return e.zone(ctx, executed)
 	})
 
-	if err := e.wait(ctx, time.Duration(executed.StabilizationZoneSeconds)*time.Second); err != nil {
-		return err
+	timer := time.NewTimer(time.Duration(executed.StabilizationZoneSeconds) * time.Second)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
 	}
 	g.Go(func() error {
 		if err := e.fertilizerValve(ctx, executed); err != nil {
@@ -116,6 +132,6 @@ func (e ExecutePinsOnExecuteFertilizerZone) clean(ctx context.Context, executed 
 	return e.executePin(ctx, executed.CleanValveSeconds, []string{executed.CleanValveRelayPin})
 }
 
-func NewExecutePinsOnExecuteFertilizerZone(ch cqs.CommandHandler, wait Wait, tracer trace.Tracer, log *slog.Logger) *ExecutePinsOnExecuteFertilizerZone {
-	return &ExecutePinsOnExecuteFertilizerZone{ch: ch, wait: wait, trace: tracer, log: log}
+func NewExecutePinsOnExecuteFertilizerZone(ch cqs.CommandHandler, tracer trace.Tracer, log *slog.Logger) *ExecutePinsOnExecuteFertilizerZone {
+	return &ExecutePinsOnExecuteFertilizerZone{ch: ch, trace: tracer, log: log}
 }

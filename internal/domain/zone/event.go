@@ -30,31 +30,31 @@ type Ignored struct {
 
 type FertilizerZoneExecuted struct {
 	event.BasicEvent
-	ZoneID                    string
-	ZoneName                  string
-	ZoneSeconds               uint
-	StabilizationZoneSeconds  uint
-	ZoneRelayPins             []string
-	CleanValvuleSeconds       uint
-	CleanValvuleRelayPin      string
-	FertilizerPumpSeconds     uint
-	FertilizerPumpRelayPin    string
-	AirZoneSeconds            uint
-	AirZoneRelayPin           string
-	FertilizerValvuleSeconds  uint
-	FertilizerValvuleRelayPin string
+	ZoneID                   string
+	ZoneName                 string
+	ZoneSeconds              uint
+	StabilizationZoneSeconds uint
+	ZoneRelayPins            []string
+	CleanValveSeconds        uint
+	CleanValveRelayPin       string
+	FertilizerPumpSeconds    uint
+	FertilizerPumpRelayPin   string
+	AirZoneSeconds           uint
+	AirZoneRelayPin          string
+	FertilizerValveSeconds   uint
+	FertilizerValveRelayPin  string
 }
 type CleanZoneExecuted struct {
 	event.BasicEvent
-	ZoneID                    string
-	ZoneName                  string
-	ZoneSeconds               uint
-	StabilizationZoneSeconds  uint
-	ZoneRelayPins             []string
-	FertilizerPumpSeconds     uint
-	FertilizerPumpRelayPin    string
-	FertilizerValvuleSeconds  uint
-	FertilizerValvuleRelayPin string
-	WaitDuration              time.Duration
-	ClarifyDuration           time.Duration
+	ZoneID                   string
+	ZoneName                 string
+	ZoneSeconds              uint
+	StabilizationZoneSeconds uint
+	ZoneRelayPins            []string
+	FertilizerPumpSeconds    uint
+	FertilizerPumpRelayPin   string
+	FertilizerValveSeconds   uint
+	FertilizerValveRelayPin  string
+	WaitDuration             time.Duration
+	ClarifyDuration          time.Duration
 }

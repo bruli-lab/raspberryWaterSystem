@@ -15,9 +15,9 @@ const (
 
 type CleanZone struct {
 	event.BasicAggregateRoot
-	zone              *Zone
-	fertilizerPump    *FertilizerPumpZone
-	fertilizerValvule *FertilizerValvuleZone
+	zone            *Zone
+	fertilizerPump  *FertilizerPumpZone
+	fertilizerValve *FertilizerValveZone
 }
 
 func (z *CleanZone) Execute() {
@@ -27,18 +27,18 @@ func (z *CleanZone) Execute() {
 	}
 	seconds := uint(DefaultCleanZone.Seconds())
 	z.Record(CleanZoneExecuted{
-		BasicEvent:                event.NewBasicEvent(CleanZoneExecutedEventName, uuid.New(), z.zone.Id()),
-		ZoneID:                    z.zone.Id(),
-		ZoneName:                  z.zone.Name(),
-		ZoneSeconds:               seconds,
-		StabilizationZoneSeconds:  uint(z.zone.StabilizationFlux().Seconds()),
-		ZoneRelayPins:             pins,
-		FertilizerPumpSeconds:     seconds,
-		FertilizerPumpRelayPin:    z.fertilizerPump.Relay().Pin(),
-		FertilizerValvuleSeconds:  seconds,
-		FertilizerValvuleRelayPin: z.fertilizerValvule.Relay().Pin(),
-		WaitDuration:              DefaultWaitCleanZone,
-		ClarifyDuration:           DefaultClarifyCleanZone,
+		BasicEvent:               event.NewBasicEvent(CleanZoneExecutedEventName, uuid.New(), z.zone.Id()),
+		ZoneID:                   z.zone.Id(),
+		ZoneName:                 z.zone.Name(),
+		ZoneSeconds:              seconds,
+		StabilizationZoneSeconds: uint(z.zone.StabilizationFlux().Seconds()),
+		ZoneRelayPins:            pins,
+		FertilizerPumpSeconds:    seconds,
+		FertilizerPumpRelayPin:   z.fertilizerPump.Relay().Pin(),
+		FertilizerValveSeconds:   seconds,
+		FertilizerValveRelayPin:  z.fertilizerValve.Relay().Pin(),
+		WaitDuration:             DefaultWaitCleanZone,
+		ClarifyDuration:          DefaultClarifyCleanZone,
 	})
 }
 
@@ -47,6 +47,6 @@ func NewCleanZone(zone *Zone) *CleanZone {
 		BasicAggregateRoot: event.NewBasicAggregateRoot(),
 		zone:               zone,
 		fertilizerPump:     &FertilizerPumpZone{},
-		fertilizerValvule:  &FertilizerValvuleZone{},
+		fertilizerValve:    &FertilizerValveZone{},
 	}
 }

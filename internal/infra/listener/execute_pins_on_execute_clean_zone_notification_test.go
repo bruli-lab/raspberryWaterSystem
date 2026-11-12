@@ -37,17 +37,17 @@ func (r *cleanCycleRecorder) states() []bool {
 
 func cleanZoneEvent(wait time.Duration) zone.CleanZoneExecuted {
 	return zone.CleanZoneExecuted{
-		BasicEvent:                event.NewBasicEvent(zone.CleanZoneExecutedEventName, uuid.New(), uuid.NewString()),
-		ZoneID:                    "bbf",
-		ZoneName:                  "bonsai big with fertilizer",
-		ZoneSeconds:               1,
-		ZoneRelayPins:             []string{"1", "2"},
-		FertilizerPumpSeconds:     1,
-		FertilizerPumpRelayPin:    "4",
-		FertilizerValvuleSeconds:  1,
-		FertilizerValvuleRelayPin: "6",
-		WaitDuration:              wait,
-		ClarifyDuration:           time.Second,
+		BasicEvent:              event.NewBasicEvent(zone.CleanZoneExecutedEventName, uuid.New(), uuid.NewString()),
+		ZoneID:                  "bbf",
+		ZoneName:                "bonsai big with fertilizer",
+		ZoneSeconds:             1,
+		ZoneRelayPins:           []string{"1", "2"},
+		FertilizerPumpSeconds:   1,
+		FertilizerPumpRelayPin:  "4",
+		FertilizerValveSeconds:  1,
+		FertilizerValveRelayPin: "6",
+		WaitDuration:            wait,
+		ClarifyDuration:         time.Second,
 	}
 }
 

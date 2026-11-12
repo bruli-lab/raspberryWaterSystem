@@ -37,14 +37,17 @@ func (w WeeklyRepository) FindByDay(ctx context.Context, day *program.WeekDay) (
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
+		weeklyByDay, skipped := buildProgramWeeklyByDay(day, byDay)
+		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "weekly found")
-		return buildProgramWeeklyByDay(day, byDay), nil
+		return weeklyByDay, nil
 	}
 }
 
-func buildProgramWeeklyByDay(day *program.WeekDay, prg programMap) *program.Weekly {
-	weekly := program.HydrateWeekly(*day, buildPrograms(prg))
-	return &weekly
+func buildProgramWeeklyByDay(day *program.WeekDay, prg programMap) (*program.Weekly, []error) {
+	programs, skipped := buildPrograms(prg)
+	weekly := program.HydrateWeekly(*day, programs)
+	return &weekly, skipped
 }
 
 func (w WeeklyRepository) Remove(ctx context.Context, day *program.WeekDay) error {
@@ -151,18 +154,27 @@ func (w WeeklyRepository) FindAll(ctx context.Context) ([]program.Weekly, error)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
+		weeklies, skipped := buildWeeklyPrograms(weekly)
+		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "weeklys found")
-		return buildWeeklyPrograms(weekly), nil
+		return weeklies, nil
 	}
 }
 
-func buildWeeklyPrograms(weekly weeklyMap) []program.Weekly {
+func buildWeeklyPrograms(weekly weeklyMap) ([]program.Weekly, []error) {
 	prgms := make([]program.Weekly, 0, len(weekly))
+	var skipped []error
 	for dayStr, w := range weekly {
-		day, _ := program.ParseWeekDay(dayStr)
-		prgms = append(prgms, program.HydrateWeekly(day, buildPrograms(w)))
+		day, err := program.ParseWeekDay(dayStr)
+		if err != nil {
+			skipped = append(skipped, InvalidStoredEntryError{key: dayStr, cause: err})
+			continue
+		}
+		programs, skippedPrograms := buildPrograms(w)
+		skipped = append(skipped, skippedPrograms...)
+		prgms = append(prgms, program.HydrateWeekly(day, programs))
 	}
-	return prgms
+	return prgms, skipped
 }
 
 func NewWeeklyRepository(path string, tracer trace.Tracer) WeeklyRepository {
