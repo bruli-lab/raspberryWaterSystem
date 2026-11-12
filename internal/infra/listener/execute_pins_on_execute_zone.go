@@ -29,7 +29,7 @@ func (e ExecutePinsOnExecuteZone) Listen(ctx context.Context, ev cqs.Event) erro
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	sec, _ := program.ParseSeconds(int(event.Seconds))
+	sec := program.HydrateSeconds(int(event.Seconds))
 	if _, err := e.ch.Handle(ctx, app.SaveExecutionLogCmd{
 		ZoneName:   event.ZoneName,
 		Seconds:    sec,

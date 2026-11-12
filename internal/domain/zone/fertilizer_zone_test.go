@@ -3,6 +3,7 @@ package zone_test
 import (
 	"testing"
 
+	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/stretchr/testify/require"
@@ -18,9 +19,14 @@ func TestFertilizerZone_Execute(t *testing.T) {
 		args        args
 	}{
 		{
-			name:        "with seconds exceeded limit, then it returns an invalid seconds execution zone error",
-			args:        args{seconds: 505},
-			expectedErr: zone.ErrInvalidSecondsExecutionZone,
+			name:        "with seconds exceeded limit, then it returns an invalid seconds error",
+			args:        args{seconds: 121},
+			expectedErr: program.InvalidSecondsError{},
+		},
+		{
+			name:        "with zero seconds, then it returns an invalid seconds error",
+			args:        args{seconds: 0},
+			expectedErr: program.InvalidSecondsError{},
 		},
 		{
 			name: "with valid seconds, then it returns a valid event",
@@ -34,10 +40,11 @@ func TestFertilizerZone_Execute(t *testing.T) {
 			zo := fixtures.ZoneBuilder{}.Build()
 			fz := zone.NewFertilizerZone(zo)
 			err := fz.Execute(tt.args.seconds)
-			if err != nil {
-				require.ErrorIs(t, err, tt.expectedErr)
+			if tt.expectedErr != nil {
+				require.ErrorAs(t, err, &program.InvalidSecondsError{})
 				return
 			}
+			require.NoError(t, err)
 			ev := fz.Events()
 			require.Len(t, ev, 1)
 			event, ok := ev[0].(zone.FertilizerZoneExecuted)

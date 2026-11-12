@@ -8,11 +8,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 )
 
 const (
-	ExecutionSecondsLimit = 300
-
 	RainingIgnoredReason     = "It's raining!!"
 	DeactivatedIgnoredReason = "Deactivated!!"
 	CleaningIgnoredReason    = "Cleaning!!"
@@ -21,10 +20,9 @@ const (
 )
 
 var (
-	ErrInvalidZoneID               = errors.New("zone id can not be empty")
-	ErrInvalidZoneName             = errors.New("zone name can not be empty")
-	ErrInvalidZoneRelays           = errors.New("zone relays can not be empty")
-	ErrInvalidSecondsExecutionZone = errors.New("execution zone has limit 300")
+	ErrInvalidZoneID     = errors.New("zone id can not be empty")
+	ErrInvalidZoneName   = errors.New("zone name can not be empty")
+	ErrInvalidZoneRelays = errors.New("zone relays can not be empty")
 )
 
 type Zone struct {
@@ -85,8 +83,8 @@ func (z *Zone) validate() error {
 }
 
 func (z *Zone) Execute(seconds uint) error {
-	if seconds > ExecutionSecondsLimit {
-		return ErrInvalidSecondsExecutionZone
+	if _, err := program.ParseSeconds(int(seconds)); err != nil {
+		return err
 	}
 	pins := make([]string, len(z.relays))
 	for i, p := range z.relays {

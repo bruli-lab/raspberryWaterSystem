@@ -26,7 +26,6 @@ func (t TemperatureProgramRepository) FindByTemperature(ctx context.Context, tem
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.FindByTemperature")
 		defer span.End()
-		defer lockFile(t.path)()
 		temp := make(temperatureMap)
 		if err := readYamlFile(t.path, &temp); err != nil {
 			span.RecordError(err)
@@ -40,17 +39,15 @@ func (t TemperatureProgramRepository) FindByTemperature(ctx context.Context, tem
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		tempPrgm, skipped := buildTemperatureProgram(temperature, byTemp)
-		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "temperature found")
-		return tempPrgm, nil
+		return buildTemperatureProgram(temperature, byTemp), nil
 	}
 }
 
-func buildTemperatureProgram(temperature float32, prgms programMap) (*program.Temperature, []error) {
-	programs, skipped := buildPrograms(prgms)
-	tempPrgm := program.HydrateTemperature(temperature, programs)
-	return &tempPrgm, skipped
+func buildTemperatureProgram(temperature float32, prgms programMap) *program.Temperature {
+	var tempPrgm program.Temperature
+	tempPrgm.Hydrate(temperature, buildPrograms(prgms))
+	return &tempPrgm
 }
 
 func (t TemperatureProgramRepository) Remove(ctx context.Context, temperature float32) error {
@@ -60,7 +57,6 @@ func (t TemperatureProgramRepository) Remove(ctx context.Context, temperature fl
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.Remove")
 		defer span.End()
-		defer lockFile(t.path)()
 		temp := make(temperatureMap)
 		if err := readYamlFile(t.path, &temp); err != nil {
 			span.RecordError(err)
@@ -85,7 +81,6 @@ func (t TemperatureProgramRepository) Save(ctx context.Context, programs *progra
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.Save")
 		defer span.End()
-		defer lockFile(t.path)()
 		temp := make(temperatureMap)
 		if err := readYamlFile(t.path, &temp); err != nil {
 			span.RecordError(err)
@@ -110,29 +105,25 @@ func (t TemperatureProgramRepository) FindAll(ctx context.Context) ([]program.Te
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.FindAll")
 		defer span.End()
-		defer lockFile(t.path)()
 		temperature := make(temperatureMap)
 		if err := readYamlFile(t.path, &temperature); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		temperatures, skipped := buildTemperaturePrograms(temperature)
-		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "temperatures found")
-		return temperatures, nil
+		return buildTemperaturePrograms(temperature), nil
 	}
 }
 
-func buildTemperaturePrograms(temperature temperatureMap) ([]program.Temperature, []error) {
+func buildTemperaturePrograms(temperature temperatureMap) []program.Temperature {
 	prgms := make([]program.Temperature, 0, len(temperature))
-	var skipped []error
 	for temp, t := range temperature {
-		programs, skippedPrograms := buildPrograms(t)
-		skipped = append(skipped, skippedPrograms...)
-		prgms = append(prgms, program.HydrateTemperature(temp, programs))
+		var prg program.Temperature
+		prg.Hydrate(temp, buildPrograms(t))
+		prgms = append(prgms, prg)
 	}
-	return prgms, skipped
+	return prgms
 }
 
 func (t TemperatureProgramRepository) FindByTemperatureAndHour(ctx context.Context, temperature float32, hour program.Hour) (program.Temperature, error) {
@@ -142,7 +133,6 @@ func (t TemperatureProgramRepository) FindByTemperatureAndHour(ctx context.Conte
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.FindByTemperatureAndHour")
 		defer span.End()
-		defer lockFile(t.path)()
 		temp := make(temperatureMap)
 		if err := readYamlFile(t.path, &temp); err != nil {
 			span.RecordError(err)
@@ -169,14 +159,23 @@ func (t TemperatureProgramRepository) FindByTemperatureAndHour(ctx context.Conte
 
 func buildProgramTemperature(temperature float32, hour program.Hour, prgms []executions) program.Temperature {
 	programs := make([]program.Program, len(prgms))
+	var temp program.Temperature
+	var pg program.Program
 	for i, pd := range prgms {
-		programs[i] = program.HydrateProgramWithoutFertilizer(hour, buildExecutions(pd))
+		pg.Hydrate(hour, buildExecutions(pd))
+		programs[i] = pg
 	}
-	return program.HydrateTemperature(temperature, programs)
+	temp.Hydrate(temperature, programs)
+	return temp
 }
 
 func buildExecutions(pd executions) []program.Execution {
-	return []program.Execution{program.HydrateExecution(program.HydrateSeconds(pd.Seconds), pd.Zones)}
+	executions := make([]program.Execution, 1)
+	var execution program.Execution
+	sec := program.HydrateSeconds(pd.Seconds)
+	execution.Hydrate(sec, pd.Zones)
+	executions[0] = execution
+	return executions
 }
 
 func NewTemperatureProgramRepository(path string, tracer trace.Tracer) TemperatureProgramRepository {

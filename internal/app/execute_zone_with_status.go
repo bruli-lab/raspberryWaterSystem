@@ -59,7 +59,7 @@ func (e ExecuteZoneWithStatus) Handle(ctx context.Context, cmd cqs.Command) ([]c
 	case co.WithFertilizer:
 		fzo := zone.NewFertilizerZone(zo)
 		if err = fzo.ExecuteWithStatus(st.IsActive(), st.Weather().IsRaining(), co.Seconds); err != nil {
-			err = ExecuteZoneWithStatusError{m: err.Error()}
+			err = ExecuteZoneWithStatusError{m: err.Error(), cause: err}
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
@@ -70,7 +70,7 @@ func (e ExecuteZoneWithStatus) Handle(ctx context.Context, cmd cqs.Command) ([]c
 	}
 
 	if err = zo.ExecuteWithStatus(st.IsActive(), st.Weather().IsRaining(), co.Seconds); err != nil {
-		err = ExecuteZoneWithStatusError{m: err.Error()}
+		err = ExecuteZoneWithStatusError{m: err.Error(), cause: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -84,7 +84,12 @@ func NewExecuteZoneWithStatus(zr ZoneRepository, st StatusRepository, tracer tra
 }
 
 type ExecuteZoneWithStatusError struct {
-	m string
+	m     string
+	cause error
+}
+
+func (e ExecuteZoneWithStatusError) Unwrap() error {
+	return e.cause
 }
 
 func (e ExecuteZoneWithStatusError) Error() string {

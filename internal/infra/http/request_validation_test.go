@@ -36,16 +36,6 @@ func TestRequestValidation(t *testing.T) {
 			expectedMessage: `property "seconds" is missing`,
 		},
 		{
-			name:            "an execute zone request with zero seconds, then it returns a bad request without executing the zone",
-			method:          http.MethodPost,
-			route:           "/zones/{id}/execute",
-			path:            "/zones/zone-a/execute",
-			body:            `{"seconds":0}`,
-			handler:         func(ch cqs.CommandHandler) http.HandlerFunc { return http2.ExecuteZone(ch, tracer()) },
-			expectedCode:    http.StatusBadRequest,
-			expectedMessage: "seconds",
-		},
-		{
 			name:            "an execute fertilizer zone request with a string as seconds, then it returns a bad request",
 			method:          http.MethodPost,
 			route:           "/zones/fertilizer/{id}/execute",
@@ -86,16 +76,6 @@ func TestRequestValidation(t *testing.T) {
 			expectedMessage: `property "name" is missing`,
 		},
 		{
-			name:            "an update zone request with empty relays, then it returns a bad request",
-			method:          http.MethodPut,
-			route:           "/zones/{id}",
-			path:            "/zones/zone-a",
-			body:            `{"name":"zone a","relays":[]}`,
-			handler:         func(ch cqs.CommandHandler) http.HandlerFunc { return http2.UpdateZone(ch, tracer()) },
-			expectedCode:    http.StatusBadRequest,
-			expectedMessage: "relays",
-		},
-		{
 			name:   "a create daily program request without fertilizer, then it creates the program",
 			method: http.MethodPost,
 			route:  "/programs/daily",
@@ -108,7 +88,7 @@ func TestRequestValidation(t *testing.T) {
 			expectedCommands: 1,
 		},
 		{
-			name:   "a create daily program request without executions, then it returns a bad request",
+			name:   "a create daily program request without executions, then the domain rejects it with a bad request",
 			method: http.MethodPost,
 			route:  "/programs/daily",
 			path:   "/programs/daily",
@@ -117,17 +97,29 @@ func TestRequestValidation(t *testing.T) {
 				return http2.CreateProgram(ch, http2.DailyProgram, tracer())
 			},
 			expectedCode:    http.StatusBadRequest,
-			expectedMessage: "executions",
+			expectedMessage: "empty programs",
 		},
 		{
-			name:            "a create weekly program request with a program without zones, then it returns a bad request",
+			name:   "a create daily program request with seconds over the limit, then the domain rejects it with a bad request",
+			method: http.MethodPost,
+			route:  "/programs/daily",
+			path:   "/programs/daily",
+			body:   `{"hour":"10:00","executions":[{"seconds":121,"zones":["zone-a"]}]}`,
+			handler: func(ch cqs.CommandHandler) http.HandlerFunc {
+				return http2.CreateProgram(ch, http2.DailyProgram, tracer())
+			},
+			expectedCode:    http.StatusBadRequest,
+			expectedMessage: "seconds must be between 1 and 120",
+		},
+		{
+			name:            "a create weekly program request with a program without zones, then the domain rejects it with a bad request",
 			method:          http.MethodPost,
 			route:           "/programs/weekly",
 			path:            "/programs/weekly",
-			body:            `{"week_day":"monday","programs":[{"hour":"10:00","executions":[{"seconds":20,"zones":[]}]}]}`,
+			body:            `{"week_day":"Monday","programs":[{"hour":"10:00","executions":[{"seconds":20,"zones":[]}]}]}`,
 			handler:         func(ch cqs.CommandHandler) http.HandlerFunc { return http2.CreateWeeklyProgram(ch, tracer()) },
 			expectedCode:    http.StatusBadRequest,
-			expectedMessage: "zones",
+			expectedMessage: "empty execution zones",
 		},
 		{
 			name:         "a create temperature program request with an out of range temperature, then it returns a bad request instead of sending an empty program",

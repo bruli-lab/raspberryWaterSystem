@@ -9,10 +9,10 @@ import (
 type ProgramBuilder struct {
 	Hour       *program.Hour
 	Executions []program.Execution
-	Fertilizer bool
 }
 
 func (b ProgramBuilder) Build() program.Program {
+	var pr program.Program
 	hour, _ := program.ParseHour("15:10")
 	if b.Hour != nil {
 		hour = *b.Hour
@@ -23,7 +23,8 @@ func (b ProgramBuilder) Build() program.Program {
 	if b.Executions != nil {
 		executions = b.Executions
 	}
-	return program.HydrateProgram(hour, b.Fertilizer, executions)
+	pr.Hydrate(hour, executions)
+	return pr
 }
 
 type FertilizerProgramBuilder struct {
@@ -54,6 +55,7 @@ type WeeklyBuilder struct {
 }
 
 func (b WeeklyBuilder) Build() program.Weekly {
+	var week program.Weekly
 	day := program.WeekDay(time.Friday)
 	if b.WeekDay != nil {
 		day = *b.WeekDay
@@ -64,7 +66,8 @@ func (b WeeklyBuilder) Build() program.Weekly {
 	if b.Programs != nil {
 		programs = b.Programs
 	}
-	return program.HydrateWeekly(day, programs)
+	week.Hydrate(day, programs)
+	return week
 }
 
 type ExecutionBuilder struct {
@@ -73,6 +76,7 @@ type ExecutionBuilder struct {
 }
 
 func (b ExecutionBuilder) Build() program.Execution {
+	var ex program.Execution
 	sec := program.HydrateSeconds(20)
 	if b.Seconds != nil {
 		sec = *b.Seconds
@@ -83,7 +87,8 @@ func (b ExecutionBuilder) Build() program.Execution {
 	if b.Zones != nil {
 		zones = b.Zones
 	}
-	return program.HydrateExecution(sec, zones)
+	ex.Hydrate(sec, zones)
+	return ex
 }
 
 type TemperatureBuilder struct {
@@ -92,6 +97,7 @@ type TemperatureBuilder struct {
 }
 
 func (b TemperatureBuilder) Build() program.Temperature {
+	var temp program.Temperature
 	temperature := float32(28.3)
 	if b.Temperature != nil {
 		temperature = *b.Temperature
@@ -102,7 +108,8 @@ func (b TemperatureBuilder) Build() program.Temperature {
 	if b.Programs != nil {
 		programs = b.Programs
 	}
-	return program.HydrateTemperature(temperature, programs)
+	temp.Hydrate(temperature, programs)
+	return temp
 }
 
 type ExecutionLogBuilder struct {
@@ -112,7 +119,8 @@ type ExecutionLogBuilder struct {
 }
 
 func (b ExecutionLogBuilder) Build() program.ExecutionLog {
-	seconds := program.HydrateSeconds(20)
+	var exec program.ExecutionLog
+	seconds := program.Seconds(20 * time.Second)
 	if b.Seconds != nil {
 		seconds = *b.Seconds
 	}
@@ -124,5 +132,6 @@ func (b ExecutionLogBuilder) Build() program.ExecutionLog {
 	if b.ExecutedAt != nil {
 		executedAt = *b.ExecutedAt
 	}
-	return program.HydrateExecutionLog(seconds, zoneName, executedAt)
+	exec.Hydrate(seconds, zoneName, executedAt)
+	return exec
 }

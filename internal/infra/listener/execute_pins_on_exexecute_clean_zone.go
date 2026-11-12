@@ -63,7 +63,7 @@ func (e ExecutePinsOnExecuteCleanZone) cleanCycle(ctx context.Context, span trac
 	if err := e.cleanExecution(ctx, event); err != nil {
 		return err
 	}
-	sec, _ := program.ParseSeconds(int(event.ZoneSeconds))
+	sec := program.HydrateSeconds(int(event.ZoneSeconds))
 	e.notify(ctx, span, fmt.Sprintf("%s clean zone executed during %vs", event.ZoneName, sec.Int()))
 	e.log.DebugContext(ctx, "wait for clarify process", slog.Duration("duration", event.WaitDuration))
 	timer := time.NewTimer(event.WaitDuration)

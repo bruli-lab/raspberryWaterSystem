@@ -6,6 +6,7 @@ import (
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/codes"
@@ -32,6 +33,11 @@ func ExecuteZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFunc {
 			switch {
 			case errors.As(err, &errs.NotFoundError{}):
 				WriteErrorResponse(w, http.StatusNotFound)
+			case errors.As(err, &program.InvalidSecondsError{}):
+				WriteErrorResponse(w, http.StatusBadRequest, Error{
+					Code:    ErrorCodeInvalidRequest,
+					Message: err.Error(),
+				})
 			default:
 				WriteErrorResponse(w, http.StatusInternalServerError)
 			}

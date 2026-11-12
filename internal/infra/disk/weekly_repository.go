@@ -24,7 +24,6 @@ func (w WeeklyRepository) FindByDay(ctx context.Context, day *program.WeekDay) (
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.FindByDay")
 		defer span.End()
-		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
@@ -38,17 +37,16 @@ func (w WeeklyRepository) FindByDay(ctx context.Context, day *program.WeekDay) (
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		weeklyByDay, skipped := buildProgramWeeklyByDay(day, byDay)
-		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "weekly found")
-		return weeklyByDay, nil
+		return buildProgramWeeklyByDay(day, byDay), nil
 	}
 }
 
-func buildProgramWeeklyByDay(day *program.WeekDay, prg programMap) (*program.Weekly, []error) {
-	programs, skipped := buildPrograms(prg)
-	weekly := program.HydrateWeekly(*day, programs)
-	return &weekly, skipped
+func buildProgramWeeklyByDay(day *program.WeekDay, prg programMap) *program.Weekly {
+	var weekly program.Weekly
+
+	weekly.Hydrate(*day, buildPrograms(prg))
+	return &weekly
 }
 
 func (w WeeklyRepository) Remove(ctx context.Context, day *program.WeekDay) error {
@@ -58,7 +56,6 @@ func (w WeeklyRepository) Remove(ctx context.Context, day *program.WeekDay) erro
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.Remove")
 		defer span.End()
-		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
@@ -83,7 +80,6 @@ func (w WeeklyRepository) FindByDayAndHour(ctx context.Context, day *program.Wee
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.FindByDayAndHour")
 		defer span.End()
-		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
@@ -110,8 +106,19 @@ func (w WeeklyRepository) FindByDayAndHour(ctx context.Context, day *program.Wee
 }
 
 func buildProgramWeeklyByHour(day *program.WeekDay, hour *program.Hour, prgms []executions) *program.Weekly {
-	programs := []program.Program{program.HydrateProgramWithoutFertilizer(*hour, buildProgramExecutions(prgms))}
-	weekly := program.HydrateWeekly(*day, programs)
+	programs := make([]program.Program, 0, len(prgms))
+	var weekly program.Weekly
+	var pg program.Program
+	exec := make([]program.Execution, 0, len(prgms))
+	for _, pd := range prgms {
+		var execution program.Execution
+		sec := program.HydrateSeconds(pd.Seconds)
+		execution.Hydrate(sec, pd.Zones)
+		exec = append(exec, execution)
+		pg.Hydrate(*hour, exec)
+		programs = append(programs, pg)
+	}
+	weekly.Hydrate(*day, programs)
 	return &weekly
 }
 
@@ -122,7 +129,6 @@ func (w WeeklyRepository) Save(ctx context.Context, prg *program.Weekly) error {
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.Save")
 		defer span.End()
-		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
@@ -147,34 +153,26 @@ func (w WeeklyRepository) FindAll(ctx context.Context) ([]program.Weekly, error)
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.FindAll")
 		defer span.End()
-		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		weeklies, skipped := buildWeeklyPrograms(weekly)
-		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "weeklys found")
-		return weeklies, nil
+		return buildWeeklyPrograms(weekly), nil
 	}
 }
 
-func buildWeeklyPrograms(weekly weeklyMap) ([]program.Weekly, []error) {
+func buildWeeklyPrograms(weekly weeklyMap) []program.Weekly {
 	prgms := make([]program.Weekly, 0, len(weekly))
-	var skipped []error
 	for dayStr, w := range weekly {
-		day, err := program.ParseWeekDay(dayStr)
-		if err != nil {
-			skipped = append(skipped, InvalidStoredEntryError{key: dayStr, cause: err})
-			continue
-		}
-		programs, skippedPrograms := buildPrograms(w)
-		skipped = append(skipped, skippedPrograms...)
-		prgms = append(prgms, program.HydrateWeekly(day, programs))
+		day, _ := program.ParseWeekDay(dayStr)
+		var prg program.Weekly
+		prg.Hydrate(day, buildPrograms(w))
+		prgms = append(prgms, prg)
 	}
-	return prgms, skipped
+	return prgms
 }
 
 func NewWeeklyRepository(path string, tracer trace.Tracer) WeeklyRepository {

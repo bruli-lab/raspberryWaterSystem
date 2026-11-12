@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/google/uuid"
 )
 
@@ -24,8 +25,8 @@ type FertilizerZone struct {
 }
 
 func (z *FertilizerZone) Execute(seconds uint) error {
-	if seconds > ExecutionSecondsLimit {
-		return ErrInvalidSecondsExecutionZone
+	if _, err := program.ParseSeconds(int(seconds)); err != nil {
+		return err
 	}
 	pins := make([]string, len(z.zone.Relays()))
 	for i, p := range z.zone.Relays() {
