@@ -188,31 +188,23 @@ func (d FertilizerProgramRepository) FindByHour(ctx context.Context, hour *progr
 }
 
 func buildFertilizerProgram(pgr []executions, hour string, fertilizer bool) *program.FertilizerProgram {
-	var prog program.FertilizerProgram
 	ho, _ := program.ParseHour(hour)
-	exec := make([]program.Execution, len(pgr))
-	for i, p := range pgr {
-		var pExec program.Execution
-		sec := program.HydrateSeconds(p.Seconds)
-		pExec.Hydrate(sec, p.Zones)
-		exec[i] = pExec
-	}
-	prog.Hydrate(ho, fertilizer, exec)
+	prog := program.HydrateFertilizerProgram(ho, fertilizer, buildProgramExecutions(pgr))
 	return &prog
 }
 
 func buildProgram(pgr []executions, hour string) *program.Program {
-	var prog program.Program
 	ho, _ := program.ParseHour(hour)
+	prog := program.HydrateProgram(ho, buildProgramExecutions(pgr))
+	return &prog
+}
+
+func buildProgramExecutions(pgr []executions) []program.Execution {
 	exec := make([]program.Execution, len(pgr))
 	for i, p := range pgr {
-		var pExec program.Execution
-		sec := program.HydrateSeconds(p.Seconds)
-		pExec.Hydrate(sec, p.Zones)
-		exec[i] = pExec
+		exec[i] = program.HydrateExecution(program.HydrateSeconds(p.Seconds), p.Zones)
 	}
-	prog.Hydrate(ho, exec)
-	return &prog
+	return exec
 }
 
 func NewFertilizerProgramRepository(filePath string, tracer trace.Tracer) FertilizerProgramRepository {

@@ -117,10 +117,7 @@ func (c CorruptExecutionLogError) Error() string {
 func buildExecutionLogs(logs []Log) []program.ExecutionLog {
 	execLogs := make([]program.ExecutionLog, len(logs))
 	for i, l := range logs {
-		var el program.ExecutionLog
-		sec := program.HydrateSeconds(l.Seconds)
-		el.Hydrate(sec, l.ZoneName, l.ExecutedAt)
-		execLogs[i] = el
+		execLogs[i] = program.HydrateExecutionLog(program.HydrateSeconds(l.Seconds), l.ZoneName, l.ExecutedAt)
 	}
 	return execLogs
 }

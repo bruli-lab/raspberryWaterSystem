@@ -29,7 +29,6 @@ func (z ZoneRepository) Update(ctx context.Context, zo *zone.Zone) error {
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.Update")
 		defer span.End()
-		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			return err
@@ -55,17 +54,14 @@ func (z ZoneRepository) FindAll(ctx context.Context) ([]*zone.Zone, error) {
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.FindAll")
 		defer span.End()
-		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		found, skipped := z.buildZones(zones)
-		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "zones found")
-		return found, nil
+		return z.buildZones(zones), nil
 	}
 }
 
@@ -76,7 +72,6 @@ func (z ZoneRepository) Remove(ctx context.Context, zo *zone.Zone) error {
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.Remove")
 		defer span.End()
-		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			span.RecordError(err)
@@ -108,7 +103,6 @@ func (z ZoneRepository) FindByID(ctx context.Context, id string) (*zone.Zone, er
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.FindByID")
 		defer span.End()
-		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			span.RecordError(err)
@@ -122,35 +116,22 @@ func (z ZoneRepository) FindByID(ctx context.Context, id string) (*zone.Zone, er
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		found, err := buildZone(id, zo)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			return nil, err
-		}
 		span.SetStatus(codes.Ok, "zone found")
-		return found, nil
+		return buildZone(id, zo), nil
 	}
 }
 
-func buildZone(id string, zo zoneData) (*zone.Zone, error) {
-	relays, err := buildRelays(zo.Relays)
-	if err != nil {
-		return nil, InvalidStoredEntryError{key: id, cause: err}
-	}
-	return zone.HydrateZone(id, zo.Name, relays), nil
+func buildZone(id string, zo zoneData) *zone.Zone {
+	return zone.HydrateZone(id, zo.Name, buildRelays(zo.Relays))
 }
 
-func buildRelays(relays []int) ([]zone.Relay, error) {
+func buildRelays(relays []int) []zone.Relay {
 	rel := make([]zone.Relay, len(relays))
 	for i, n := range relays {
-		r, err := zone.ParseRelay(n)
-		if err != nil {
-			return nil, err
-		}
+		r, _ := zone.ParseRelay(n)
 		rel[i] = r
 	}
-	return rel, nil
+	return rel
 }
 
 func (z ZoneRepository) Save(ctx context.Context, zo *zone.Zone) error {
@@ -160,7 +141,6 @@ func (z ZoneRepository) Save(ctx context.Context, zo *zone.Zone) error {
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.Save")
 		defer span.End()
-		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			span.RecordError(err)
@@ -189,18 +169,12 @@ func (z ZoneRepository) buildRelaysForYaml(rel []zone.Relay) []int {
 	return relays
 }
 
-func (z ZoneRepository) buildZones(data zonesMap) ([]*zone.Zone, []error) {
+func (z ZoneRepository) buildZones(data zonesMap) []*zone.Zone {
 	zones := make([]*zone.Zone, 0, len(data))
-	var skipped []error
-	for id, zo := range data {
-		found, err := buildZone(id, zo)
-		if err != nil {
-			skipped = append(skipped, err)
-			continue
-		}
-		zones = append(zones, found)
+	for i, zo := range data {
+		zones = append(zones, buildZone(i, zo))
 	}
-	return zones, skipped
+	return zones
 }
 
 func NewZoneRepository(filePath string, tracer trace.Tracer) ZoneRepository {
