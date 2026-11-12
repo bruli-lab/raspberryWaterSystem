@@ -12,10 +12,7 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 )
 
-const (
-	SunriseSunsetURL = "https://api.sunrise-sunset.org"
-	lightPathRaw     = "%s/json?lat=%s&lng=%s&date=%s&formatted=0"
-)
+const urlRaw = "https://api.sunrise-sunset.org/json?lat=%s&lng=%s&date=%s&formatted=0"
 
 type results struct {
 	Results struct {
@@ -26,7 +23,6 @@ type results struct {
 
 type SunriseSunsetRepository struct {
 	cl                  *http.Client
-	baseURL             string
 	latitude, longitude string
 	location            *time.Location
 	cache               map[string]*status.Light
@@ -72,7 +68,7 @@ func (s *SunriseSunsetRepository) formatDay(date time.Time) string {
 }
 
 func (s *SunriseSunsetRepository) getAndCache(ctx context.Context, day string) (*status.Light, error) {
-	url := fmt.Sprintf(lightPathRaw, s.baseURL, s.latitude, s.longitude, day)
+	url := fmt.Sprintf(urlRaw, s.latitude, s.longitude, day)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
@@ -103,10 +99,9 @@ func (s *SunriseSunsetRepository) getAndCache(ctx context.Context, day string) (
 	return li, nil
 }
 
-func NewSunriseSunsetRepository(baseURL string, latitude, longitude float64, location *time.Location, timeout time.Duration) *SunriseSunsetRepository {
+func NewSunriseSunsetRepository(latitude, longitude float64, location *time.Location, timeout time.Duration) *SunriseSunsetRepository {
 	return &SunriseSunsetRepository{
 		cl:        &http.Client{Timeout: timeout},
-		baseURL:   baseURL,
 		latitude:  strconv.FormatFloat(latitude, 'f', -1, 64),
 		longitude: strconv.FormatFloat(longitude, 'f', -1, 64),
 		location:  location,

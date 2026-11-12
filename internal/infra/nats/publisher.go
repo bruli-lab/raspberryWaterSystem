@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
 	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -37,84 +36,46 @@ func (p *Publisher) IsConnected() bool {
 }
 
 func (p *Publisher) PublishEvent(ctx context.Context, id, subject string, payload []byte) error {
-	errs := p.PublishEvents(ctx, []outbox.Event{{ID: id, EventType: subject, Payload: payload}})
-	return errs[0]
-}
-
-func (p *Publisher) PublishEvents(ctx context.Context, events []outbox.Event) []error {
-	errs := make([]error, len(events))
-	futures := make([]nats.PubAckFuture, len(events))
-	spans := make([]trace.Span, len(events))
-	for i := range events {
-		eventCtx, span := p.tracer.Start(ctx, "publish-nats-event")
-		spans[i] = span
-		future, err := p.submitEvent(eventCtx, &events[i])
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			errs[i] = err
-			continue
-		}
-		futures[i] = future
-	}
-	for i, future := range futures {
-		if future == nil {
-			spans[i].End()
-			continue
-		}
-		if errs[i] = waitForAck(ctx, future); errs[i] != nil {
-			spans[i].RecordError(errs[i])
-			spans[i].SetStatus(codes.Error, errs[i].Error())
-		} else {
-			spans[i].SetStatus(codes.Ok, "event published")
-		}
-		spans[i].End()
-	}
-	return errs
-}
-
-func (p *Publisher) submitEvent(ctx context.Context, ev *outbox.Event) (nats.PubAckFuture, error) {
+	ctx, span := p.tracer.Start(ctx, "publish-nats-event")
+	defer span.End()
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 	if !p.IsConnected() {
-		return nil, NotConnectedError{}
+		err := NotConnectedError{}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 	if err := p.ensureStream(); err != nil {
-		return nil, err
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
-	msg := buildEventMsg(ctx, ev)
-	future, err := p.js.PublishMsgAsync(&msg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to publish event: %w", err)
-	}
-	return future, nil
-}
-
-func waitForAck(ctx context.Context, future nats.PubAckFuture) error {
-	select {
-	case ack := <-future.Ok():
-		if ack == nil {
-			return errors.New("failed to publish event: nil puback")
-		}
-		return nil
-	case err := <-future.Err():
-		return fmt.Errorf("failed to publish event: %w", err)
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func buildEventMsg(ctx context.Context, ev *outbox.Event) nats.Msg {
 	msg := nats.Msg{
-		Subject: ev.EventType,
-		Data:    ev.Payload,
+		Subject: subject,
+		Data:    payload,
 		Header: nats.Header{
-			"Nats-Msg-Id": []string{ev.ID},
+			"Nats-Msg-Id": []string{id},
 		},
 	}
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(msg.Header))
-	return msg
+	ack, err := p.js.PublishMsg(&msg, nats.Context(ctx))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return fmt.Errorf("failed to publish event: %w", err)
+	}
+	if ack == nil {
+		err = errors.New("failed to publish event: nil puback")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	span.SetStatus(codes.Ok, "event published")
+	return nil
 }
 
 func (p *Publisher) ensureStream() error {
