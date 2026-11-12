@@ -11,8 +11,9 @@ import (
 const ExecutePinsCmdName = "executePins"
 
 type ExecutePinsCmd struct {
-	Seconds uint
-	Pins    []string
+	Seconds    uint
+	Pins       []string
+	CleanCycle bool
 }
 
 func (e ExecutePinsCmd) Name() string {
@@ -21,6 +22,7 @@ func (e ExecutePinsCmd) Name() string {
 
 type ExecutePins struct {
 	pe     PinExecutor
+	sr     StatusRepository
 	tracer trace.Tracer
 }
 
@@ -34,6 +36,13 @@ func (e ExecutePins) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, 
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
+	if !co.CleanCycle {
+		if err := e.ensureNotCleaning(ctx); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
+	}
 	if err := e.pe.Execute(ctx, co.Seconds, co.Pins); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -42,6 +51,17 @@ func (e ExecutePins) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event, 
 	return nil, nil
 }
 
-func NewExecutePins(pe PinExecutor, tracer trace.Tracer) ExecutePins {
-	return ExecutePins{pe: pe, tracer: tracer}
+func (e ExecutePins) ensureNotCleaning(ctx context.Context) error {
+	st, err := e.sr.Find(ctx)
+	if err != nil {
+		return err
+	}
+	if st.IsClean() {
+		return CleanInProgressError{}
+	}
+	return nil
+}
+
+func NewExecutePins(pe PinExecutor, sr StatusRepository, tracer trace.Tracer) ExecutePins {
+	return ExecutePins{pe: pe, sr: sr, tracer: tracer}
 }

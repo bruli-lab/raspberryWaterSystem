@@ -36,13 +36,13 @@ func (u UpdateStatus) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Event,
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	current, err := u.sr.Find(ctx)
+	li, err := u.lr.Find(ctx, time.Now())
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	li, err := u.lr.Find(ctx, time.Now())
+	current, err := u.sr.Find(ctx)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())

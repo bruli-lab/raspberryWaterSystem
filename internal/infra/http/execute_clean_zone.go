@@ -25,6 +25,8 @@ func ExecuteCleanZone(ch cqs.CommandHandler, tracer trace.Tracer) http.HandlerFu
 			switch {
 			case errors.As(err, &errs.NotFoundError{}):
 				WriteErrorResponse(w, http.StatusNotFound)
+			case errors.As(err, &app.CleanInProgressError{}):
+				WriteErrorResponse(w, http.StatusConflict)
 			default:
 				WriteErrorResponse(w, http.StatusInternalServerError)
 			}

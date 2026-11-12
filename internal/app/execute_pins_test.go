@@ -5,19 +5,25 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
-
 	"github.com/bruli/raspberryWaterSystem/internal/app"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
+	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/stretchr/testify/require"
 )
 
 func TestExecutePinsHandle(t *testing.T) {
 	errTest := errors.New("")
-	cmd := app.ExecutePinsCmd{}
+	cmd := app.ExecutePinsCmd{Seconds: 10, Pins: []string{"18"}}
+	cleanCycleCmd := app.ExecutePinsCmd{Seconds: 10, Pins: []string{"18"}, CleanCycle: true}
+	idle := fixtures.StatusBuilder{Active: true}.Build()
+	cleaning := fixtures.StatusBuilder{Active: true, Clean: true}.Build()
 	tests := []struct {
-		name                 string
-		execErr, expectedErr error
-		cmd                  cqs.Command
+		name                          string
+		execErr, findErr, expectedErr error
+		st                            status.Status
+		cmd                           cqs.Command
+		expectedExecutions            int
 	}{
 		{
 			name:        "with an invalid command, then it returns an invalid command error",
@@ -25,14 +31,36 @@ func TestExecutePinsHandle(t *testing.T) {
 			expectedErr: cqs.InvalidCommandError{},
 		},
 		{
-			name:        "and executor returns an error, then it returns same error",
+			name:        "and find status returns an error, then it returns same error without executing pins",
 			cmd:         cmd,
-			execErr:     errTest,
+			findErr:     errTest,
 			expectedErr: errTest,
 		},
 		{
-			name: "and executor returns nil, then it returns nil events",
-			cmd:  cmd,
+			name:        "and a clean cycle is in progress, then it discards the execution with a clean in progress error",
+			cmd:         cmd,
+			st:          cleaning,
+			expectedErr: app.CleanInProgressError{},
+		},
+		{
+			name:               "from the clean cycle while it is in progress, then it executes pins",
+			cmd:                cleanCycleCmd,
+			st:                 cleaning,
+			expectedExecutions: 1,
+		},
+		{
+			name:               "and executor returns an error, then it returns same error",
+			cmd:                cmd,
+			st:                 idle,
+			execErr:            errTest,
+			expectedErr:        errTest,
+			expectedExecutions: 1,
+		},
+		{
+			name:               "and executor returns nil, then it returns nil events",
+			cmd:                cmd,
+			st:                 idle,
+			expectedExecutions: 1,
 		},
 	}
 	for _, tt := range tests {
@@ -44,13 +72,19 @@ func TestExecutePinsHandle(t *testing.T) {
 					return tt.execErr
 				},
 			}
-			handler := app.NewExecutePins(pe, tracer())
+			sr := &StatusRepositoryMock{
+				FindFunc: func(_ context.Context) (status.Status, error) {
+					return tt.st, tt.findErr
+				},
+			}
+			handler := app.NewExecutePins(pe, sr, tracer())
 			events, err := handler.Handle(context.Background(), tt.cmd)
-			if err != nil {
+			require.Len(t, pe.ExecuteCalls(), tt.expectedExecutions)
+			if tt.expectedErr != nil {
 				require.ErrorAs(t, err, &tt.expectedErr)
 				return
 			}
-			require.Equal(t, tt.expectedErr, err)
+			require.NoError(t, err)
 			require.Nil(t, events)
 		})
 	}

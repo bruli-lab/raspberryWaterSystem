@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
@@ -32,22 +33,34 @@ func (e ExecutePinsOnExecuteCleanZone) Listen(ctx context.Context, ev cqs.Event)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	if _, err := e.ch.Handle(ctx, app.ChangeCleanStatusCmd{
-		Clean: true,
-	}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
+	go e.runCleanCycle(ctx, &event)
+	span.SetStatus(codes.Ok, "clean cycle started")
+	return nil
+}
+
+func (e ExecutePinsOnExecuteCleanZone) runCleanCycle(ctx context.Context, event *zone.CleanZoneExecuted) {
+	ctx, span := e.trace.Start(ctx, "executePinsOnExecuteCleanZone.cleanCycle")
+	defer span.End()
+	defer e.finishCleaning(ctx, span)
 	defer func() {
-		if _, err := e.ch.Handle(ctx, app.ChangeCleanStatusCmd{Clean: false}); err != nil {
+		if r := recover(); r != nil {
+			err := fmt.Errorf("clean cycle panicked: %v", r)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
+			e.log.ErrorContext(ctx, "clean cycle panicked", slog.Any("panic", r), slog.String("stack", string(debug.Stack())))
 		}
 	}()
-	if err := e.cleanExecution(ctx, &event); err != nil {
+	if err := e.cleanCycle(ctx, span, event); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		e.log.ErrorContext(ctx, "failed running clean cycle", slog.String("zone", event.ZoneName), slog.String("error", err.Error()))
+		return
+	}
+	span.SetStatus(codes.Ok, "clean executed")
+}
+
+func (e ExecutePinsOnExecuteCleanZone) cleanCycle(ctx context.Context, span trace.Span, event *zone.CleanZoneExecuted) error {
+	if err := e.cleanExecution(ctx, event); err != nil {
 		return err
 	}
 	sec, _ := program.ParseSeconds(int(event.ZoneSeconds))
@@ -60,16 +73,19 @@ func (e ExecutePinsOnExecuteCleanZone) Listen(ctx context.Context, ev cqs.Event)
 		return ctx.Err()
 	case <-timer.C:
 	}
-	if err := e.clarifyExecution(ctx, &event); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+	if err := e.clarifyExecution(ctx, event); err != nil {
 		return err
 	}
 	e.notify(ctx, span, fmt.Sprintf("clarify zone %s finished!!", event.ZoneName))
-
-	span.SetStatus(codes.Ok, "clean executed")
-
 	return nil
+}
+
+func (e ExecutePinsOnExecuteCleanZone) finishCleaning(ctx context.Context, span trace.Span) {
+	if _, err := e.ch.Handle(context.WithoutCancel(ctx), app.ChangeCleanStatusCmd{Clean: false}); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		e.log.ErrorContext(ctx, "failed finishing clean status", slog.String("error", err.Error()))
+	}
 }
 
 func (e ExecutePinsOnExecuteCleanZone) notify(ctx context.Context, span trace.Span, message string) {
@@ -81,8 +97,9 @@ func (e ExecutePinsOnExecuteCleanZone) notify(ctx context.Context, span trace.Sp
 
 func (e ExecutePinsOnExecuteCleanZone) executePin(ctx context.Context, seconds uint, pins []string) error {
 	_, err := e.ch.Handle(ctx, app.ExecutePinsCmd{
-		Seconds: seconds,
-		Pins:    pins,
+		Seconds:    seconds,
+		Pins:       pins,
+		CleanCycle: true,
 	})
 	return err
 }

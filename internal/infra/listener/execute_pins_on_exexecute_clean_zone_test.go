@@ -19,15 +19,17 @@ import (
 func Test_executePinsOnExecuteCleanZone_Listen(t *testing.T) {
 	log := buildLog()
 	tr := tracer()
-	execCh := app.NewExecutePins(fake.NewPinsExecutor(), tr)
+	execCh := app.NewExecutePins(fake.NewPinsExecutor(), statusRepository(t, true), tr)
 	publishCH := &CommandHandlerMock{}
 	publishCH.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
 		log.DebugContext(ctx, "publish message command handler")
 		return nil, nil
 	}
+	cleanFinished := make(chan struct{})
 	cleanCh := &CommandHandlerMock{}
-	cleanCh.HandleFunc = func(ctx context.Context, cmd cqs.Command) ([]cqs.Event, error) {
+	cleanCh.HandleFunc = func(ctx context.Context, _ cqs.Command) ([]cqs.Event, error) {
 		log.DebugContext(ctx, "activate deactivate clean statu command handler")
+		close(cleanFinished)
 		return nil, nil
 	}
 	chBus := app.NewCommandBus()
@@ -52,4 +54,11 @@ func Test_executePinsOnExecuteCleanZone_Listen(t *testing.T) {
 	}
 	err := list.Listen(t.Context(), event)
 	require.NoError(t, err)
+	select {
+	case <-cleanFinished:
+	case <-time.After(2 * time.Minute):
+		t.Fatal("clean cycle did not finish")
+	}
+	require.Len(t, cleanCh.HandleCalls(), 1)
+	require.Len(t, publishCH.HandleCalls(), 2)
 }
