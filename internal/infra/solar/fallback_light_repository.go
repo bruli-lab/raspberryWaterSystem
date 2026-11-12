@@ -1,6 +1,6 @@
 package solar
 
-//go:generate go tool moq -out zmock_light_repository_test.go -pkg solar_test ../../app LightRepository
+//go:generate go tool moq -out light_repository_mock_test.go -pkg solar_test ../../app LightRepository
 
 import (
 	"context"
