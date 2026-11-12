@@ -122,9 +122,7 @@ func (z ZoneRepository) FindByID(ctx context.Context, id string) (*zone.Zone, er
 }
 
 func buildZone(id string, zo zoneData) *zone.Zone {
-	var do zone.Zone
-	do.Hydrate(id, zo.Name, buildRelays(zo.Relays))
-	return &do
+	return zone.HydrateZone(id, zo.Name, buildRelays(zo.Relays))
 }
 
 func buildRelays(relays []int) []zone.Relay {

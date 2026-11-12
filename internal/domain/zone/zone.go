@@ -62,11 +62,13 @@ func New(id, name string, relays []Relay) (*Zone, error) {
 	return &z, nil
 }
 
-func (z *Zone) Hydrate(id, name string, relays []Relay) {
-	z.id = id
-	z.name = name
-	z.relays = relays
-	z.mutex = sync.RWMutex{}
+func HydrateZone(id, name string, relays []Relay) *Zone {
+	return &Zone{
+		id:     id,
+		name:   name,
+		relays: relays,
+		mutex:  sync.RWMutex{},
+	}
 }
 
 func (z *Zone) validate() error {

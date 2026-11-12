@@ -35,10 +35,8 @@ func (p *FertilizerProgram) validate() error {
 	return nil
 }
 
-func (p *FertilizerProgram) Hydrate(hour Hour, fertilizer bool, executions []Execution) {
-	p.hour = hour
-	p.fertilizer = fertilizer
-	p.executions = executions
+func HydrateFertilizerProgram(hour Hour, fertilizer bool, executions []Execution) FertilizerProgram {
+	return FertilizerProgram{hour: hour, fertilizer: fertilizer, executions: executions}
 }
 
 func NewFertilizerProgram(hour Hour, fertilizer bool, executions []Execution) (*FertilizerProgram, error) {
@@ -69,9 +67,8 @@ func (p *Program) validate() error {
 	return nil
 }
 
-func (p *Program) Hydrate(hour Hour, executions []Execution) {
-	p.hour = hour
-	p.executions = executions
+func HydrateProgram(hour Hour, executions []Execution) Program {
+	return Program{hour: hour, executions: executions}
 }
 
 func New(hour Hour, executions []Execution) (*Program, error) {
@@ -102,9 +99,8 @@ func NewWeekly(weekDay WeekDay, programs []Program) (Weekly, error) {
 	return Weekly{weekDay: weekDay, programs: programs}, nil
 }
 
-func (w *Weekly) Hydrate(weekDay WeekDay, programs []Program) {
-	w.weekDay = weekDay
-	w.programs = programs
+func HydrateWeekly(weekDay WeekDay, programs []Program) Weekly {
+	return Weekly{weekDay: weekDay, programs: programs}
 }
 
 type Temperature struct {
@@ -138,9 +134,8 @@ func NewTemperature(temperature float32, programs []Program) (*Temperature, erro
 	return &temp, nil
 }
 
-func (t *Temperature) Hydrate(temperature float32, programs []Program) {
-	t.temperature = temperature
-	t.programs = programs
+func HydrateTemperature(temperature float32, programs []Program) Temperature {
+	return Temperature{temperature: temperature, programs: programs}
 }
 
 func (t *Temperature) Update(programs []Program) {

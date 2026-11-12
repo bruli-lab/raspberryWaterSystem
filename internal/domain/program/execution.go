@@ -31,7 +31,6 @@ func NewExecution(seconds Seconds, zones []string) (Execution, error) {
 	return ex, nil
 }
 
-func (e *Execution) Hydrate(seconds Seconds, zones []string) {
-	e.seconds = seconds
-	e.zones = zones
+func HydrateExecution(seconds Seconds, zones []string) Execution {
+	return Execution{seconds: seconds, zones: zones}
 }

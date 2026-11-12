@@ -43,9 +43,7 @@ func (w WeeklyRepository) FindByDay(ctx context.Context, day *program.WeekDay) (
 }
 
 func buildProgramWeeklyByDay(day *program.WeekDay, prg programMap) *program.Weekly {
-	var weekly program.Weekly
-
-	weekly.Hydrate(*day, buildPrograms(prg))
+	weekly := program.HydrateWeekly(*day, buildPrograms(prg))
 	return &weekly
 }
 
@@ -107,18 +105,12 @@ func (w WeeklyRepository) FindByDayAndHour(ctx context.Context, day *program.Wee
 
 func buildProgramWeeklyByHour(day *program.WeekDay, hour *program.Hour, prgms []executions) *program.Weekly {
 	programs := make([]program.Program, 0, len(prgms))
-	var weekly program.Weekly
-	var pg program.Program
 	exec := make([]program.Execution, 0, len(prgms))
 	for _, pd := range prgms {
-		var execution program.Execution
-		sec := program.HydrateSeconds(pd.Seconds)
-		execution.Hydrate(sec, pd.Zones)
-		exec = append(exec, execution)
-		pg.Hydrate(*hour, exec)
-		programs = append(programs, pg)
+		exec = append(exec, program.HydrateExecution(program.HydrateSeconds(pd.Seconds), pd.Zones))
+		programs = append(programs, program.HydrateProgram(*hour, exec))
 	}
-	weekly.Hydrate(*day, programs)
+	weekly := program.HydrateWeekly(*day, programs)
 	return &weekly
 }
 
@@ -168,9 +160,7 @@ func buildWeeklyPrograms(weekly weeklyMap) []program.Weekly {
 	prgms := make([]program.Weekly, 0, len(weekly))
 	for dayStr, w := range weekly {
 		day, _ := program.ParseWeekDay(dayStr)
-		var prg program.Weekly
-		prg.Hydrate(day, buildPrograms(w))
-		prgms = append(prgms, prg)
+		prgms = append(prgms, program.HydrateWeekly(day, buildPrograms(w)))
 	}
 	return prgms
 }

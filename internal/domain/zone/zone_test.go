@@ -90,8 +90,7 @@ func TestZoneExecute(t *testing.T) {
 		t.Run(`Given a built zone struct,
 		when Execute method is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			var zo zone.Zone
-			zo.Hydrate("bbf", "Bonsai", tt.relay)
+			zo := zone.HydrateZone("bbf", "Bonsai", tt.relay)
 			err := zo.Execute(tt.seconds)
 			if tt.expectedErr {
 				require.ErrorAs(t, err, &program.InvalidSecondsError{})

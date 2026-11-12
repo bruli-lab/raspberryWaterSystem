@@ -45,8 +45,7 @@ func (t TemperatureProgramRepository) FindByTemperature(ctx context.Context, tem
 }
 
 func buildTemperatureProgram(temperature float32, prgms programMap) *program.Temperature {
-	var tempPrgm program.Temperature
-	tempPrgm.Hydrate(temperature, buildPrograms(prgms))
+	tempPrgm := program.HydrateTemperature(temperature, buildPrograms(prgms))
 	return &tempPrgm
 }
 
@@ -119,9 +118,7 @@ func (t TemperatureProgramRepository) FindAll(ctx context.Context) ([]program.Te
 func buildTemperaturePrograms(temperature temperatureMap) []program.Temperature {
 	prgms := make([]program.Temperature, 0, len(temperature))
 	for temp, t := range temperature {
-		var prg program.Temperature
-		prg.Hydrate(temp, buildPrograms(t))
-		prgms = append(prgms, prg)
+		prgms = append(prgms, program.HydrateTemperature(temp, buildPrograms(t)))
 	}
 	return prgms
 }
@@ -159,23 +156,14 @@ func (t TemperatureProgramRepository) FindByTemperatureAndHour(ctx context.Conte
 
 func buildProgramTemperature(temperature float32, hour program.Hour, prgms []executions) program.Temperature {
 	programs := make([]program.Program, len(prgms))
-	var temp program.Temperature
-	var pg program.Program
 	for i, pd := range prgms {
-		pg.Hydrate(hour, buildExecutions(pd))
-		programs[i] = pg
+		programs[i] = program.HydrateProgram(hour, buildExecutions(pd))
 	}
-	temp.Hydrate(temperature, programs)
-	return temp
+	return program.HydrateTemperature(temperature, programs)
 }
 
 func buildExecutions(pd executions) []program.Execution {
-	executions := make([]program.Execution, 1)
-	var execution program.Execution
-	sec := program.HydrateSeconds(pd.Seconds)
-	execution.Hydrate(sec, pd.Zones)
-	executions[0] = execution
-	return executions
+	return []program.Execution{program.HydrateExecution(program.HydrateSeconds(pd.Seconds), pd.Zones)}
 }
 
 func NewTemperatureProgramRepository(path string, tracer trace.Tracer) TemperatureProgramRepository {
