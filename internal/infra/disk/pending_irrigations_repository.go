@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -22,7 +22,7 @@ import (
 type PendingIrrigation struct {
 	ID         string
 	EnqueuedAt time.Time
-	Event      event.Event
+	Event      cqs.Event
 }
 
 type pendingIrrigationFile struct {
@@ -31,7 +31,7 @@ type pendingIrrigationFile struct {
 	Event      json.RawMessage `json:"event"`
 }
 
-func IsPendingIrrigation(ev event.Event) bool {
+func IsPendingIrrigation(ev cqs.Event) bool {
 	switch ev.(type) {
 	case zone.Executed, zone.FertilizerZoneExecuted:
 		return true
@@ -47,7 +47,7 @@ type PendingIrrigationsRepository struct {
 	now      func() time.Time
 }
 
-func (p PendingIrrigationsRepository) Save(ctx context.Context, ev event.Event) (PendingIrrigation, error) {
+func (p PendingIrrigationsRepository) Save(ctx context.Context, ev cqs.Event) (PendingIrrigation, error) {
 	_, span := p.tracer.Start(ctx, "PendingIrrigationsRepository.Save")
 	defer span.End()
 	pending, err := p.save(ev)
@@ -60,7 +60,7 @@ func (p PendingIrrigationsRepository) Save(ctx context.Context, ev event.Event) 
 	return pending, nil
 }
 
-func (p PendingIrrigationsRepository) save(ev event.Event) (PendingIrrigation, error) {
+func (p PendingIrrigationsRepository) save(ev cqs.Event) (PendingIrrigation, error) {
 	if !IsPendingIrrigation(ev) {
 		return PendingIrrigation{}, UnsupportedPendingIrrigationError{name: ev.EventName()}
 	}
@@ -70,7 +70,7 @@ func (p PendingIrrigationsRepository) save(ev event.Event) (PendingIrrigation, e
 	}
 	enqueuedAt := p.now()
 	id := fmt.Sprintf("%020d-%010d", enqueuedAt.UnixNano(), p.sequence.Add(1))
-	if err = os.MkdirAll(p.dir, DirPermissions); err != nil {
+	if err = os.MkdirAll(p.dir, 0o755); err != nil {
 		return PendingIrrigation{}, fmt.Errorf("failed to create pending irrigations directory: %w", err)
 	}
 	file := pendingIrrigationFile{Name: ev.EventName(), EnqueuedAt: enqueuedAt, Event: payload}
@@ -148,7 +148,7 @@ func readPendingIrrigation(path string) (PendingIrrigation, error) {
 	return PendingIrrigation{ID: id, EnqueuedAt: file.EnqueuedAt, Event: ev}, nil
 }
 
-func decodePendingIrrigationEvent(file pendingIrrigationFile) (event.Event, error) {
+func decodePendingIrrigationEvent(file pendingIrrigationFile) (cqs.Event, error) {
 	switch file.Name {
 	case zone.ExecutedEventName:
 		var ev zone.Executed

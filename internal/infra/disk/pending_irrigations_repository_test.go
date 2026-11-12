@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
 	"github.com/google/uuid"
@@ -16,7 +16,7 @@ import (
 
 func executedEvent(zoneName string) zone.Executed {
 	return zone.Executed{
-		BasicEvent: event.NewBasicEvent(zone.ExecutedEventName, uuid.New(), "zone-id"),
+		BasicEvent: cqs.NewBasicEvent(zone.ExecutedEventName, uuid.New(), "zone-id"),
 		ZoneID:     "zone-id",
 		ZoneName:   zoneName,
 		Seconds:    20,
@@ -26,7 +26,7 @@ func executedEvent(zoneName string) zone.Executed {
 
 func fertilizerEvent() zone.FertilizerZoneExecuted {
 	return zone.FertilizerZoneExecuted{
-		BasicEvent:            event.NewBasicEvent(zone.FertilizerZoneExecutedEventName, uuid.New(), "zone-id"),
+		BasicEvent:            cqs.NewBasicEvent(zone.FertilizerZoneExecutedEventName, uuid.New(), "zone-id"),
 		ZoneID:                "zone-id",
 		ZoneName:              "fertilizer zone",
 		ZoneSeconds:           30,
@@ -42,15 +42,15 @@ func pendingIrrigationsRepository(dir string) disk.PendingIrrigationsRepository 
 func TestPendingIrrigationsRepositorySaveAndFindAll(t *testing.T) {
 	tests := []struct {
 		name   string
-		events []event.Event
+		events []cqs.Event
 	}{
 		{
 			name:   "with a plain zone execution, then it restores the same event",
-			events: []event.Event{executedEvent("zone 1")},
+			events: []cqs.Event{executedEvent("zone 1")},
 		},
 		{
 			name:   "with several executions of different kinds, then it restores all of them in the order they were saved",
-			events: []event.Event{executedEvent("zone 1"), fertilizerEvent(), executedEvent("zone 2")},
+			events: []cqs.Event{executedEvent("zone 1"), fertilizerEvent(), executedEvent("zone 2")},
 		},
 	}
 	for _, tt := range tests {
@@ -75,7 +75,7 @@ func TestPendingIrrigationsRepositorySaveAndFindAll(t *testing.T) {
 	}
 }
 
-func withSameTime(expected, restored event.Event) event.Event {
+func withSameTime(expected, restored cqs.Event) cqs.Event {
 	switch ev := restored.(type) {
 	case zone.Executed:
 		ev.AtAttr = expected.EventAt()
@@ -95,7 +95,7 @@ func TestPendingIrrigationsRepositorySaveUnsupportedEvent(t *testing.T) {
 		t.Parallel()
 		repo := pendingIrrigationsRepository(filepath.Join(t.TempDir(), "pending"))
 		_, err := repo.Save(t.Context(), zone.CleanZoneExecuted{
-			BasicEvent: event.NewBasicEvent(zone.CleanZoneExecutedEventName, uuid.New(), "zone-id"),
+			BasicEvent: cqs.NewBasicEvent(zone.CleanZoneExecutedEventName, uuid.New(), "zone-id"),
 		})
 		require.ErrorAs(t, err, &disk.UnsupportedPendingIrrigationError{})
 

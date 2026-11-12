@@ -42,7 +42,8 @@ const (
 	latitude    = 41.545
 	longitude   = 2.109
 
-	sensorReadingMaxAge = time.Hour
+	sensorReadingMaxAge     = time.Hour
+	pendingIrrigationMaxAge = time.Hour
 )
 
 func main() {
@@ -93,7 +94,9 @@ func run() error {
 
 	eventsCh := make(chan tracing.Event)
 	dispatchCh := make(chan tracing.Event)
-	go forwardWithoutBlocking(ctx, eventsCh, dispatchCh)
+	pendingIrrigations := disk.NewPendingIrrigationsRepository(conf.PendingIrrigationsDir, time.Now, tracer)
+	restored := restorePendingIrrigations(ctx, pendingIrrigations, pendingIrrigationMaxAge, time.Now(), log)
+	go queueEvents(ctx, eventsCh, dispatchCh, pendingIrrigations, restored, log)
 
 	logCHMdw := cqs.NewCommandHndErrorMiddleware(log, tracer)
 	eventsCHMdw := app.NewEventMiddleware(eventsCh, tracer)

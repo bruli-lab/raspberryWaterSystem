@@ -20,6 +20,7 @@ type Config struct {
 	TemperatureProgramsFile  string `env:"TEMPERATURE_PROGRAMS_FILE,required"`
 	ExecutionLogsFile        string `env:"EXECUTION_LOGS_FILE,required"`
 	StatusFile               string `env:"STATUS_FILE,required"`
+	PendingIrrigationsDir    string `env:"PENDING_IRRIGATIONS_DIRECTORY,required"`
 	NatsServerURL            string `env:"NATS_SERVER_URL,required"`
 	EventsDirectory          string `env:"EVENTS_DIRECTORY,required"`
 	LogLevel                 string `env:"LOG_LEVEL,required"`
