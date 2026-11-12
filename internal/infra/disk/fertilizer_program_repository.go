@@ -6,6 +6,7 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/errors"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"gopkg.in/yaml.v3"
 
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 )
@@ -19,9 +20,27 @@ type (
 	}
 )
 
-type fertilizerProgram = struct {
+type fertilizerProgram struct {
 	Fertilizer bool         `yaml:"fertilizer"`
 	Executions []executions `yaml:"executions"`
+}
+
+func (f *fertilizerProgram) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind == yaml.SequenceNode {
+		var legacy []executions
+		if err := value.Decode(&legacy); err != nil {
+			return err
+		}
+		*f = fertilizerProgram{Executions: legacy}
+		return nil
+	}
+	type plainFertilizerProgram fertilizerProgram
+	var plain plainFertilizerProgram
+	if err := value.Decode(&plain); err != nil {
+		return err
+	}
+	*f = fertilizerProgram(plain)
+	return nil
 }
 
 type FertilizerProgramRepository struct {

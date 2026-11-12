@@ -152,19 +152,19 @@ func run() error {
 
 	eventBus := cqs.NewEventBus()
 	eventBus.Subscribe(zone.Executed{
-		BasicEvent: cqs.BasicEvent{NameAttr: zone.ExecutedEventName},
+		NameAttr: zone.ExecutedEventName,
 	}, listener.NewExecutePinsOnExecuteZone(chBus, tracer), listener.NewWriteExecutionLogEventOnExecuteZone(eventsRepo, tracer))
 
 	eventBus.Subscribe(zone.Ignored{
-		BasicEvent: cqs.BasicEvent{NameAttr: zone.IgnoredEventName},
+		NameAttr: zone.IgnoredEventName,
 	}, listener.NewPublishMessageOnZoneIgnored(chBus, tracer))
 
 	eventBus.Subscribe(zone.FertilizerZoneExecuted{
-		BasicEvent: cqs.BasicEvent{NameAttr: zone.FertilizerZoneExecutedEventName},
+		NameAttr: zone.FertilizerZoneExecutedEventName,
 	}, listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tracer, log), listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, tracer))
 
 	eventBus.Subscribe(zone.CleanZoneExecuted{
-		BasicEvent: cqs.BasicEvent{NameAttr: zone.CleanZoneExecutedEventName},
+		NameAttr: zone.CleanZoneExecutedEventName,
 	}, listener.NewExecutePinsOnExecuteCleanZone(chBus, tracer, log))
 
 	if err = initStatus(ctx, chBus, qhBus); err != nil {

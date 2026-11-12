@@ -64,7 +64,7 @@ func (r RemoveDailyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.
 }
 
 func NewRemoveDailyProgram(pr ProgramRepository, tracer trace.Tracer) *RemoveDailyProgram {
-	return &RemoveDailyProgram{RemoveProgram: RemoveProgram{pr: pr}, tracer: tracer}
+	return &RemoveDailyProgram{pr: pr, tracer: tracer}
 }
 
 type RemoveOddProgram struct {
@@ -92,9 +92,9 @@ func (r RemoveOddProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Ev
 }
 
 func NewRemoveOddProgram(pr ProgramRepository, tracer trace.Tracer) *RemoveOddProgram {
-	return &RemoveOddProgram{RemoveProgram: RemoveProgram{
-		pr: pr,
-	}, tracer: tracer}
+	return &RemoveOddProgram{
+		pr: pr, tracer: tracer,
+	}
 }
 
 type RemoveEvenProgram struct {
@@ -122,7 +122,7 @@ func (r RemoveEvenProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.E
 }
 
 func NewRemoveEvenProgram(pr ProgramRepository, tracer trace.Tracer) *RemoveEvenProgram {
-	return &RemoveEvenProgram{RemoveProgram: RemoveProgram{pr: pr}, tracer: tracer}
+	return &RemoveEvenProgram{pr: pr, tracer: tracer}
 }
 
 type RemoveProgram struct {

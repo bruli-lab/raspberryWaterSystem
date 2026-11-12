@@ -68,8 +68,8 @@ func (c CreateDailyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.
 
 func NewCreateDailyProgram(programRepo ProgramRepository, zonesRepo ZoneRepository, tracer trace.Tracer) *CreateDailyProgram {
 	return &CreateDailyProgram{
-		CreateProgram: CreateProgram{programRepo: programRepo, zonesRepo: zonesRepo},
-		tracer:        tracer,
+		programRepo: programRepo, zonesRepo: zonesRepo,
+		tracer: tracer,
 	}
 }
 
@@ -98,8 +98,8 @@ func (c CreateOddProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.Ev
 
 func NewCreateOddProgram(programRepo ProgramRepository, zonesRepo ZoneRepository, tracer trace.Tracer) *CreateOddProgram {
 	return &CreateOddProgram{
-		CreateProgram: CreateProgram{programRepo: programRepo, zonesRepo: zonesRepo},
-		tracer:        tracer,
+		programRepo: programRepo, zonesRepo: zonesRepo,
+		tracer: tracer,
 	}
 }
 
@@ -129,8 +129,8 @@ func (c CreateEvenProgram) Handle(ctx context.Context, cmd cqs.Command) ([]cqs.E
 
 func NewCreateEvenProgram(programRepo ProgramRepository, zonesRepo ZoneRepository, tracer trace.Tracer) *CreateEvenProgram {
 	return &CreateEvenProgram{
-		CreateProgram: CreateProgram{programRepo: programRepo, zonesRepo: zonesRepo},
-		tracer:        tracer,
+		programRepo: programRepo, zonesRepo: zonesRepo,
+		tracer: tracer,
 	}
 }
 
