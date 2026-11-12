@@ -159,7 +159,11 @@ func (e EventsRepository) FindAll(ctx context.Context) ([]Event, error) {
 }
 
 func (e EventsRepository) moveToDeadLetter(path string) error {
-	deadLetterDir := filepath.Join(e.eventsDir, DeadLetterDirectory)
+	return moveToDeadLetter(e.eventsDir, path)
+}
+
+func moveToDeadLetter(dir, path string) error {
+	deadLetterDir := filepath.Join(dir, DeadLetterDirectory)
 	if err := os.MkdirAll(deadLetterDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create dead letter directory: %w", err)
 	}

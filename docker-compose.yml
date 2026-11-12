@@ -19,6 +19,7 @@ services:
       - TEMPERATURE_PROGRAMS_FILE=${TEMPERATURE_PROGRAMS_FILE:-/tmp/temperature_programs.yml}
       - EXECUTION_LOGS_FILE=${EXECUTION_LOGS_FILE:-/tmp/execution_logs.json}
       - STATUS_FILE=${STATUS_FILE:-/tmp/status.json}
+      - PENDING_IRRIGATIONS_DIRECTORY=${PENDING_IRRIGATIONS_DIRECTORY:-/tmp/pending_irrigations}
       - NATS_SERVER_URL=${NATS_SERVER_URL:-nats://nats:4222}
       - EVENTS_DIRECTORY=${EVENTS_DIRECTORY:-/tmp/events}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
