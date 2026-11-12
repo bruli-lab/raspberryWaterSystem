@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 	_ "time/tzdata"
@@ -45,6 +46,7 @@ const (
 
 	sensorReadingMaxAge     = time.Hour
 	pendingIrrigationMaxAge = time.Hour
+	notificationsInterval   = 10 * time.Second
 )
 
 func main() {
@@ -147,6 +149,10 @@ func run() error {
 	go superviseWorker(ctx, log, "reading events", func(ctx context.Context) {
 		readingEvents(ctx, eventsRepo, eventsPublisher, log)
 	})
+	notificationsOutbox := disk.NewNotificationsOutbox(filepath.Join(conf.EventsDirectory, disk.NotificationsDirectory), time.Now, tracer)
+	go superviseWorker(ctx, log, "sending notifications", func(ctx context.Context) {
+		sendingNotifications(ctx, notificationsOutbox, ntfyPublisher, location, log, tracer)
+	})
 
 	qhBus := cqs.NewQueryBus()
 	qhBus.Subscribe(app.FindWeatherQueryName, logQHMdw(app.NewFindWeather(tr, rr, tracer)))
@@ -165,7 +171,7 @@ func run() error {
 	chBus.Subscribe(app.ExecuteCleanZoneCmdName, eventsMultiCHMdw(app.NewExecuteCleanZone(zr, statusRepo, tracer)))
 	chBus.Subscribe(app.ExecutePinsCmdName, logCHMdw(app.NewExecutePins(pe, statusRepo, tracer)))
 	chBus.Subscribe(app.SaveExecutionLogCmdName, logCHMdw(app.NewSaveExecutionLog(execLogRepo, tracer)))
-	chBus.Subscribe(app.PublishMessageCmdName, logCHMdw(app.NewPublishMessage(ntfyPublisher, tracer)))
+	chBus.Subscribe(app.PublishMessageCmdName, logCHMdw(app.NewPublishMessage(notificationsOutbox, tracer)))
 	chBus.Subscribe(app.RemoveZoneCmdName, logCHMdw(app.NewRemoveZone(zr, tracer)))
 	chBus.Subscribe(app.ActivateDeactivateServerCmdName, logCHMdw(app.NewActivateDeactivateServer(statusRepo, tracer)))
 	chBus.Subscribe(app.ExecuteZoneWithStatusCmdName, eventsMultiCHMdw(app.NewExecuteZoneWithStatus(zr, statusRepo, tracer)))
@@ -279,6 +285,30 @@ func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.Even
 func buildCron(location *time.Location, log *slog.Logger) *cron.Cron {
 	cronLog := cron.PrintfLogger(slog.NewLogLogger(log.Handler(), slog.LevelError))
 	return cron.New(cron.WithLocation(location), cron.WithChain(cron.Recover(cronLog)))
+}
+
+func sendingNotifications(
+	ctx context.Context,
+	pending worker.PendingNotifications,
+	sender worker.NotificationSender,
+	location *time.Location,
+	log *slog.Logger,
+	tracer trace.Tracer,
+) {
+	log.InfoContext(ctx, "[WORKER] Sending notifications: started")
+	ticker := time.NewTicker(notificationsInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			log.InfoContext(ctx, "[WORKER] Sending notifications: context done")
+			return
+		case <-ticker.C:
+			if _, err := worker.SendNotifications(ctx, pending, sender, time.Now(), location, tracer); err != nil {
+				log.WarnContext(ctx, "[WORKER] Sending notifications: notifications kept for the next attempt", slog.String("error", err.Error()))
+			}
+		}
+	}
 }
 
 func readingEvents(

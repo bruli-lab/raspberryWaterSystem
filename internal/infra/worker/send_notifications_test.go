@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/worker"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type pendingNotifications struct {
-	notifications []outbox.Notification
+	notifications []disk.Notification
 	findErr       error
 	removed       []string
 }
 
-func (p *pendingNotifications) FindAll(_ context.Context) ([]outbox.Notification, error) {
+func (p *pendingNotifications) FindAll(_ context.Context) ([]disk.Notification, error) {
 	return p.notifications, p.findErr
 }
 
@@ -44,11 +44,11 @@ func TestSendNotifications(t *testing.T) {
 	location, err := time.LoadLocation("Europe/Madrid")
 	require.NoError(t, err)
 	now := time.Date(2026, time.November, 12, 18, 0, 0, 0, time.UTC)
-	recent := outbox.Notification{ID: "1", Message: "zone a executed during 20s", CreatedAt: now.Add(-10 * time.Second)}
-	delayed := outbox.Notification{ID: "2", Message: "zone b executed during 30s", CreatedAt: now.Add(-3 * time.Hour)}
+	recent := disk.Notification{ID: "1", Message: "zone a executed during 20s", CreatedAt: now.Add(-10 * time.Second)}
+	delayed := disk.Notification{ID: "2", Message: "zone b executed during 30s", CreatedAt: now.Add(-3 * time.Hour)}
 	tests := []struct {
 		name            string
-		notifications   []outbox.Notification
+		notifications   []disk.Notification
 		findErr         error
 		failFrom        int
 		expectedErr     bool
@@ -57,13 +57,13 @@ func TestSendNotifications(t *testing.T) {
 	}{
 		{
 			name:            "with recent and delayed notifications, then it sends all of them in order, adds the original time to the delayed ones and removes them",
-			notifications:   []outbox.Notification{recent, delayed},
+			notifications:   []disk.Notification{recent, delayed},
 			expectedSent:    []string{"zone a executed during 20s", "zone b executed during 30s (12/11 16:00)"},
 			expectedRemoved: []string{"1", "2"},
 		},
 		{
 			name:            "and the sender fails, then it stops at the first failure and keeps the unsent notifications",
-			notifications:   []outbox.Notification{recent, delayed},
+			notifications:   []disk.Notification{recent, delayed},
 			failFrom:        2,
 			expectedErr:     true,
 			expectedSent:    []string{"zone a executed during 20s"},
