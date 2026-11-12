@@ -16,9 +16,9 @@ import (
 
 func TestFindProgramsInTimeHandle(t *testing.T) {
 	errTest := errors.New("")
-	daily := fixtures.FertilizerProgramBuilder{}.Build()
-	odd := fixtures.FertilizerProgramBuilder{}.Build()
-	even := fixtures.FertilizerProgramBuilder{}.Build()
+	daily := fixtures.ProgramBuilder{}.Build()
+	odd := fixtures.ProgramBuilder{}.Build()
+	even := fixtures.ProgramBuilder{}.Build()
 	weekly := fixtures.WeeklyBuilder{}.Build()
 	temp := fixtures.TemperatureBuilder{}.Build()
 	queryTest := app.FindProgramsInTimeQuery{}
@@ -28,7 +28,7 @@ func TestFindProgramsInTimeHandle(t *testing.T) {
 		oddErr, evenErr,
 		weeklyErr, tempErr error
 		expectedResult   any
-		daily, odd, even *program.FertilizerProgram
+		daily, odd, even *program.Program
 		weekly           *program.Weekly
 		temp             program.Temperature
 		query            cqs.Query
@@ -100,17 +100,17 @@ func TestFindProgramsInTimeHandle(t *testing.T) {
 		when Handle method is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
 			daily := &ProgramRepositoryMock{
-				FindByHourFunc: func(_ context.Context, _ *program.Hour) (*program.FertilizerProgram, error) {
+				FindByHourFunc: func(_ context.Context, _ *program.Hour) (*program.Program, error) {
 					return tt.daily, tt.dailyErr
 				},
 			}
 			odd := &ProgramRepositoryMock{
-				FindByHourFunc: func(_ context.Context, _ *program.Hour) (*program.FertilizerProgram, error) {
+				FindByHourFunc: func(_ context.Context, _ *program.Hour) (*program.Program, error) {
 					return tt.odd, tt.oddErr
 				},
 			}
 			even := &ProgramRepositoryMock{
-				FindByHourFunc: func(_ context.Context, _ *program.Hour) (*program.FertilizerProgram, error) {
+				FindByHourFunc: func(_ context.Context, _ *program.Hour) (*program.Program, error) {
 					return tt.even, tt.evenErr
 				},
 			}

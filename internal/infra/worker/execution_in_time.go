@@ -101,7 +101,7 @@ func executeWeekly(ctx context.Context, prgms app.ProgramsInTime, ch cqs.Command
 }
 
 func executeOddEven(ctx context.Context, now time.Time, prgms app.ProgramsInTime, ch cqs.CommandHandler) error {
-	var oddEvenPrgms *program.FertilizerProgram
+	var oddEvenPrgms *program.Program
 
 	switch {
 	case isEven(now) && prgms.Even != nil:
@@ -110,7 +110,7 @@ func executeOddEven(ctx context.Context, now time.Time, prgms app.ProgramsInTime
 		oddEvenPrgms = prgms.Odd
 	}
 	if oddEvenPrgms != nil {
-		if err := executeFertilizerProgram(ctx, ch, *oddEvenPrgms, now); err != nil {
+		if err := executeProgram(ctx, ch, *oddEvenPrgms, now); err != nil {
 			return ExecuteOddEvenError{err: err}
 		}
 	}
@@ -119,7 +119,7 @@ func executeOddEven(ctx context.Context, now time.Time, prgms app.ProgramsInTime
 
 func executeDaily(ctx context.Context, prgms app.ProgramsInTime, ch cqs.CommandHandler, now time.Time) error {
 	if prgms.Daily != nil {
-		if err := executeFertilizerProgram(ctx, ch, *prgms.Daily, now); err != nil {
+		if err := executeProgram(ctx, ch, *prgms.Daily, now); err != nil {
 			return ExecuteDailyError{err: err}
 		}
 	}
@@ -132,7 +132,7 @@ func isEven(now time.Time) bool {
 	return rest == 0
 }
 
-func executeFertilizerProgram(ctx context.Context, ch cqs.CommandHandler, prg program.FertilizerProgram, now time.Time) error {
+func executeProgram(ctx context.Context, ch cqs.CommandHandler, prg program.Program, now time.Time) error {
 	nowHour := now.Format(program.HourLayout)
 	if nowHour == prg.Hour().String() {
 		for _, exec := range prg.Executions() {
@@ -141,23 +141,6 @@ func executeFertilizerProgram(ctx context.Context, ch cqs.CommandHandler, prg pr
 					Seconds:        uint(exec.Seconds().Int()),
 					ZoneID:         zo,
 					WithFertilizer: prg.IsFertilizer(),
-				}); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func executeProgram(ctx context.Context, ch cqs.CommandHandler, prg program.Program, now time.Time) error {
-	nowHour := now.Format(program.HourLayout)
-	if nowHour == prg.Hour().String() {
-		for _, exec := range prg.Executions() {
-			for _, zo := range exec.Zones() {
-				if _, err := ch.Handle(ctx, app.ExecuteZoneWithStatusCmd{
-					Seconds: uint(exec.Seconds().Int()),
-					ZoneID:  zo,
 				}); err != nil {
 					return err
 				}

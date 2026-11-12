@@ -74,7 +74,7 @@ func buildCreateWeeklyProgramCommand(req WeeklyProgramRequest) (*program.Weekly,
 			}
 			exec[j] = exe
 		}
-		pr, err := program.New(hour, exec)
+		pr, err := program.NewWithoutFertilizer(hour, exec)
 		if err != nil {
 			return nil, err
 		}

@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/bruli-lab/go-core/cqs"
@@ -78,12 +77,4 @@ type CleanInProgressError struct{}
 
 func (CleanInProgressError) Error() string {
 	return "a clean cycle is already in progress"
-}
-
-type ExecuteCleanZoneError struct {
-	m string
-}
-
-func (e ExecuteCleanZoneError) Error() string {
-	return fmt.Sprintf("failed to execute clean zone: %s", e.m)
 }

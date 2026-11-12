@@ -12,50 +12,50 @@ import (
 )
 
 type (
-	programMap    = map[string][]executions
-	fertilizerMap = map[string]fertilizerProgram
-	executions    = struct {
+	programMap       = map[string][]executions
+	storedProgramMap = map[string]storedProgram
+	executions       = struct {
 		Seconds int      `yaml:"seconds"`
 		Zones   []string `yaml:"zones"`
 	}
 )
 
-type fertilizerProgram struct {
+type storedProgram struct {
 	Fertilizer bool         `yaml:"fertilizer"`
 	Executions []executions `yaml:"executions"`
 }
 
-func (f *fertilizerProgram) UnmarshalYAML(value *yaml.Node) error {
+func (f *storedProgram) UnmarshalYAML(value *yaml.Node) error {
 	if value.Kind == yaml.SequenceNode {
 		var legacy []executions
 		if err := value.Decode(&legacy); err != nil {
 			return err
 		}
-		*f = fertilizerProgram{Executions: legacy}
+		*f = storedProgram{Executions: legacy}
 		return nil
 	}
-	type plainFertilizerProgram fertilizerProgram
-	var plain plainFertilizerProgram
+	type plainStoredProgram storedProgram
+	var plain plainStoredProgram
 	if err := value.Decode(&plain); err != nil {
 		return err
 	}
-	*f = fertilizerProgram(plain)
+	*f = storedProgram(plain)
 	return nil
 }
 
-type FertilizerProgramRepository struct {
+type ProgramRepository struct {
 	filePath string
 	tracer   trace.Tracer
 }
 
-func (d FertilizerProgramRepository) Remove(ctx context.Context, hour *program.Hour) error {
+func (d ProgramRepository) Remove(ctx context.Context, hour *program.Hour) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 		_, span := d.tracer.Start(ctx, "ProgramRepository.Remove")
 		defer span.End()
-		savedData := make(fertilizerMap)
+		savedData := make(storedProgramMap)
 		if err := readYamlFile(d.filePath, &savedData); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -73,14 +73,14 @@ func (d FertilizerProgramRepository) Remove(ctx context.Context, hour *program.H
 	}
 }
 
-func (d FertilizerProgramRepository) Save(ctx context.Context, prg *program.FertilizerProgram) error {
+func (d ProgramRepository) Save(ctx context.Context, prg *program.Program) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 		_, span := d.tracer.Start(ctx, "ProgramRepository.Save")
 		defer span.End()
-		savedData := make(fertilizerMap)
+		savedData := make(storedProgramMap)
 		if err := readYamlFile(d.filePath, &savedData); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -90,7 +90,7 @@ func (d FertilizerProgramRepository) Save(ctx context.Context, prg *program.Fert
 		for i, p := range prg.Executions() {
 			execs[i] = buildExecution(&p)
 		}
-		savedData[prg.Hour().String()] = fertilizerProgram{
+		savedData[prg.Hour().String()] = storedProgram{
 			Fertilizer: prg.IsFertilizer(),
 			Executions: execs,
 		}
@@ -126,31 +126,31 @@ func buildProgramMap(programs []program.Program) programMap {
 	return dailyPrgms
 }
 
-func (d FertilizerProgramRepository) FindAll(ctx context.Context) ([]program.FertilizerProgram, error) {
+func (d ProgramRepository) FindAll(ctx context.Context) ([]program.Program, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 		_, span := d.tracer.Start(ctx, "ProgramRepository.FindAll")
 		defer span.End()
-		dailyPgrms := make(fertilizerMap)
+		dailyPgrms := make(storedProgramMap)
 		if err := readYamlFile(d.filePath, &dailyPgrms); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		programs, skipped := buildFertilizerPrograms(dailyPgrms)
+		programs, skipped := buildStoredPrograms(dailyPgrms)
 		recordSkippedEntries(span, skipped)
 		span.SetStatus(codes.Ok, "programs found")
 		return programs, nil
 	}
 }
 
-func buildFertilizerPrograms(pr fertilizerMap) ([]program.FertilizerProgram, []error) {
-	dailies := make([]program.FertilizerProgram, 0, len(pr))
+func buildStoredPrograms(pr storedProgramMap) ([]program.Program, []error) {
+	dailies := make([]program.Program, 0, len(pr))
 	var skipped []error
 	for hour, pg := range pr {
-		p, err := buildFertilizerProgram(pg.Executions, hour, pg.Fertilizer)
+		p, err := buildProgram(pg.Executions, hour, pg.Fertilizer)
 		if err != nil {
 			skipped = append(skipped, err)
 			continue
@@ -164,7 +164,7 @@ func buildPrograms(pr programMap) ([]program.Program, []error) {
 	dailies := make([]program.Program, 0, len(pr))
 	var skipped []error
 	for hour, pg := range pr {
-		p, err := buildProgram(pg, hour)
+		p, err := buildProgramWithoutFertilizer(pg, hour)
 		if err != nil {
 			skipped = append(skipped, err)
 			continue
@@ -174,14 +174,14 @@ func buildPrograms(pr programMap) ([]program.Program, []error) {
 	return dailies, skipped
 }
 
-func (d FertilizerProgramRepository) FindByHour(ctx context.Context, hour *program.Hour) (*program.FertilizerProgram, error) {
+func (d ProgramRepository) FindByHour(ctx context.Context, hour *program.Hour) (*program.Program, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 		_, span := d.tracer.Start(ctx, "ProgramRepository.FindByHour")
 		defer span.End()
-		dailyPgrms := make(fertilizerMap)
+		dailyPgrms := make(storedProgramMap)
 		if err := readYamlFile(d.filePath, &dailyPgrms); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -194,7 +194,7 @@ func (d FertilizerProgramRepository) FindByHour(ctx context.Context, hour *progr
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		prog, err := buildFertilizerProgram(pgr.Executions, hour.String(), pgr.Fertilizer)
+		prog, err := buildProgram(pgr.Executions, hour.String(), pgr.Fertilizer)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -205,21 +205,21 @@ func (d FertilizerProgramRepository) FindByHour(ctx context.Context, hour *progr
 	}
 }
 
-func buildFertilizerProgram(pgr []executions, hour string, fertilizer bool) (*program.FertilizerProgram, error) {
+func buildProgram(pgr []executions, hour string, fertilizer bool) (*program.Program, error) {
 	ho, err := program.ParseHour(hour)
 	if err != nil {
 		return nil, InvalidStoredEntryError{key: hour, cause: err}
 	}
-	prog := program.HydrateFertilizerProgram(ho, fertilizer, buildProgramExecutions(pgr))
+	prog := program.HydrateProgram(ho, fertilizer, buildProgramExecutions(pgr))
 	return &prog, nil
 }
 
-func buildProgram(pgr []executions, hour string) (*program.Program, error) {
+func buildProgramWithoutFertilizer(pgr []executions, hour string) (*program.Program, error) {
 	ho, err := program.ParseHour(hour)
 	if err != nil {
 		return nil, InvalidStoredEntryError{key: hour, cause: err}
 	}
-	prog := program.HydrateProgram(ho, buildProgramExecutions(pgr))
+	prog := program.HydrateProgramWithoutFertilizer(ho, buildProgramExecutions(pgr))
 	return &prog, nil
 }
 
@@ -231,6 +231,6 @@ func buildProgramExecutions(pgr []executions) []program.Execution {
 	return exec
 }
 
-func NewFertilizerProgramRepository(filePath string, tracer trace.Tracer) FertilizerProgramRepository {
-	return FertilizerProgramRepository{filePath: filePath, tracer: tracer}
+func NewProgramRepository(filePath string, tracer trace.Tracer) ProgramRepository {
+	return ProgramRepository{filePath: filePath, tracer: tracer}
 }

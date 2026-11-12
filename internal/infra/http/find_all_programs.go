@@ -25,9 +25,9 @@ func FindAllPrograms(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc 
 		}
 		programs, _ := result.(app.AllPrograms)
 		resp := ProgramsResponse{
-			Daily:       buildFromFertilizerProgramsResponse(programs.Daily),
-			Even:        buildFromFertilizerProgramsResponse(programs.Even),
-			Odd:         buildFromFertilizerProgramsResponse(programs.Odd),
+			Daily:       buildProgramsResponse(programs.Daily),
+			Even:        buildProgramsResponse(programs.Even),
+			Odd:         buildProgramsResponse(programs.Odd),
 			Temperature: buildTemperatureProgramsResponse(programs.Temperature),
 			Weekly:      buildWeeklyProgramsResponse(programs.Weekly),
 		}
@@ -60,28 +60,6 @@ func buildTemperatureProgramsResponse(temperature []program.Temperature) []Tempe
 }
 
 func buildProgramsResponse(programs []program.Program) []ProgramItemResponse {
-	programItemResponses := make([]ProgramItemResponse, len(programs))
-	for i, d := range programs {
-		exec := make([]ExecutionItemResponse, len(d.Executions()))
-		for n, ex := range d.Executions() {
-			zo := make([]string, len(ex.Zones()))
-			for x, z := range ex.Zones() {
-				zo[x] = z
-			}
-			exec[n] = ExecutionItemResponse{
-				Seconds: ex.Seconds().Int(),
-				Zones:   zo,
-			}
-		}
-		programItemResponses[i] = ProgramItemResponse{
-			Executions: exec,
-			Hour:       d.Hour().String(),
-		}
-	}
-	return programItemResponses
-}
-
-func buildFromFertilizerProgramsResponse(programs []program.FertilizerProgram) []ProgramItemResponse {
 	programItemResponses := make([]ProgramItemResponse, len(programs))
 	for i, d := range programs {
 		exec := make([]ExecutionItemResponse, len(d.Executions()))

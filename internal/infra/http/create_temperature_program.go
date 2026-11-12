@@ -72,7 +72,7 @@ func buildCreateTemperatureProgram(req TemperatureProgramRequest) (*program.Temp
 			}
 			exec[j] = exe
 		}
-		pr, err := program.New(hour, exec)
+		pr, err := program.NewWithoutFertilizer(hour, exec)
 		if err != nil {
 			return nil, err
 		}

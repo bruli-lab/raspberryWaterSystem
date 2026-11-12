@@ -31,14 +31,14 @@ func TestFindAllPrograms(t *testing.T) {
 		{
 			name: "and query handler return a result, then it returns a valid response",
 			result: app.AllPrograms{
-				Daily: []program.FertilizerProgram{
-					fixtures.FertilizerProgramBuilder{}.Build(),
+				Daily: []program.Program{
+					fixtures.ProgramBuilder{}.Build(),
 				},
-				Odd: []program.FertilizerProgram{
-					fixtures.FertilizerProgramBuilder{}.Build(),
+				Odd: []program.Program{
+					fixtures.ProgramBuilder{}.Build(),
 				},
-				Even: []program.FertilizerProgram{
-					fixtures.FertilizerProgramBuilder{}.Build(),
+				Even: []program.Program{
+					fixtures.ProgramBuilder{}.Build(),
 				},
 				Weekly: []program.Weekly{
 					fixtures.WeeklyBuilder{}.Build(),

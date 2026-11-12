@@ -27,7 +27,7 @@ func CreateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 			span.SetStatus(codes.Error, err.Error())
 			return
 		}
-		prog, err := buildFertilizerProgram(w, req)
+		prog, err := buildProgram(w, req)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -53,7 +53,7 @@ func CreateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 	}
 }
 
-func buildCreateProgramCommand(programType string, prog *program.FertilizerProgram) cqs.Command {
+func buildCreateProgramCommand(programType string, prog *program.Program) cqs.Command {
 	switch programType {
 	case DailyProgram:
 		return app.CreateDailyProgramCommand{Program: prog}
@@ -66,7 +66,7 @@ func buildCreateProgramCommand(programType string, prog *program.FertilizerProgr
 	return nil
 }
 
-func buildFertilizerProgram(w http.ResponseWriter, req FertilizerProgram) (*program.FertilizerProgram, error) {
+func buildProgram(w http.ResponseWriter, req FertilizerProgram) (*program.Program, error) {
 	hour, err := program.ParseHour(req.Hour)
 	if err != nil {
 		WriteErrorResponse(w, http.StatusBadRequest, Error{
@@ -95,7 +95,7 @@ func buildFertilizerProgram(w http.ResponseWriter, req FertilizerProgram) (*prog
 		}
 		exec[i] = e
 	}
-	prog, err := program.NewFertilizerProgram(hour, req.Fertilizer != nil && *req.Fertilizer, exec)
+	prog, err := program.New(hour, req.Fertilizer != nil && *req.Fertilizer, exec)
 	if err != nil {
 		WriteErrorResponse(w, http.StatusBadRequest, Error{
 			Code:    ErrorCodeInvalidRequest,

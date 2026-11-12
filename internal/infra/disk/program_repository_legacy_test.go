@@ -33,7 +33,7 @@ const mixedProgramsYaml = `"10:00":
             - zone-d
 `
 
-func TestFertilizerProgramRepositoryReadingLegacyFormat(t *testing.T) {
+func TestProgramRepositoryReadingLegacyFormat(t *testing.T) {
 	tests := []struct {
 		name, content, hour        string
 		expectedFertilizer         bool
@@ -63,12 +63,12 @@ func TestFertilizerProgramRepositoryReadingLegacyFormat(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(`Given a FertilizerProgramRepository,
+		t.Run(`Given a ProgramRepository,
 		when FindByHour and FindAll methods are called `+tt.name, func(t *testing.T) {
 			t.Parallel()
 			path := filepath.Join(t.TempDir(), "programs.yml")
 			require.NoError(t, os.WriteFile(path, []byte(tt.content), 0o600))
-			repo := disk.NewFertilizerProgramRepository(path, noop.NewTracerProvider().Tracer("test"))
+			repo := disk.NewProgramRepository(path, noop.NewTracerProvider().Tracer("test"))
 			hour, err := program.ParseHour(tt.hour)
 			require.NoError(t, err)
 
@@ -84,21 +84,21 @@ func TestFertilizerProgramRepositoryReadingLegacyFormat(t *testing.T) {
 	}
 }
 
-func TestFertilizerProgramRepositoryMigratingLegacyFormat(t *testing.T) {
-	t.Run(`Given a FertilizerProgramRepository with a file in the legacy format,
+func TestProgramRepositoryMigratingLegacyFormat(t *testing.T) {
+	t.Run(`Given a ProgramRepository with a file in the legacy format,
 	when Save method is called with a new program,
 	then it keeps the legacy programs and rewrites the file in the current format`, func(t *testing.T) {
 		t.Parallel()
 		path := filepath.Join(t.TempDir(), "programs.yml")
 		require.NoError(t, os.WriteFile(path, []byte(legacyProgramsYaml), 0o600))
-		repo := disk.NewFertilizerProgramRepository(path, noop.NewTracerProvider().Tracer("test"))
+		repo := disk.NewProgramRepository(path, noop.NewTracerProvider().Tracer("test"))
 		hour, err := program.ParseHour("18:00")
 		require.NoError(t, err)
 		sec, err := program.ParseSeconds(15)
 		require.NoError(t, err)
 		exec, err := program.NewExecution(sec, []string{"zone-e"})
 		require.NoError(t, err)
-		prg, err := program.NewFertilizerProgram(hour, true, []program.Execution{exec})
+		prg, err := program.New(hour, true, []program.Execution{exec})
 		require.NoError(t, err)
 
 		require.NoError(t, repo.Save(t.Context(), prg))

@@ -54,22 +54,11 @@ func (z *FertilizerZone) Execute(seconds uint) error {
 func (z *FertilizerZone) ExecuteWithStatus(active, raining bool, seconds uint) error {
 	z.mutex.Lock()
 	defer z.mutex.Unlock()
-	ignored := Ignored{
-		BasicEvent: event.NewBasicEvent(IgnoredEventName, uuid.New(), z.zone.id),
-		ZoneName:   z.zone.name,
-	}
-	switch {
-	case !active:
-		ignored.Reason = DeactivatedIgnoredReason
+	if ignored, isIgnored := ignoredByStatus(z.zone.id, z.zone.name, active, raining); isIgnored {
 		z.Record(ignored)
 		return nil
-	case raining:
-		ignored.Reason = RainingIgnoredReason
-		z.Record(ignored)
-		return nil
-	default:
-		return z.Execute(seconds)
 	}
+	return z.Execute(seconds)
 }
 
 func NewFertilizerZone(zone *Zone) *FertilizerZone {

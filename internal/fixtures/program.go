@@ -9,6 +9,7 @@ import (
 type ProgramBuilder struct {
 	Hour       *program.Hour
 	Executions []program.Execution
+	Fertilizer bool
 }
 
 func (b ProgramBuilder) Build() program.Program {
@@ -22,27 +23,7 @@ func (b ProgramBuilder) Build() program.Program {
 	if b.Executions != nil {
 		executions = b.Executions
 	}
-	return program.HydrateProgram(hour, executions)
-}
-
-type FertilizerProgramBuilder struct {
-	Hour       *program.Hour
-	Executions []program.Execution
-	Fertilizer bool
-}
-
-func (b FertilizerProgramBuilder) Build() program.FertilizerProgram {
-	hour, _ := program.ParseHour("15:10")
-	if b.Hour != nil {
-		hour = *b.Hour
-	}
-	executions := []program.Execution{
-		ExecutionBuilder{}.Build(),
-	}
-	if b.Executions != nil {
-		executions = b.Executions
-	}
-	return program.HydrateFertilizerProgram(hour, b.Fertilizer, executions)
+	return program.HydrateProgram(hour, b.Fertilizer, executions)
 }
 
 type WeeklyBuilder struct {

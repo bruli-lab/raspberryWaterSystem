@@ -107,12 +107,7 @@ func (w WeeklyRepository) FindByDayAndHour(ctx context.Context, day *program.Wee
 }
 
 func buildProgramWeeklyByHour(day *program.WeekDay, hour *program.Hour, prgms []executions) *program.Weekly {
-	programs := make([]program.Program, 0, len(prgms))
-	exec := make([]program.Execution, 0, len(prgms))
-	for _, pd := range prgms {
-		exec = append(exec, program.HydrateExecution(program.HydrateSeconds(pd.Seconds), pd.Zones))
-		programs = append(programs, program.HydrateProgram(*hour, exec))
-	}
+	programs := []program.Program{program.HydrateProgramWithoutFertilizer(*hour, buildProgramExecutions(prgms))}
 	weekly := program.HydrateWeekly(*day, programs)
 	return &weekly
 }
