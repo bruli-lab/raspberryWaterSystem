@@ -20,6 +20,7 @@ func TestNewEventMiddleware(t *testing.T) {
 	when is built with an event channel,
 	and command handler return events,
 	then all events are write in channel`, func(t *testing.T) {
+		t.Parallel()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		errTest := errors.New("")
 		ev := Event{
