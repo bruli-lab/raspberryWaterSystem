@@ -1,59 +1,51 @@
 package memory_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/memory"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
-
-	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
-	"github.com/stretchr/testify/require"
-
-	"github.com/bruli/raspberryWaterSystem/internal/infra/memory"
 )
 
-func TestStatusRepository(t *testing.T) {
-	ctx := context.Background()
-	repo := memory.NewStatusRepository(tracer())
-	var current *status.Status
-	_ = current
-	t.Run(`Given a status repository,`, func(t *testing.T) {
-		t.Run(`when Find method is called,
-		then it returns a not found error`, func(t *testing.T) {
-			_, err := repo.Find(ctx)
-			require.ErrorAs(t, err, &errors.NotFoundError{})
-		})
-		t.Run(`when Save method is called,
-		then it save status and not return any error`, func(t *testing.T) {
-			st := fixtures.StatusBuilder{Active: true}.Build()
-			err := repo.Save(ctx, st)
-			require.NoError(t, err)
-			current = &st
-			require.True(t, st.IsActive())
-		})
-		t.Run(`when Find method is called,
-		then it returns the current status`, func(t *testing.T) {
-			currStatus, err := repo.Find(ctx)
-			require.NoError(t, err)
-			require.Equal(t, *current, currStatus)
-			require.True(t, currStatus.IsActive())
-		})
-		t.Run(`when update method is called,
-		then it update current status`, func(t *testing.T) {
-			updated := *current
-			light := fixtures.LightBuilder{}.Build()
-			updated.Update(fixtures.WeatherBuilder{Raining: true}.Build(), light)
-			updated.Deactivate()
-			err := repo.Update(ctx, updated)
-			require.NoError(t, err)
-			currUpdated, err := repo.Find(ctx)
-			require.NoError(t, err)
-			require.Equal(t, updated, currUpdated)
-			require.False(t, currUpdated.IsActive())
-		})
+func TestStatusRepositoryFind(t *testing.T) {
+	t.Run(`Given an empty status repository, when Find method is called, then it returns a not found error`, func(t *testing.T) {
+		t.Parallel()
+		_, err := memory.NewStatusRepository(tracer()).Find(t.Context())
+		require.ErrorAs(t, err, &errors.NotFoundError{})
+	})
+}
+
+func TestStatusRepositorySave(t *testing.T) {
+	t.Run(`Given a status repository, when Save method is called, then Find returns the saved status`, func(t *testing.T) {
+		t.Parallel()
+		repo := memory.NewStatusRepository(tracer())
+		st := fixtures.StatusBuilder{Active: true}.Build()
+		require.NoError(t, repo.Save(t.Context(), st))
+		found, err := repo.Find(t.Context())
+		require.NoError(t, err)
+		require.Equal(t, st, found)
+		require.True(t, found.IsActive())
+	})
+}
+
+func TestStatusRepositoryUpdate(t *testing.T) {
+	t.Run(`Given a status repository with a saved status, when Update method is called, then Find returns the updated status`, func(t *testing.T) {
+		t.Parallel()
+		repo := memory.NewStatusRepository(tracer())
+		st := fixtures.StatusBuilder{Active: true}.Build()
+		require.NoError(t, repo.Save(t.Context(), st))
+		updated := st
+		updated.Update(fixtures.WeatherBuilder{Raining: true}.Build(), fixtures.LightBuilder{}.Build())
+		updated.Deactivate()
+		require.NoError(t, repo.Update(t.Context(), updated))
+		found, err := repo.Find(t.Context())
+		require.NoError(t, err)
+		require.Equal(t, updated, found)
+		require.False(t, found.IsActive())
 	})
 }
 

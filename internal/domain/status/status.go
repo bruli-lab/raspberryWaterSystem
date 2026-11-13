@@ -12,6 +12,11 @@ type Status struct {
 	updatedAt       *time.Time
 	active          bool
 	light           *Light
+	clean           bool
+}
+
+func (s *Status) IsClean() bool {
+	return s.clean
 }
 
 func (s *Status) Light() *Light {
@@ -41,12 +46,15 @@ func (s *Status) Update(w weather.Weather, light *Light) {
 	s.light = light
 }
 
-func (s *Status) Hydrate(start time.Time, we weather.Weather, updated *time.Time, active bool, light *Light) {
-	s.systemStartedAt = start
-	s.weather = we
-	s.updatedAt = updated
-	s.active = active
-	s.light = light
+func HydrateStatus(start time.Time, we weather.Weather, updated *time.Time, active bool, light *Light, clean bool) Status {
+	return Status{
+		systemStartedAt: start,
+		weather:         we,
+		updatedAt:       updated,
+		active:          active,
+		light:           light,
+		clean:           clean,
+	}
 }
 
 func (s *Status) Activate() {
@@ -57,11 +65,20 @@ func (s *Status) Deactivate() {
 	s.active = false
 }
 
+func (s *Status) Cleaning() {
+	s.clean = true
+}
+
+func (s *Status) DoneCleaning() {
+	s.clean = false
+}
+
 func New(systemStartedAt time.Time, w weather.Weather, light *Light) *Status {
 	return &Status{
 		systemStartedAt: systemStartedAt,
 		weather:         w,
 		active:          true,
 		light:           light,
+		clean:           false,
 	}
 }

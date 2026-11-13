@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -15,8 +15,8 @@ func CreateWeeklyProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), "CreateWeeklyProgramRequest")
 		defer span.End()
-		var req CreateWeeklyProgramRequestJson
-		if err := ReadRequest(w, r, &req); err != nil {
+		var req WeeklyProgramRequest
+		if err := ReadRequest(w, r, weeklyProgramRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -51,7 +51,7 @@ func CreateWeeklyProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.Handle
 	}
 }
 
-func buildCreateWeeklyProgramCommand(req CreateWeeklyProgramRequestJson) (*program.Weekly, error) {
+func buildCreateWeeklyProgramCommand(req WeeklyProgramRequest) (*program.Weekly, error) {
 	day, err := program.ParseWeekDay(req.WeekDay)
 	if err != nil {
 		return nil, err
@@ -68,12 +68,21 @@ func buildCreateWeeklyProgramCommand(req CreateWeeklyProgramRequestJson) (*progr
 			if err != nil {
 				return nil, err
 			}
-			exe, _ := program.NewExecution(sec, e.Zones)
+			exe, err := program.NewExecution(sec, e.Zones)
+			if err != nil {
+				return nil, err
+			}
 			exec[j] = exe
 		}
-		pr, _ := program.New(hour, exec)
+		pr, err := program.NewWithoutFertilizer(hour, exec)
+		if err != nil {
+			return nil, err
+		}
 		prgms[i] = *pr
 	}
-	weekly, _ := program.NewWeekly(day, prgms)
+	weekly, err := program.NewWeekly(day, prgms)
+	if err != nil {
+		return nil, err
+	}
 	return &weekly, nil
 }

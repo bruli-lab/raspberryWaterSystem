@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/stretchr/testify/require"
 )
@@ -68,7 +68,7 @@ func TestRemoveDailyProgram_Handle(t *testing.T) {
 			handler := app.NewRemoveDailyProgram(repo, tracer())
 			_, err := handler.Handle(tt.args.ctx, tt.args.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 			}
 		})
 	}

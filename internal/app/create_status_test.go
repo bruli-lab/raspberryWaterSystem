@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/weather"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
@@ -87,7 +87,7 @@ func TestCreateStatusHandle(t *testing.T) {
 			handler := app.NewCreateStatus(sr, lr, tracer())
 			events, err := handler.Handle(context.Background(), tt.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.Nil(t, events)

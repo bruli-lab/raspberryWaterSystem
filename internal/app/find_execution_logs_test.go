@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
@@ -86,7 +86,7 @@ func TestFindExecutionLogsHandle(t *testing.T) {
 			handler := app.NewFindExecutionLogs(elr, tracer())
 			result, err := handler.Handle(context.Background(), tt.query)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

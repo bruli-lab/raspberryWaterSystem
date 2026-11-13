@@ -11,7 +11,6 @@ type ZoneBuilder struct {
 }
 
 func (b ZoneBuilder) Build() *zone.Zone {
-	var z zone.Zone
 	id := uuid.NewString()
 	if b.ID != nil {
 		id = *b.ID
@@ -29,8 +28,7 @@ func (b ZoneBuilder) Build() *zone.Zone {
 		relays = b.Relays
 	}
 
-	z.Hydrate(id, name, relays)
-	return &z
+	return zone.HydrateZone(id, name, relays)
 }
 
 func RelayBuilder(i int) zone.Relay {

@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func FinZones(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
+func FindZones(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), "FindZonesRequest")
 		defer span.End()
@@ -23,13 +23,13 @@ func FinZones(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
 			return
 		}
 		zones, _ := result.([]*zone.Zone)
-		resp := make([]ZonesItemResponse, len(zones))
+		resp := make([]Zone, len(zones))
 		for i, zon := range zones {
-			relays := make([]int, len(zon.Relays()))
+			relays := make([]ZoneRelays, len(zon.Relays()))
 			for n, rel := range zon.Relays() {
-				relays[n] = rel.Id().Int()
+				relays[n] = ZoneRelays(rel.Id().Int())
 			}
-			resp[i] = ZonesItemResponse{
+			resp[i] = Zone{
 				Id:     zon.Id(),
 				Name:   zon.Name(),
 				Relays: relays,

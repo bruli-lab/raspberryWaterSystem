@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/go-chi/chi/v5"
@@ -39,15 +40,15 @@ func TestRemoveZone(t *testing.T) {
 		t.Run(`Given a Remove zone http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.chErr
 				},
 			}
 			handler := http.RemoveZone(ch, tracer())
 			server := chi.NewMux()
 			server.Delete("/zones/{id}", handler)
-			req := httptest.NewRequest(http2.MethodDelete, "/zones/id", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodDelete, "/zones/id", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"go.opentelemetry.io/otel/codes"
@@ -17,36 +18,25 @@ type ExecutePinsOnExecuteZone struct {
 	tracer trace.Tracer
 }
 
-func (e ExecutePinsOnExecuteZone) Listen(ctx context.Context, ev cqs.Event) error {
+func (e ExecutePinsOnExecuteZone) Listen(ctx context.Context, ev event.Event) error {
 	ctx, span := e.tracer.Start(ctx, "ExecutePinsOnExecuteZone.Listen")
 	defer span.End()
-	event, _ := ev.(zone.Executed)
+	executed, _ := ev.(zone.Executed)
 	if _, err := e.ch.Handle(ctx, app.ExecutePinsCmd{
-		Seconds: event.Seconds,
-		Pins:    event.RelayPins,
+		Seconds: executed.Seconds + executed.StabilizationSeconds,
+		Pins:    executed.RelayPins,
 	}); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	sec, _ := program.ParseSeconds(int(event.Seconds))
-	if _, err := e.ch.Handle(ctx, app.SaveExecutionLogCmd{
-		ZoneName:   event.ZoneName,
-		Seconds:    sec,
-		ExecutedAt: event.EventAt(),
-	}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-	message := fmt.Sprintf("%s zone executed during %vs", event.ZoneName, sec.Int())
-	if _, err := e.ch.Handle(ctx, app.PublishMessageCmd{Message: message}); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-	span.SetStatus(codes.Ok, "pins executed")
-	return nil
+	sec := program.HydrateSeconds(int(executed.Seconds))
+	return recordIrrigation(ctx, e.ch, span, irrigationRecord{
+		zoneName:   executed.ZoneName,
+		seconds:    sec,
+		executedAt: executed.EventAt(),
+		message:    fmt.Sprintf("%s zone executed during %vs", executed.ZoneName, sec.Int()),
+	})
 }
 
 func NewExecutePinsOnExecuteZone(ch cqs.CommandHandler, tracer trace.Tracer) ExecutePinsOnExecuteZone {

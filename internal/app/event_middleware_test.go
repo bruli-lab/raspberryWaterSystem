@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,6 +20,7 @@ func TestNewEventMiddleware(t *testing.T) {
 	when is built with an event channel,
 	and command handler return events,
 	then all events are write in channel`, func(t *testing.T) {
+		t.Parallel()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		errTest := errors.New("")
 		ev := Event{
@@ -28,32 +29,39 @@ func TestNewEventMiddleware(t *testing.T) {
 			At:        time.Now(),
 			AggRootID: "dkdkdkd",
 		}
-		event1 := tracing.Event{
+		event1 := app.TracedEvent{
 			SpanContext: trace.SpanContext{},
 			Event:       ev,
 		}
-		eventCh := make(chan tracing.Event)
+		eventCh := make(chan app.TracedEvent)
 		eventMdw := app.NewEventMiddleware(eventCh, tracer())
 		handler := eventMdw(commandHandler{
-			events: []cqs.Event{
+			events: []event.Event{
 				ev,
 			},
 			err: errTest,
 		})
+		received := make(chan app.TracedEvent, 1)
 		go func() {
 			for {
 				select {
 				case <-ctx.Done():
 					cancel()
 					return
-				case event := <-eventCh:
-					require.Equal(t, event1, event)
+				case tracedEvent := <-eventCh:
+					received <- tracedEvent
 				}
 			}
 		}()
 		evnts, err := handler.Handle(ctx, command{})
 		require.Nil(t, evnts)
 		require.Equal(t, errTest, err)
+		select {
+		case r := <-received:
+			require.Equal(t, event1, r)
+		case <-time.After(time.Second):
+			t.Fatal("event not received")
+		}
 	})
 }
 
@@ -78,4 +86,21 @@ func (e Event) EventAt() time.Time {
 
 func (e Event) AggregateRootID() string {
 	return e.AggRootID
+}
+
+type command struct {
+	name string
+}
+
+func (c command) Name() string {
+	return c.name
+}
+
+type commandHandler struct {
+	events []event.Event
+	err    error
+}
+
+func (c commandHandler) Handle(_ context.Context, _ cqs.Command) ([]event.Event, error) {
+	return c.events, c.err
 }

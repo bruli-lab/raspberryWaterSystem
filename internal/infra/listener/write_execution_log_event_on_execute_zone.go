@@ -2,42 +2,31 @@ package listener
 
 import (
 	"context"
+	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
-	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
-	"go.opentelemetry.io/otel/codes"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type WriteExecutionLogEventOnExecuteZone struct {
-	eventsRepo *disk.EventsRepository
-	tracer     trace.Tracer
+	events OutboxEvents
+	now    func() time.Time
+	tracer trace.Tracer
 }
 
-func (w WriteExecutionLogEventOnExecuteZone) Listen(ctx context.Context, ev cqs.Event) error {
+func (w WriteExecutionLogEventOnExecuteZone) Listen(ctx context.Context, ev event.Event) error {
 	ctx, span := w.tracer.Start(ctx, "WriteExecutionLogEventOnExecuteZone.Listen")
 	defer span.End()
-	event, _ := ev.(zone.Executed)
-	evnt, err := disk.NewFromExecutionLog(ctx, &disk.Log{
-		Seconds:    int(event.Seconds),
-		ZoneName:   event.ZoneName,
-		ExecutedAt: event.EventAt(),
-	})
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-	if err = w.eventsRepo.Save(ctx, evnt); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-	span.SetStatus(codes.Ok, "event saved")
-	return nil
+	executed, _ := ev.(zone.Executed)
+	return saveExecutionLogEvent(ctx, w.events, span, outbox.ExecutionLog{
+		Seconds:    int(executed.Seconds),
+		ZoneName:   executed.ZoneName,
+		ExecutedAt: executed.EventAt(),
+	}, w.now())
 }
 
-func NewWriteExecutionLogEventOnExecuteZone(eventsRepo *disk.EventsRepository, tracer trace.Tracer) *WriteExecutionLogEventOnExecuteZone {
-	return &WriteExecutionLogEventOnExecuteZone{eventsRepo: eventsRepo, tracer: tracer}
+func NewWriteExecutionLogEventOnExecuteZone(events OutboxEvents, now func() time.Time, tracer trace.Tracer) *WriteExecutionLogEventOnExecuteZone {
+	return &WriteExecutionLogEventOnExecuteZone{events: events, now: now, tracer: tracer}
 }

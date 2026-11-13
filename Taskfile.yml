@@ -1,0 +1,207 @@
+version: '3'
+
+vars:
+  APP: 'water_system'
+  DOCKER_COMPOSE: 'COMPOSE_BAKE=true docker compose'
+  VAULT: 'ansible-vault'
+  GOLANGCI_LINT_VERSION: 'v2.15.0'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  create-network:
+    desc: Create Docker network
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🚀 Creating {{.APP}} network..."
+        docker network create {{.APP}}
+
+  docker-up:
+    desc: Start services with Docker Compose
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🚀 Starting services with Docker Compose..."
+        {{.DOCKER_COMPOSE}} up -d --build
+
+  docker-down:
+    desc: Stop and remove Docker Compose services
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🛑 Stopping and removing Docker Compose services..."
+        {{.DOCKER_COMPOSE}} down
+
+  docker-ps:
+    desc: Show active Docker Compose services
+    cmds:
+      - |
+        set -euo pipefail
+        echo "📋 Active services:"
+        {{.DOCKER_COMPOSE}} ps
+
+  docker-exec:
+    desc: Open shell inside the app container
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🔎 Opening shell inside ..."
+        {{.DOCKER_COMPOSE}} exec {{.APP}} sh
+
+  docker-logs:
+    desc: Follow logs for the app container
+    cmds:
+      - |
+        set -euo pipefail
+        echo "👀 Showing logs for container {{.APP}} (CTRL+C to exit)..."
+        docker logs -f {{.APP}}
+
+  fmt:
+    desc: Format code with gofumpt
+    cmds:
+      - |
+        set -euo pipefail
+        echo "👉 Formatting code with gofumpt..."
+        go tool gofumpt -w .
+
+  fix:
+    desc: Fix code
+    cmds:
+      - |
+        set -euo pipefail
+        echo "👉 Fixing code with go fix..."
+        go fix -v ./...
+
+  security:
+    desc: Check security vulnerabilities
+    cmds:
+      - |
+        set -euo pipefail
+        echo "👉 Check security"
+        go tool govulncheck ./...
+
+  install-lint:
+    desc: Install golangci-lint
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🔧 Installing golangci-lint {{.GOLANGCI_LINT_VERSION}}..."
+        go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
+
+  lint:
+    desc: Run golangci-lint
+    deps:
+      - install-lint
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🚀 Executing golangci-lint..."
+        golangci-lint run --build-tags infra,functional,resilience ./...
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🧪 Running unit tests (race, JSON → tparse)..."
+        go test -race ./... -json -cover -coverprofile=coverage.out | go tool tparse -all
+
+  test-infra:
+    desc: Run infra tests (real files and testcontainers, needs Docker)
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🧪 Running infra tests..."
+        go test -race -tags=infra ./internal/infra/... -count=1
+
+  test-resilience:
+    desc: Run resilience tests (app offline from NATS and ntfy with testcontainers, needs Docker, ~1 min)
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🧪 Running resilience tests..."
+        go test -tags=resilience ./tests/resilience/... -count=1 -timeout 5m
+
+  test-functional:
+    desc: Run functional tests (each test starts its own app with NATS and ntfy in testcontainers, needs Docker)
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🧪 Running functional tests..."
+        go test -tags=functional ./tests/functional/... -count=1 -timeout 5m -json | go tool tparse -all
+
+  check:
+    desc: Run format, security, lint and tests
+    cmds:
+      - task: fmt
+      - task: fix
+      - task: security
+      - task: lint
+      - task: test
+
+  generate-schema:
+    desc: Generate code from JSON schemas
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🧪 Generating code from openapi.yaml..."
+        go tool oapi-codegen \
+          -generate types,skip-prune \
+          -package http \
+          -o internal/infra/http/models.gen.go \
+          internal/infra/http/openapi.yaml
+
+  clean:
+    desc: Clean local artifacts
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🧹 Cleaning local artifacts..."
+        rm -rf bin dist coverage .*cache || true
+        go clean -testcache
+
+  edit-vault:
+    desc: Edit Ansible vault file
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🏗️  Editing vault file"
+        {{.VAULT}} edit devops/ansible/inventories/production/group_vars/raspberry_water_system/vault.yml
+
+  build:
+    desc: Build ARM64 binary for Raspberry Pi
+    deps:
+      - clean
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🏗️ Building ARM64 binary for Raspberry Pi..."
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
+          go build -a -ldflags "-s -w" -tags prod -buildvcs=false \
+          -o devops/ansible/assets/server ./cmd/server/
+
+  deploy:
+    desc: Deploy with Ansible to the production Raspberry (v1, frozen)
+    deps:
+      - build
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🚚 Deploying with Ansible (production inventory)..."
+        ansible-playbook -i devops/ansible/inventories/production/hosts devops/ansible/deploy.yml --ask-vault-pass
+
+  deploy-raspberry-v2:
+    desc: Deploy with Ansible to the new Raspberry (v2, in validation). Secrets come live from Vault
+      (community.hashi_vault, needs VAULT_ADDR/VAULT_TOKEN in the environment), not from an ansible-vault file.
+    deps:
+      - build
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🚚 Deploying with Ansible (raspberry-v2 inventory)..."
+        ansible-galaxy collection install -r devops/ansible/requirements.yml
+        ansible-playbook -i devops/ansible/inventories/raspberry_v2/hosts devops/ansible/deploy.yml

@@ -7,18 +7,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCreateZone(t *testing.T) {
 	errTest := errors.New("")
-	body := buildRequestJsonToString(t, http.CreateZoneRequestJson{
+	body := buildRequestJsonToString(t, http.Zone{
 		Id:     "id",
 		Name:   "name",
-		Relays: []int{1},
+		Relays: []http.ZoneRelays{1},
 	})
 	tests := []struct {
 		name, body   string
@@ -52,13 +53,13 @@ func TestCreateZone(t *testing.T) {
 		t.Run(`Given a CreateZone http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.chErr
 				},
 			}
 			handler := http.CreateZone(ch, tracer())
-			req := httptest.NewRequest(http2.MethodPost, "/zones", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPost, "/zones", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			handler.ServeHTTP(writer, req)
 			resp := writer.Result()

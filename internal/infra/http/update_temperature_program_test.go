@@ -3,12 +3,12 @@ package http_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	http2 "net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/go-chi/chi/v5"
@@ -16,15 +16,17 @@ import (
 )
 
 func TestUpdateTemperatureProgram(t *testing.T) {
-	body := buildRequestJsonToString(t, http.UpdateTemperatureProgramRequestJson{
-		{
-			Executions: []http.UpdateExecutionTemperatureRequest{
-				{
-					Seconds: 10,
-					Zones:   []string{"a", "b"},
+	body := buildRequestJsonToString(t, http.UpdateTemperatureProgramRequest{
+		Programs: []http.Program{
+			{
+				Executions: []http.ExecutionRequest{
+					{
+						Seconds: 10,
+						Zones:   []string{"a", "b"},
+					},
 				},
+				Hour: "10:00",
 			},
-			Hour: "10:00",
 		},
 	})
 	tests := []struct {
@@ -49,15 +51,17 @@ func TestUpdateTemperatureProgram(t *testing.T) {
 		{
 			name:        "and build programs returns error, then it returns a bad request",
 			temperature: "20",
-			body: buildRequestJsonToString(t, http.UpdateTemperatureProgramRequestJson{
-				{
-					Executions: []http.UpdateExecutionTemperatureRequest{
-						{
-							Seconds: 10,
-							Zones:   []string{"a", "b"},
+			body: buildRequestJsonToString(t, http.UpdateTemperatureProgramRequest{
+				Programs: []http.Program{
+					{
+						Executions: []http.ExecutionRequest{
+							{
+								Seconds: 10,
+								Zones:   []string{"a", "b"},
+							},
 						},
+						Hour: "-10:00",
 					},
-					Hour: "-10",
 				},
 			}),
 			expectedCode: http2.StatusBadRequest,
@@ -87,16 +91,16 @@ func TestUpdateTemperatureProgram(t *testing.T) {
 		t.Run(`Given an UpdateTemperateProgram http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.chErr
 				},
 			}
 			handler := http.UpdateTemperatureProgram(ch, tracer())
 			server := chi.NewMux()
 			server.Put("/programs/temperature/{temperature}", handler)
-			url := fmt.Sprintf("/programs/temperature/%s", tt.temperature)
-			req := httptest.NewRequest(http2.MethodPut, url, buildRequestBody(tt.body))
+			url := "/programs/temperature/" + tt.temperature
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPut, url, buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

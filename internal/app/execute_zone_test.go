@@ -5,8 +5,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/stretchr/testify/require"
@@ -19,11 +20,14 @@ func TestExecuteZoneHandle(t *testing.T) {
 		Seconds: 367,
 		ZoneID:  "name",
 	}
+	st := fixtures.StatusBuilder{}.Build()
 	tests := []struct {
-		name                 string
-		command              cqs.Command
-		expectedErr, findErr error
-		zone                 *zone.Zone
+		name    string
+		command cqs.Command
+		expectedErr, findErr,
+		findStErr error
+		zone   *zone.Zone
+		status status.Status
 	}{
 		{
 			name:        "with invalid command, then it returns an invalid command error",
@@ -31,20 +35,35 @@ func TestExecuteZoneHandle(t *testing.T) {
 			expectedErr: cqs.InvalidCommandError{},
 		},
 		{
+			name:        "and find status returns an error, then it returns same error",
+			command:     cmd,
+			findStErr:   errTest,
+			expectedErr: errTest,
+		},
+		{
+			name:        "and find status returns a status with clean, then it returns an execute zone error",
+			command:     cmd,
+			status:      fixtures.StatusBuilder{Clean: true}.Build(),
+			expectedErr: app.ExecuteZoneError{},
+		},
+		{
 			name:        "and find zone returns an error, then it returns same error",
 			command:     cmd,
+			status:      st,
 			findErr:     errTest,
 			expectedErr: errTest,
 		},
 		{
 			name:        "and execute returns an error, then it returns an execute zone error",
 			zone:        zo,
+			status:      st,
 			expectedErr: app.ExecuteZoneError{},
 			command:     cmd,
 		},
 		{
-			name: "and execute nil, then it returns a valid event",
-			zone: zo,
+			name:   "and execute nil, then it returns a valid event",
+			zone:   zo,
+			status: st,
 			command: app.ExecuteZoneCmd{
 				Seconds: 36,
 				ZoneID:  "name",
@@ -60,10 +79,15 @@ func TestExecuteZoneHandle(t *testing.T) {
 					return tt.zone, tt.findErr
 				},
 			}
-			handler := app.NewExecuteZone(zr, tracer())
+			statusRepo := &StatusRepositoryMock{
+				FindFunc: func(_ context.Context) (status.Status, error) {
+					return tt.status, tt.findStErr
+				},
+			}
+			handler := app.NewExecuteZone(zr, statusRepo, tracer())
 			events, err := handler.Handle(context.Background(), tt.command)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

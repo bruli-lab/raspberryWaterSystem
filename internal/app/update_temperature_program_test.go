@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/stretchr/testify/require"
@@ -33,7 +33,7 @@ func TestUpdateTemperatureProgram_Handle(t *testing.T) {
 		args args
 		expectedErr, findErr,
 		saveErr error
-		program *program.Temperature
+		program program.Temperature
 	}{
 		{
 			name: "with an invalid command, then it returns an invalid command error",
@@ -52,14 +52,14 @@ func TestUpdateTemperatureProgram_Handle(t *testing.T) {
 		{
 			name:        "and save program returns an error, then it returns same error",
 			args:        defaultArgs,
-			program:     &prg,
+			program:     prg,
 			saveErr:     errTest,
 			expectedErr: errTest,
 		},
 		{
 			name:    "and save program returns nil, then it returns nil",
 			args:    defaultArgs,
-			program: &prg,
+			program: prg,
 		},
 	}
 	for _, tt := range tests {
@@ -68,7 +68,7 @@ func TestUpdateTemperatureProgram_Handle(t *testing.T) {
 			t.Parallel()
 			repo := &TemperatureProgramRepositoryMock{}
 			repo.FindByTemperatureFunc = func(_ context.Context, _ float32) (*program.Temperature, error) {
-				return tt.program, tt.findErr
+				return &tt.program, tt.findErr
 			}
 			repo.SaveFunc = func(_ context.Context, _ *program.Temperature) error {
 				return tt.saveErr
@@ -76,7 +76,7 @@ func TestUpdateTemperatureProgram_Handle(t *testing.T) {
 			handler := app.NewUpdateTemperatureProgram(repo, tracer())
 			_, err := handler.Handle(tt.args.ctx, tt.args.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 			}
 		})
 	}

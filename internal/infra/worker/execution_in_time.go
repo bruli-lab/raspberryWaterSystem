@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/weather"
@@ -138,8 +138,9 @@ func executeProgram(ctx context.Context, ch cqs.CommandHandler, prg program.Prog
 		for _, exec := range prg.Executions() {
 			for _, zo := range exec.Zones() {
 				if _, err := ch.Handle(ctx, app.ExecuteZoneWithStatusCmd{
-					Seconds: uint(exec.Seconds().Int()),
-					ZoneID:  zo,
+					Seconds:        uint(exec.Seconds().Int()),
+					ZoneID:         zo,
+					WithFertilizer: prg.IsFertilizer(),
 				}); err != nil {
 					return err
 				}

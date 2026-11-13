@@ -3,33 +3,38 @@ package http
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"time"
 
 	corsx "github.com/rs/cors"
 )
 
-// newServer returns a http.Server configured with the provided handler and a
-// base context which will make the handler request have it.
+const (
+	readHeaderTimeout = 5 * time.Second
+	readTimeout       = 10 * time.Second
+	writeTimeout      = 30 * time.Second
+	idleTimeout       = time.Minute
+	shutdownTimeout   = 10 * time.Second
+)
+
 func newServer(ctx context.Context, handler http.Handler) *http.Server {
-	server := &http.Server{
-		Handler: handler,
+	requestsCtx := context.WithoutCancel(ctx)
+	return &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+		BaseContext: func(_ net.Listener) context.Context {
+			return requestsCtx
+		},
 	}
-
-	// serve requests with our own context
-	server.BaseContext = func(_ net.Listener) context.Context {
-		return ctx
-	}
-
-	return server
 }
 
-// listenAndServe creates the server and listens and then serves it.
-// Once is listens, closes the readyCh so the clients can start requesting data.
 func listenAndServe(ctx context.Context, address string, server *http.Server, readyCh chan struct{}) error {
-	ln, err := net.Listen("tcp", address)
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", address)
 	if err != nil {
 		return err
 	}
@@ -37,7 +42,9 @@ func listenAndServe(ctx context.Context, address string, server *http.Server, re
 
 	go func() {
 		<-ctx.Done()
-		_ = server.Shutdown(ctx)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
 	}()
 
 	err = server.Serve(ln)
@@ -47,7 +54,6 @@ func listenAndServe(ctx context.Context, address string, server *http.Server, re
 	return err
 }
 
-// CORSOpt is a set of CORS options
 type CORSOpt struct {
 	AllowedOrigins     []string
 	AllowedMethods     []string
@@ -64,7 +70,7 @@ func RunServer(ctx context.Context, serverURL string, httpHandler http.Handler, 
 	readyCh := make(chan struct{})
 	go func() {
 		<-readyCh
-		logger.InfoContext(ctx, fmt.Sprintf("[HTTP SERVICE] system ready to serve at %s", serverURL))
+		logger.InfoContext(ctx, "[HTTP SERVICE] system ready to serve at "+serverURL)
 	}()
 
 	corsHTTPHandler := buildCORS(corsOpt).Handler(httpHandler)

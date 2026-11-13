@@ -19,9 +19,9 @@ func TestNewExecutionLog(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name:        "with invalid seconds, then it returns a zero seconds error",
+			name:        "with invalid seconds, then it returns an invalid seconds error",
 			seconds:     program.Seconds(-1 * time.Second),
-			expectedErr: program.ErrZeroProgramSeconds,
+			expectedErr: program.InvalidSecondsError{},
 		},
 		{
 			name:        "with invalid zone name, then it returns a empty zone name error",
@@ -48,8 +48,8 @@ func TestNewExecutionLog(t *testing.T) {
 		when NewExecutionLog function is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
 			execLog, err := program.NewExecutionLog(tt.seconds, tt.zoneName, tt.executedAt)
-			if err != nil {
-				require.ErrorIs(t, err, tt.expectedErr)
+			if tt.expectedErr != nil {
+				requireDomainError(t, err, tt.expectedErr)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

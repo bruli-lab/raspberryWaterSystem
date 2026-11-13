@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,10 +13,8 @@ import (
 )
 
 const (
-	latitude  = "41.545"
-	longitude = "2.109"
-	urlRaw    = "https://api.sunrise-sunset.org/json?lat=%s&lng=%s&date=%s&formatted=0"
-	location  = "Europe/Madrid"
+	SunriseSunsetURL = "https://api.sunrise-sunset.org"
+	lightPathRaw     = "%s/json?lat=%s&lng=%s&date=%s&formatted=0"
 )
 
 type results struct {
@@ -27,20 +25,16 @@ type results struct {
 }
 
 type SunriseSunsetRepository struct {
-	cl    *http.Client
-	cache map[string]*status.Light
-	m     sync.RWMutex
+	cl                  *http.Client
+	baseURL             string
+	latitude, longitude string
+	location            *time.Location
+	cache               map[string]*status.Light
+	m                   sync.RWMutex
 }
 
 func (s *SunriseSunsetRepository) Find(ctx context.Context, date time.Time) (*status.Light, error) {
 	day := s.formatDay(date)
-	defer func() {
-		tomorrow := s.formatDay(date.AddDate(0, 0, 1))
-		_, ok := s.cache[tomorrow]
-		if !ok {
-			_, _ = s.getAndCache(ctx, tomorrow)
-		}
-	}()
 	s.m.RLock()
 	light, ok := s.cache[day]
 	s.m.RUnlock()
@@ -52,23 +46,35 @@ func (s *SunriseSunsetRepository) Find(ctx context.Context, date time.Time) (*st
 
 func (s *SunriseSunsetRepository) CleanYesterday(ctx context.Context) {
 	tick := time.NewTicker(4 * time.Hour)
-	select {
-	case <-ctx.Done():
-		return
-	case <-tick.C:
-		yesterday := s.formatDay(time.Now().AddDate(0, 0, -1))
-		delete(s.cache, yesterday)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			s.removeBefore(s.formatDay(time.Now()))
+		}
+	}
+}
+
+func (s *SunriseSunsetRepository) removeBefore(day string) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	for cached := range s.cache {
+		if cached < day {
+			delete(s.cache, cached)
+		}
 	}
 }
 
 func (s *SunriseSunsetRepository) formatDay(date time.Time) string {
-	return date.Format("2006-01-02")
+	return date.In(s.location).Format(time.DateOnly)
 }
 
 func (s *SunriseSunsetRepository) getAndCache(ctx context.Context, day string) (*status.Light, error) {
-	url := fmt.Sprintf(urlRaw, latitude, longitude, day)
+	url := fmt.Sprintf(lightPathRaw, s.baseURL, s.latitude, s.longitude, day)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create request: %w", err)
 	}
@@ -80,20 +86,14 @@ func (s *SunriseSunsetRepository) getAndCache(ctx context.Context, day string) (
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("sunrise sunset api returned status %d", resp.StatusCode)
 	}
 	var re results
-	if err = json.Unmarshal(body, &re); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&re); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	loc, err := time.LoadLocation(location)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load location: %w", err)
-	}
-
-	li, err := status.NewLight(re.Results.Sunrise.In(loc), re.Results.Sunset.In(loc))
+	li, err := status.NewLight(re.Results.Sunrise.In(s.location), re.Results.Sunset.In(s.location))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse sunrise light: %w", err)
 	}
@@ -103,9 +103,13 @@ func (s *SunriseSunsetRepository) getAndCache(ctx context.Context, day string) (
 	return li, nil
 }
 
-func NewSunriseSunsetRepository(timeout time.Duration) *SunriseSunsetRepository {
-	cl := &http.Client{
-		Timeout: timeout,
+func NewSunriseSunsetRepository(baseURL string, latitude, longitude float64, location *time.Location, timeout time.Duration) *SunriseSunsetRepository {
+	return &SunriseSunsetRepository{
+		cl:        &http.Client{Timeout: timeout},
+		baseURL:   baseURL,
+		latitude:  strconv.FormatFloat(latitude, 'f', -1, 64),
+		longitude: strconv.FormatFloat(longitude, 'f', -1, 64),
+		location:  location,
+		cache:     make(map[string]*status.Light),
 	}
-	return &SunriseSunsetRepository{cl: cl, cache: make(map[string]*status.Light)}
 }

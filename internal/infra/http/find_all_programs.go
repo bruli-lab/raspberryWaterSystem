@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 )
 
 func FindAllPrograms(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc {
@@ -24,7 +24,7 @@ func FindAllPrograms(qh cqs.QueryHandler, tracer trace.Tracer) http.HandlerFunc 
 			return
 		}
 		programs, _ := result.(app.AllPrograms)
-		resp := ProgramsResponseJson{
+		resp := ProgramsResponse{
 			Daily:       buildProgramsResponse(programs.Daily),
 			Even:        buildProgramsResponse(programs.Even),
 			Odd:         buildProgramsResponse(programs.Odd),
@@ -53,7 +53,7 @@ func buildTemperatureProgramsResponse(temperature []program.Temperature) []Tempe
 	for i, temp := range temperature {
 		itemResponse[i] = TemperatureItemResponse{
 			Programs:    buildProgramsResponse(temp.Programs()),
-			Temperature: float64(temp.Temperature()),
+			Temperature: temp.Temperature(),
 		}
 	}
 	return itemResponse
@@ -75,6 +75,7 @@ func buildProgramsResponse(programs []program.Program) []ProgramItemResponse {
 		}
 		programItemResponses[i] = ProgramItemResponse{
 			Executions: exec,
+			Fertilizer: d.IsFertilizer(),
 			Hour:       d.Hour().String(),
 		}
 	}

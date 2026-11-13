@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	http2 "github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/stretchr/testify/require"
 )
@@ -27,10 +28,10 @@ func TestCreateTemperatureProgram(t *testing.T) {
 		},
 		{
 			name: "with an invalid hour in the request, then it returns a bad request",
-			body: buildRequestJsonToString(t, http2.CreateTemperatureProgramRequestJson{
-				Programs: []http2.ProgramTemperatureRequest{
+			body: buildRequestJsonToString(t, http2.TemperatureProgramRequest{
+				Programs: []http2.Program{
 					{
-						Executions: []http2.ExecutionTemperatureRequest{
+						Executions: []http2.ExecutionRequest{
 							{
 								Seconds: 20,
 								Zones:   []string{"a", "b"},
@@ -45,10 +46,10 @@ func TestCreateTemperatureProgram(t *testing.T) {
 		},
 		{
 			name: "with an invalid seconds in the request, then it returns a bad request",
-			body: buildRequestJsonToString(t, http2.CreateTemperatureProgramRequestJson{
-				Programs: []http2.ProgramTemperatureRequest{
+			body: buildRequestJsonToString(t, http2.TemperatureProgramRequest{
+				Programs: []http2.Program{
 					{
-						Executions: []http2.ExecutionTemperatureRequest{
+						Executions: []http2.ExecutionRequest{
 							{
 								Seconds: -1,
 								Zones:   []string{"a", "b"},
@@ -63,10 +64,10 @@ func TestCreateTemperatureProgram(t *testing.T) {
 		},
 		{
 			name: "and command handler returns a create weekly program error, then it returns a bad request",
-			body: buildRequestJsonToString(t, http2.CreateTemperatureProgramRequestJson{
-				Programs: []http2.ProgramTemperatureRequest{
+			body: buildRequestJsonToString(t, http2.TemperatureProgramRequest{
+				Programs: []http2.Program{
 					{
-						Executions: []http2.ExecutionTemperatureRequest{
+						Executions: []http2.ExecutionRequest{
 							{
 								Seconds: 10,
 								Zones:   []string{"a"},
@@ -82,10 +83,10 @@ func TestCreateTemperatureProgram(t *testing.T) {
 		},
 		{
 			name: "and command handler returns an error, then it returns an internal server error",
-			body: buildRequestJsonToString(t, http2.CreateTemperatureProgramRequestJson{
-				Programs: []http2.ProgramTemperatureRequest{
+			body: buildRequestJsonToString(t, http2.TemperatureProgramRequest{
+				Programs: []http2.Program{
 					{
-						Executions: []http2.ExecutionTemperatureRequest{
+						Executions: []http2.ExecutionRequest{
 							{
 								Seconds: 10,
 								Zones:   []string{"a"},
@@ -101,10 +102,10 @@ func TestCreateTemperatureProgram(t *testing.T) {
 		},
 		{
 			name: "and command handler returns nil, then it returns an ok status",
-			body: buildRequestJsonToString(t, http2.CreateTemperatureProgramRequestJson{
-				Programs: []http2.ProgramTemperatureRequest{
+			body: buildRequestJsonToString(t, http2.TemperatureProgramRequest{
+				Programs: []http2.Program{
 					{
-						Executions: []http2.ExecutionTemperatureRequest{
+						Executions: []http2.ExecutionRequest{
 							{
 								Seconds: 10,
 								Zones:   []string{"a"},
@@ -122,13 +123,13 @@ func TestCreateTemperatureProgram(t *testing.T) {
 		t.Run(`Given a CreateTemperatureProgram http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.chErr
 				},
 			}
 			handler := http2.CreateTemperatureProgram(ch, tracer())
-			req := httptest.NewRequest(http.MethodPost, "/programs/temperature", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/programs/temperature", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			handler.ServeHTTP(writer, req)
 			resp := writer.Result()

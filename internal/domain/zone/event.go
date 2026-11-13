@@ -1,22 +1,60 @@
 package zone
 
-import "github.com/bruli/raspberryWaterSystem/internal/cqs"
+import (
+	"time"
+
+	"github.com/bruli-lab/go-core/event"
+)
 
 const (
-	ExecutedEventName = "v1.zone.executed"
-	IgnoredEventName  = "v1.zone.ignored"
+	ExecutedEventName               = "v1.zone.executed"
+	IgnoredEventName                = "v1.zone.ignored"
+	FertilizerZoneExecutedEventName = "v1.fertilizer.zone.executed"
+	CleanZoneExecutedEventName      = "v1.clean.zone.executed"
 )
 
 type Executed struct {
-	cqs.BasicEvent
-	ZoneID    string
-	ZoneName  string
-	Seconds   uint
-	RelayPins []string
+	event.BasicEvent
+	ZoneID               string
+	ZoneName             string
+	Seconds              uint
+	StabilizationSeconds uint
+	RelayPins            []string
 }
 
 type Ignored struct {
-	cqs.BasicEvent
+	event.BasicEvent
 	ZoneName string
 	Reason   string
+}
+
+type FertilizerZoneExecuted struct {
+	event.BasicEvent
+	ZoneID                   string
+	ZoneName                 string
+	ZoneSeconds              uint
+	StabilizationZoneSeconds uint
+	ZoneRelayPins            []string
+	CleanValveSeconds        uint
+	CleanValveRelayPin       string
+	FertilizerPumpSeconds    uint
+	FertilizerPumpRelayPin   string
+	AirZoneSeconds           uint
+	AirZoneRelayPin          string
+	FertilizerValveSeconds   uint
+	FertilizerValveRelayPin  string
+}
+type CleanZoneExecuted struct {
+	event.BasicEvent
+	ZoneID                   string
+	ZoneName                 string
+	ZoneSeconds              uint
+	StabilizationZoneSeconds uint
+	ZoneRelayPins            []string
+	FertilizerPumpSeconds    uint
+	FertilizerPumpRelayPin   string
+	FertilizerValveSeconds   uint
+	FertilizerValveRelayPin  string
+	WaitDuration             time.Duration
+	ClarifyDuration          time.Duration
 }

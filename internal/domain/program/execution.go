@@ -14,6 +14,9 @@ func (e *Execution) Zones() []string {
 }
 
 func (e *Execution) validate() error {
+	if _, err := ParseSeconds(e.seconds.Int()); err != nil {
+		return err
+	}
 	if len(e.zones) == 0 {
 		return ErrEmptyExecutionZones
 	}
@@ -28,7 +31,6 @@ func NewExecution(seconds Seconds, zones []string) (Execution, error) {
 	return ex, nil
 }
 
-func (e *Execution) Hydrate(seconds Seconds, zones []string) {
-	e.seconds = seconds
-	e.zones = zones
+func HydrateExecution(seconds Seconds, zones []string) Execution {
+	return Execution{seconds: seconds, zones: zones}
 }

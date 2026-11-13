@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -21,8 +21,8 @@ func CreateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), "CreateProgramRequest")
 		defer span.End()
-		var req CreateProgramRequestJson
-		if err := ReadRequest(w, r, &req); err != nil {
+		var req FertilizerProgram
+		if err := ReadRequest(w, r, fertilizerProgramRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -46,9 +46,10 @@ func CreateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 			default:
 				WriteErrorResponse(w, http.StatusInternalServerError)
 			}
+			return
 		}
 		span.SetStatus(codes.Ok, "program created")
-		WriteErrorResponse(w, http.StatusOK)
+		WriteResponse(w, http.StatusOK, nil)
 	}
 }
 
@@ -65,7 +66,7 @@ func buildCreateProgramCommand(programType string, prog *program.Program) cqs.Co
 	return nil
 }
 
-func buildProgram(w http.ResponseWriter, req CreateProgramRequestJson) (*program.Program, error) {
+func buildProgram(w http.ResponseWriter, req FertilizerProgram) (*program.Program, error) {
 	hour, err := program.ParseHour(req.Hour)
 	if err != nil {
 		WriteErrorResponse(w, http.StatusBadRequest, Error{
@@ -90,9 +91,17 @@ func buildProgram(w http.ResponseWriter, req CreateProgramRequestJson) (*program
 				Code:    ErrorCodeInvalidRequest,
 				Message: err.Error(),
 			})
+			return nil, err
 		}
 		exec[i] = e
 	}
-	prog, _ := program.New(hour, exec)
-	return prog, err
+	prog, err := program.New(hour, req.Fertilizer != nil && *req.Fertilizer, exec)
+	if err != nil {
+		WriteErrorResponse(w, http.StatusBadRequest, Error{
+			Code:    ErrorCodeInvalidRequest,
+			Message: err.Error(),
+		})
+		return nil, err
+	}
+	return prog, nil
 }

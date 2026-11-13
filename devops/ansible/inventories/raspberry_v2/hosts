@@ -1,0 +1,10 @@
+raspberry_v2 ansible_user=pablo ansible_host=192.168.1.12
+
+[raspberry_water_system]
+raspberry_v2
+
+[raspberry_water_system:vars]
+home=/home/pablo/waterSystem
+binary_path={{ home }}/server
+service_name=water_system
+systemd_path=/etc/systemd/system/water_system.d

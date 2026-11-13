@@ -7,7 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -16,7 +18,7 @@ import (
 )
 
 func TestExecuteZone(t *testing.T) {
-	body := buildRequestJsonToString(t, http.ExecuteZoneRequestJson{Seconds: 20})
+	body := buildRequestJsonToString(t, http.ExecutionRequest{Seconds: 20})
 	tests := []struct {
 		name, body   string
 		chErr        error
@@ -34,6 +36,12 @@ func TestExecuteZone(t *testing.T) {
 			chErr:        errs.NotFoundError{},
 		},
 		{
+			name:         "with a valid request and the domain rejects the seconds, then it returns bad request",
+			expectedCode: http2.StatusBadRequest,
+			body:         body,
+			chErr:        program.InvalidSecondsError{},
+		},
+		{
 			name:         "with a valid request and command handler returns en error, then it returns internal server error",
 			expectedCode: http2.StatusInternalServerError,
 			body:         body,
@@ -49,15 +57,15 @@ func TestExecuteZone(t *testing.T) {
 		t.Run(`Given a ExecuteZone http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.chErr
 				},
 			}
 			handler := http.ExecuteZone(ch, tracer())
 			server := chi.NewMux()
 			server.Post("/zones/{id}/execute", handler)
-			req := httptest.NewRequest(http2.MethodPost, "/zones/id/execute", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPost, "/zones/id/execute", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

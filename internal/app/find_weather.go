@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/weather"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -30,13 +30,11 @@ func (f FindWeather) Handle(ctx context.Context, _ cqs.Query) (any, error) {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, err
 	}
 	rain, err := f.rr.Find(ctx)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, err
 	}
 	span.SetStatus(codes.Ok, "weather found")
 	return weather.New(temp, hum, rain), nil

@@ -3,71 +3,98 @@
 package disk_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
+	"github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
 	"github.com/stretchr/testify/require"
 )
 
-func TestProgramRepository(t *testing.T) {
-	t.Run(`Given a ProgramRepository, `, func(t *testing.T) {
-		ctx := context.Background()
-		path := "/tmp/programs.yml"
-		defer populateFile(t, path)
-		repo := disk.NewProgramRepository(path, tracer())
-		hour, err := program.ParseHour("12:15")
-		require.NoError(t, err)
-		t.Run(`when Save method is called,
-		then it save programs`, func(t *testing.T) {
-			hour2, err := program.ParseHour("10:30")
-			require.NoError(t, err)
-			exec := []program.Execution{
-				fixtures.ExecutionBuilder{}.Build(),
-				fixtures.ExecutionBuilder{}.Build(),
-				fixtures.ExecutionBuilder{}.Build(),
-			}
-			programs := []program.Program{
-				fixtures.ProgramBuilder{Hour: &hour, Executions: exec}.Build(),
-				fixtures.ProgramBuilder{Hour: &hour2}.Build(),
-				fixtures.ProgramBuilder{}.Build(),
-			}
-			for _, p := range programs {
-				err = repo.Save(ctx, &p)
-				require.NoError(t, err)
+func programRepositoryWith(t *testing.T, programs ...program.Program) disk.ProgramRepository {
+	t.Helper()
+	repo := disk.NewProgramRepository(tempFile(t, "programs.yml"), tracer())
+	for _, prg := range programs {
+		require.NoError(t, repo.Save(t.Context(), &prg))
+	}
+	return repo
+}
 
-			}
-		})
-		t.Run(`when FindAll method is called,
-		then it returns a programs slice`, func(t *testing.T) {
-			dailies, err := repo.FindAll(ctx)
-			require.NoError(t, err)
-			require.Len(t, dailies, 3)
-		})
-		t.Run(`when FindByHour method is called `, func(t *testing.T) {
-			t.Run(`with an nonexistent hour,
-			then it returns a not found error`, func(t *testing.T) {
-				hour, err := program.ParseHour("08:00")
-				require.NoError(t, err)
-				_, err = repo.FindByHour(ctx, &hour)
+func storedPrograms(t *testing.T) (program.Hour, []program.Program) {
+	t.Helper()
+	hour, err := program.ParseHour("12:15")
+	require.NoError(t, err)
+	fertilizerHour, err := program.ParseHour("10:30")
+	require.NoError(t, err)
+	executions := []program.Execution{
+		fixtures.ExecutionBuilder{}.Build(),
+		fixtures.ExecutionBuilder{}.Build(),
+		fixtures.ExecutionBuilder{}.Build(),
+	}
+	return hour, []program.Program{
+		fixtures.ProgramBuilder{Hour: &hour, Executions: executions}.Build(),
+		fixtures.ProgramBuilder{Hour: &fertilizerHour, Fertilizer: true}.Build(),
+		fixtures.ProgramBuilder{}.Build(),
+	}
+}
+
+func TestProgramRepositoryFindAll(t *testing.T) {
+	t.Run(`Given a ProgramRepository with three saved programs, when FindAll method is called, then it returns the three programs`, func(t *testing.T) {
+		t.Parallel()
+		_, programs := storedPrograms(t)
+		repo := programRepositoryWith(t, programs...)
+		found, err := repo.FindAll(t.Context())
+		require.NoError(t, err)
+		require.ElementsMatch(t, programs, found)
+	})
+}
+
+func TestProgramRepositoryFindByHour(t *testing.T) {
+	unknownHour, err := program.ParseHour("08:00")
+	require.NoError(t, err)
+	tests := []struct {
+		name           string
+		hour           func(saved program.Hour) program.Hour
+		expectsProgram bool
+	}{
+		{
+			name: "with an hour without program, then it returns a not found error",
+			hour: func(program.Hour) program.Hour { return unknownHour },
+		},
+		{
+			name:           "with the hour of a saved program, then it returns that program with its executions",
+			hour:           func(saved program.Hour) program.Hour { return saved },
+			expectsProgram: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(`Given a ProgramRepository with saved programs, when FindByHour method is called `+tt.name, func(t *testing.T) {
+			t.Parallel()
+			savedHour, programs := storedPrograms(t)
+			repo := programRepositoryWith(t, programs...)
+			hour := tt.hour(savedHour)
+			found, err := repo.FindByHour(t.Context(), &hour)
+			if !tt.expectsProgram {
 				require.ErrorAs(t, err, &errors.NotFoundError{})
-			})
-			t.Run(`with an existent hour,
-			then it returns valid program`, func(t *testing.T) {
-				prg, err := repo.FindByHour(ctx, &hour)
-				require.NoError(t, err)
-				require.Equal(t, hour, prg.Hour())
-				require.Len(t, prg.Executions(), 3)
-			})
-		})
-		t.Run(`when Remove method is called,
-		then it returns no error`, func(t *testing.T) {
-			err = repo.Remove(ctx, &hour)
+				return
+			}
 			require.NoError(t, err)
-			_, err = repo.FindByHour(ctx, &hour)
-			require.ErrorAs(t, err, &errors.NotFoundError{})
+			require.Equal(t, programs[0], *found)
 		})
+	}
+}
+
+func TestProgramRepositoryRemove(t *testing.T) {
+	t.Run(`Given a ProgramRepository with saved programs, when Remove method is called with the hour of a saved program, then it is no longer found`, func(t *testing.T) {
+		t.Parallel()
+		hour, programs := storedPrograms(t)
+		repo := programRepositoryWith(t, programs...)
+		require.NoError(t, repo.Remove(t.Context(), &hour))
+		_, err := repo.FindByHour(t.Context(), &hour)
+		require.ErrorAs(t, err, &errors.NotFoundError{})
+		remaining, err := repo.FindAll(t.Context())
+		require.NoError(t, err)
+		require.Len(t, remaining, 2)
 	})
 }

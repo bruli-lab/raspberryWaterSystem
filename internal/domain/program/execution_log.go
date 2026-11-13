@@ -49,8 +49,6 @@ func NewExecutionLog(seconds Seconds, zoneName string, executedAt time.Time) (Ex
 	return exec, nil
 }
 
-func (e *ExecutionLog) Hydrate(seconds Seconds, zoneName string, executedAt time.Time) {
-	e.seconds = seconds
-	e.zoneName = zoneName
-	e.executedAt = executedAt
+func HydrateExecutionLog(seconds Seconds, zoneName string, executedAt time.Time) ExecutionLog {
+	return ExecutionLog{seconds: seconds, zoneName: zoneName, executedAt: executedAt}
 }

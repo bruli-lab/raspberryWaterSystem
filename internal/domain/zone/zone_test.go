@@ -3,6 +3,7 @@ package zone_test
 import (
 	"testing"
 
+	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 	"github.com/stretchr/testify/require"
@@ -53,6 +54,7 @@ func TestNew(t *testing.T) {
 			require.Equal(t, zo.Id(), tt.id)
 			require.Equal(t, zo.Name(), tt.zoneName)
 			require.Equal(t, zo.Relays(), tt.relays)
+			require.Equal(t, zone.DefaultStabilizationFlux, zo.StabilizationFlux())
 		})
 	}
 }
@@ -63,17 +65,24 @@ func TestZoneExecute(t *testing.T) {
 		fixtures.RelayBuilder(2),
 	}
 	tests := []struct {
-		name    string
-		relay   []zone.Relay
-		seconds uint
+		name        string
+		relay       []zone.Relay
+		seconds     uint
+		expectedErr bool
 	}{
 		{
-			name:    "with invalid seconds, then it returns an invalid seconds execution zone error",
-			seconds: 505,
+			name:        "with seconds over the limit, then it returns an invalid seconds error",
+			seconds:     121,
+			expectedErr: true,
 		},
 		{
-			name:    "with valid seconds, then it returns a valid event",
-			seconds: 200,
+			name:        "with zero seconds, then it returns an invalid seconds error",
+			seconds:     0,
+			expectedErr: true,
+		},
+		{
+			name:    "with the maximum seconds, then it returns a valid event",
+			seconds: 120,
 			relay:   relays,
 		},
 	}
@@ -81,17 +90,18 @@ func TestZoneExecute(t *testing.T) {
 		t.Run(`Given a built zone struct,
 		when Execute method is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			var zo zone.Zone
-			zo.Hydrate("bbf", "Bonsai", tt.relay)
+			zo := zone.HydrateZone("bbf", "Bonsai", tt.relay)
 			err := zo.Execute(tt.seconds)
-			if err != nil {
-				require.ErrorIs(t, err, zone.ErrInvalidSecondsExecutionZone)
+			if tt.expectedErr {
+				require.ErrorAs(t, err, &program.InvalidSecondsError{})
+				require.Empty(t, zo.Events())
 				return
 			}
+			require.NoError(t, err)
 			ev := zo.Events()[0]
 			execEv, _ := ev.(zone.Executed)
 			require.Equal(t, []string{"18", "17"}, execEv.RelayPins)
-			require.Equal(t, uint(200), execEv.Seconds)
+			require.Equal(t, uint(120), execEv.Seconds)
 		})
 	}
 }

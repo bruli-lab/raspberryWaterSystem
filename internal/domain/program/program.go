@@ -12,11 +12,16 @@ var (
 
 type Program struct {
 	hour       Hour
+	fertilizer bool
 	executions []Execution
 }
 
 func (p *Program) Hour() Hour {
 	return p.hour
+}
+
+func (p *Program) IsFertilizer() bool {
+	return p.fertilizer
 }
 
 func (p *Program) Executions() []Execution {
@@ -30,13 +35,20 @@ func (p *Program) validate() error {
 	return nil
 }
 
-func (p *Program) Hydrate(hour Hour, executions []Execution) {
-	p.hour = hour
-	p.executions = executions
+func HydrateProgram(hour Hour, fertilizer bool, executions []Execution) Program {
+	return Program{hour: hour, fertilizer: fertilizer, executions: executions}
 }
 
-func New(hour Hour, executions []Execution) (*Program, error) {
-	pr := Program{hour: hour, executions: executions}
+func HydrateProgramWithoutFertilizer(hour Hour, executions []Execution) Program {
+	return HydrateProgram(hour, false, executions)
+}
+
+func NewWithoutFertilizer(hour Hour, executions []Execution) (*Program, error) {
+	return New(hour, false, executions)
+}
+
+func New(hour Hour, fertilizer bool, executions []Execution) (*Program, error) {
+	pr := Program{hour: hour, fertilizer: fertilizer, executions: executions}
 	if err := pr.validate(); err != nil {
 		return nil, err
 	}
@@ -63,8 +75,11 @@ func NewWeekly(weekDay WeekDay, programs []Program) (Weekly, error) {
 	return Weekly{weekDay: weekDay, programs: programs}, nil
 }
 
-func (w *Weekly) Hydrate(weekDay WeekDay, programs []Program) {
-	w.weekDay = weekDay
+func HydrateWeekly(weekDay WeekDay, programs []Program) Weekly {
+	return Weekly{weekDay: weekDay, programs: programs}
+}
+
+func (w *Weekly) Update(programs []Program) {
 	w.programs = programs
 }
 
@@ -99,9 +114,8 @@ func NewTemperature(temperature float32, programs []Program) (*Temperature, erro
 	return &temp, nil
 }
 
-func (t *Temperature) Hydrate(temperature float32, programs []Program) {
-	t.temperature = temperature
-	t.programs = programs
+func HydrateTemperature(temperature float32, programs []Program) Temperature {
+	return Temperature{temperature: temperature, programs: programs}
 }
 
 func (t *Temperature) Update(programs []Program) {

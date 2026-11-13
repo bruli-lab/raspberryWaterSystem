@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
@@ -36,6 +36,7 @@ func RemoveProgram(ch cqs.CommandHandler, prg string, tracer trace.Tracer) http.
 			default:
 				WriteErrorResponse(writer, http.StatusInternalServerError)
 			}
+			return
 		}
 		span.SetStatus(codes.Ok, "program removed")
 		WriteResponse(writer, http.StatusOK, nil)

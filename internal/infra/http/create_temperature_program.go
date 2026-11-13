@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -15,8 +15,8 @@ func CreateTemperatureProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.H
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), "CreateTemperatureProgramRequest")
 		defer span.End()
-		var req CreateTemperatureProgramRequestJson
-		if err := ReadRequest(w, r, &req); err != nil {
+		var req TemperatureProgramRequest
+		if err := ReadRequest(w, r, temperatureProgramRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
@@ -53,7 +53,7 @@ func CreateTemperatureProgram(ch cqs.CommandHandler, tracer trace.Tracer) http.H
 	}
 }
 
-func buildCreateTemperatureProgram(req CreateTemperatureProgramRequestJson) (*program.Temperature, error) {
+func buildCreateTemperatureProgram(req TemperatureProgramRequest) (*program.Temperature, error) {
 	prgms := make([]program.Program, len(req.Programs))
 	for i, p := range req.Programs {
 		hour, err := program.ParseHour(p.Hour)
@@ -66,12 +66,21 @@ func buildCreateTemperatureProgram(req CreateTemperatureProgramRequestJson) (*pr
 			if err != nil {
 				return nil, err
 			}
-			exe, _ := program.NewExecution(sec, e.Zones)
+			exe, err := program.NewExecution(sec, e.Zones)
+			if err != nil {
+				return nil, err
+			}
 			exec[j] = exe
 		}
-		pr, _ := program.New(hour, exec)
+		pr, err := program.NewWithoutFertilizer(hour, exec)
+		if err != nil {
+			return nil, err
+		}
 		prgms[i] = *pr
 	}
-	temp, _ := program.NewTemperature(float32(req.Temperature), prgms)
+	temp, err := program.NewTemperature(float32(req.Temperature), prgms)
+	if err != nil {
+		return nil, err
+	}
 	return temp, nil
 }

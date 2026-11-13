@@ -4,6 +4,10 @@ run:
   timeout: 5m
   tests: true
 
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
 linters:
   default: none
   enable:
@@ -17,6 +21,22 @@ linters:
     - bodyclose
     - misspell
     - unconvert
+    - gocyclo
+    - lll
+    - gosec
+    - prealloc
+    - perfsprint
+    - testifylint
+    - testpackage
+    - paralleltest
+    - thelper
+    - errorlint
+    - noctx
+    - durationcheck
+    - contextcheck
+    - nilnil
+    - unparam
+    - wastedassign
 
   settings:
     errcheck:
@@ -34,11 +54,41 @@ linters:
         - performance
         - style
 
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
+    gocyclo:
+      min-complexity: 15
+
+    lll:
+      line-length: 170
+      tab-width: 1
+
+    gosec:
+      excludes:
+        - G104
+        - G304
+        - G115
+
+    paralleltest:
+      ignore-missing: true
+
+    testifylint:
+      disable:
+        - float-compare
+        - error-is-as
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - contextcheck
+          - nilnil
+      - source: "^//go:generate "
+        linters:
+          - lll
+      - path: tests/harness/
+        linters:
+          - gosec
 
 output:
   formats:

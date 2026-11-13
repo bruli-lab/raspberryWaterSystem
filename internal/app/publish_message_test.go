@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,7 +48,7 @@ func TestPublishExecutionLogHandle(t *testing.T) {
 			handler := app.NewPublishMessage(elp, tracer())
 			events, err := handler.Handle(context.Background(), tt.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

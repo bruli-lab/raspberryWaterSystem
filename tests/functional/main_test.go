@@ -1,26 +1,37 @@
 //go:build functional
 
-package functional
+package functional_test
 
 import (
 	"context"
-	"net/http"
+	"fmt"
 	"os"
 	"testing"
-	"time"
+
+	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/http"
+	"github.com/bruli/raspberryWaterSystem/tests/harness"
 )
 
-const serverURL = "http://localhost:8083"
-
-var (
-	ctx context.Context
-	cl  http.Client
-)
+var appBinary string
 
 func TestMain(m *testing.M) {
-	ctx = context.Background()
-	cl = http.Client{Timeout: 3 * time.Second}
-
+	binary, cleanup, err := harness.BuildApp(context.Background())
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	appBinary = binary
 	code := m.Run()
+	cleanup()
 	os.Exit(code)
+}
+
+func newZone() http.Zone {
+	zo := fixtures.ZoneBuilder{}.Build()
+	relays := make([]http.ZoneRelays, len(zo.Relays()))
+	for i, r := range zo.Relays() {
+		relays[i] = http.ZoneRelays(r.Id().Int())
+	}
+	return http.Zone{Id: zo.Id(), Name: zo.Name(), Relays: relays}
 }

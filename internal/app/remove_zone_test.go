@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
+	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/fixtures"
 
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
@@ -64,7 +64,7 @@ func TestRemoveZoneHandle(t *testing.T) {
 			handler := app.NewRemoveZone(zr, tracer())
 			events, err := handler.Handle(context.Background(), tt.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

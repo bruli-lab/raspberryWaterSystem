@@ -22,3 +22,5 @@
 !/devops/ansible/assets/.gitkeep
 /.env
 /tmp/
+/ntfy/
+docs

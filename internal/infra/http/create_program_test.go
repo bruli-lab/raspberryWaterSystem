@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
 	http2 "github.com/bruli/raspberryWaterSystem/internal/infra/http"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ func TestCreateProgram(t *testing.T) {
 			Zones:   zones,
 		},
 	}
-	body := buildRequestJsonToString(t, http2.CreateProgramRequestJson{
+	body := buildRequestJsonToString(t, http2.Program{
 		Executions: []http2.ExecutionRequest{
 			{
 				Seconds: 20,
@@ -44,7 +45,7 @@ func TestCreateProgram(t *testing.T) {
 		},
 		{
 			name: "with an invalid hour in request, then it returns a bad request",
-			body: buildRequestJsonToString(t, http2.CreateProgramRequestJson{
+			body: buildRequestJsonToString(t, http2.Program{
 				Executions: exec,
 				Hour:       "invalid",
 			}),
@@ -52,7 +53,7 @@ func TestCreateProgram(t *testing.T) {
 		},
 		{
 			name: "with an invalid seconds in request, then it returns a bad request",
-			body: buildRequestJsonToString(t, http2.CreateProgramRequestJson{
+			body: buildRequestJsonToString(t, http2.Program{
 				Executions: []http2.ExecutionRequest{
 					{
 						Seconds: -10,
@@ -85,13 +86,13 @@ func TestCreateProgram(t *testing.T) {
 		t.Run(`Given a CreateProgram http handler,
 		when a request is sent `+tt.name, func(t *testing.T) {
 			t.Parallel()
-			ch := &CommandHandlerMock{
-				HandleFunc: func(_ context.Context, _ cqs.Command) ([]cqs.Event, error) {
+			ch := &cqs.CommandHandlerMock{
+				HandleFunc: func(_ context.Context, _ cqs.Command) ([]event.Event, error) {
 					return nil, tt.chErr
 				},
 			}
 			handler := http2.CreateProgram(ch, http2.DailyProgram, tracer())
-			req := httptest.NewRequest(http.MethodPost, "/programs", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/programs", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			handler.ServeHTTP(writer, req)
 			resp := writer.Result()

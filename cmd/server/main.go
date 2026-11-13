@@ -7,13 +7,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"syscall"
 	"time"
+	_ "time/tzdata"
 
+	"github.com/bruli-lab/go-core/cqs"
+	"github.com/bruli-lab/go-core/event"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/config"
-	"github.com/bruli/raspberryWaterSystem/internal/cqs"
-	"github.com/bruli/raspberryWaterSystem/internal/domain/status"
-	"github.com/bruli/raspberryWaterSystem/internal/domain/weather"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/api"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
@@ -21,18 +23,30 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/infra/listener"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/memory"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/nats"
-	"github.com/bruli/raspberryWaterSystem/internal/infra/telegram"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/ntfy"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/solar"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/worker"
 	"github.com/robfig/cron/v3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const serviceName = "raspberryWaterSystem"
+const (
+	serviceName = "raspberryWaterSystem"
+	timeZone    = "Europe/Madrid"
+	latitude    = 41.545
+	longitude   = 2.109
+
+	sensorReadingMaxAge     = time.Hour
+	pendingIrrigationMaxAge = time.Hour
+	notificationsInterval   = 10 * time.Second
+	statusUpdateInterval    = 5 * time.Minute
+	outboxEventsBatchSize   = 50
+)
 
 func main() {
 	if err := run(); err != nil {
@@ -41,13 +55,20 @@ func main() {
 }
 
 func run() error {
-	ctx := context.Background()
-	log := buildLog()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	pe := pinsExecutor(otel.Tracer(serviceName))
+	if err := pe.TurnOffAll(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed turning off relays at startup", slog.String("error", err.Error()))
+	}
+
 	conf, err := config.New()
 	if err != nil {
-		log.ErrorContext(ctx, "failed building config", slog.String("error", err.Error()))
+		fmt.Printf("failed building config: %s", err.Error())
 		return err
 	}
+	log := buildLog(conf.LogLevel)
 
 	tracingProv, err := tracing.InitTracing(ctx, serviceName)
 	if err != nil {
@@ -55,7 +76,7 @@ func run() error {
 		return err
 	}
 	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 
 		if err = tracingProv.Shutdown(shutdownCtx); err != nil {
@@ -63,19 +84,30 @@ func run() error {
 		}
 	}()
 
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if err := pe.Stop(stopCtx); err != nil {
+			log.ErrorContext(stopCtx, "failed turning off relays at shutdown", slog.String("error", err.Error()))
+		}
+	}()
+
 	tracer := otel.Tracer(serviceName)
 
-	eventsCh := make(chan tracing.Event, 5)
-	defer close(eventsCh)
+	eventsCh := make(chan app.TracedEvent)
+	dispatchCh := make(chan app.TracedEvent)
+	pendingIrrigations := disk.NewPendingIrrigationsRepository(conf.PendingIrrigationsDir, time.Now, tracer)
+	restored := worker.RestorePendingIrrigations(ctx, pendingIrrigations, pendingIrrigationMaxAge, time.Now(), log)
+	go worker.QueueEvents(ctx, eventsCh, dispatchCh, pendingIrrigations, restored, log)
 
 	logCHMdw := cqs.NewCommandHndErrorMiddleware(log, tracer)
 	eventsCHMdw := app.NewEventMiddleware(eventsCh, tracer)
 	eventsMultiCHMdw := cqs.CommandHandlerMultiMiddleware(logCHMdw, eventsCHMdw)
 	logQHMdw := cqs.NewQueryHndErrorMiddleware(log, tracer)
 
-	tr := temperatureRepository(tracer)
-	rr := rainRepository(tracer)
-	sr := memory.NewStatusRepository(tracer)
+	tr := memory.NewLastKnownTemperatureRepository(temperatureRepository(tracer, log), sensorReadingMaxAge, time.Now, tracer)
+	rr := memory.NewLastKnownRainRepository(rainRepository(tracer), sensorReadingMaxAge, time.Now, tracer)
+	statusRepo := disk.NewPersistentStatusRepository(memory.NewStatusRepository(tracer), conf.StatusFile, tracer)
 	zr := disk.NewZoneRepository(conf.ZonesFile, tracer)
 	dailyRepo := disk.NewProgramRepository(conf.DailyProgramsFile, tracer)
 	oddRepo := disk.NewProgramRepository(conf.OddProgramsFile, tracer)
@@ -83,33 +115,45 @@ func run() error {
 	weeklyRepo := disk.NewWeeklyRepository(conf.WeeklyProgramsFile, tracer)
 	tempProgRepo := disk.NewTemperatureProgramRepository(conf.TemperatureProgramsFile, tracer)
 	execLogRepo := disk.NewExecutionLogRepository(conf.ExecutionLogsFile, tracer)
-	lightRepo := api.NewSunriseSunsetRepository(5 * time.Second)
-	go lightRepo.CleanYesterday(ctx)
-	pe := pinsExecutor(tracer)
-	messagePublisher := telegram.NewMessagePublisher(conf.TelegramToken, conf.TelegramChatID, tracer)
+	location, err := time.LoadLocation(timeZone)
+	if err != nil {
+		log.ErrorContext(ctx, "failed loading time zone", slog.String("error", err.Error()))
+		return err
+	}
+	sunriseSunsetRepo := api.NewSunriseSunsetRepository(api.SunriseSunsetURL, latitude, longitude, location, 5*time.Second)
+	go superviseWorker(ctx, log, "clean yesterday light", sunriseSunsetRepo.CleanYesterday)
+	lightRepo := solar.NewFallbackLightRepository(
+		sunriseSunsetRepo,
+		solar.NewLightRepository(latitude, longitude, location, tracer),
+		tracer,
+		log,
+	)
+	ntfyPublisher, err := ntfy.NewPublisher(conf.NtfyUser, conf.NtfyPassword, conf.NtfyURL, conf.NtfyTopic, tracer)
+	if err != nil {
+		log.ErrorContext(ctx, "failed building ntfy publisher", slog.String("error", err.Error()))
+		return err
+	}
 	eventsRepo := disk.NewEventsRepository(conf.EventsDirectory, tracer)
 
-	eventsPublisher, err := nats.NewPublisher(conf.NatsServerURL, tracer)
+	eventsPublisher, err := nats.NewPublisher(conf.NatsServerURL, []string{outbox.ExecutionLogsEventType, outbox.TerraceWeatherEventType}, tracer)
 	if err != nil {
-		log.ErrorContext(ctx, "failed building execution logs", slog.String("error", err.Error()))
+		log.ErrorContext(ctx, "failed building events publisher", slog.String("error", err.Error()))
 		return err
 	}
 	defer eventsPublisher.Close()
-	if err := eventsPublisher.EnsureStream([]string{disk.ExecutionLogsEventType, disk.TerraceWeatherEventType}); err != nil {
-		log.ErrorContext(ctx, "failed ensuring execution logs stream", slog.String("error", err.Error()))
-		return err
-	}
-	findStatusQH := app.NewFindStatus(sr, tracer)
+	findStatusQH := app.NewFindStatus(statusRepo, tracer)
 
-	cronJob, err := buildCron()
-	if err != nil {
-		log.ErrorContext(ctx, "failed building cron")
-		return err
-	}
+	cronJob := buildCron(location, log)
 	go terraceWeatherCron(ctx, cronJob, eventsRepo, findStatusQH, log, tracer)
-	go readingEvents(ctx, eventsRepo, eventsPublisher, log)
+	go superviseWorker(ctx, log, "reading events", func(ctx context.Context) {
+		readingEvents(ctx, eventsRepo, eventsPublisher, log, tracer)
+	})
+	notificationsOutbox := disk.NewNotificationsOutbox(filepath.Join(conf.EventsDirectory, disk.NotificationsDirectory), time.Now, tracer)
+	go superviseWorker(ctx, log, "sending notifications", func(ctx context.Context) {
+		sendingNotifications(ctx, notificationsOutbox, ntfyPublisher, location, log, tracer)
+	})
 
-	qhBus := app.NewQueryBus()
+	qhBus := cqs.NewQueryBus()
 	qhBus.Subscribe(app.FindWeatherQueryName, logQHMdw(app.NewFindWeather(tr, rr, tracer)))
 	qhBus.Subscribe(app.FindStatusQueryName, logQHMdw(findStatusQH))
 	qhBus.Subscribe(app.FindAllProgramsQueryName, logQHMdw(app.NewFindAllPrograms(dailyRepo, oddRepo, evenRepo, weeklyRepo, tempProgRepo, tracer)))
@@ -117,17 +161,19 @@ func run() error {
 	qhBus.Subscribe(app.FindExecutionLogsQueryName, logQHMdw(app.NewFindExecutionLogs(execLogRepo, tracer)))
 	qhBus.Subscribe(app.FindZonesQueryName, logQHMdw(app.NewFindZones(zr, tracer)))
 
-	chBus := app.NewCommandBus()
-	chBus.Subscribe(app.CreateStatusCmdName, logCHMdw(app.NewCreateStatus(sr, lightRepo, tracer)))
-	chBus.Subscribe(app.UpdateStatusCmdName, logCHMdw(app.NewUpdateStatus(sr, lightRepo, tracer)))
+	chBus := cqs.NewCommandBus()
+	chBus.Subscribe(app.CreateStatusCmdName, logCHMdw(app.NewCreateStatus(statusRepo, lightRepo, tracer)))
+	chBus.Subscribe(app.UpdateStatusCmdName, logCHMdw(app.NewUpdateStatus(statusRepo, lightRepo, tracer)))
 	chBus.Subscribe(app.CreateZoneCmdName, logCHMdw(app.NewCreateZone(zr, tracer)))
-	chBus.Subscribe(app.ExecuteZoneCmdName, eventsMultiCHMdw(app.NewExecuteZone(zr, tracer)))
-	chBus.Subscribe(app.ExecutePinsCmdName, logCHMdw(app.NewExecutePins(pe, tracer)))
+	chBus.Subscribe(app.ExecuteZoneCmdName, eventsMultiCHMdw(app.NewExecuteZone(zr, statusRepo, tracer)))
+	chBus.Subscribe(app.ExecuteFertilizerZoneCmdName, eventsMultiCHMdw(app.NewExecuteFertilizerZone(zr, statusRepo, tracer)))
+	chBus.Subscribe(app.ExecuteCleanZoneCmdName, eventsMultiCHMdw(app.NewExecuteCleanZone(zr, statusRepo, tracer)))
+	chBus.Subscribe(app.ExecutePinsCmdName, logCHMdw(app.NewExecutePins(pe, statusRepo, tracer)))
 	chBus.Subscribe(app.SaveExecutionLogCmdName, logCHMdw(app.NewSaveExecutionLog(execLogRepo, tracer)))
-	chBus.Subscribe(app.PublishMessageCmdName, logCHMdw(app.NewPublishMessage(messagePublisher, tracer)))
+	chBus.Subscribe(app.PublishMessageCmdName, logCHMdw(app.NewPublishMessage(notificationsOutbox, tracer)))
 	chBus.Subscribe(app.RemoveZoneCmdName, logCHMdw(app.NewRemoveZone(zr, tracer)))
-	chBus.Subscribe(app.ActivateDeactivateServerCmdName, logCHMdw(app.NewActivateDeactivateServer(sr, tracer)))
-	chBus.Subscribe(app.ExecuteZoneWithStatusCmdName, eventsMultiCHMdw(app.NewExecuteZoneWithStatus(zr, sr, tracer)))
+	chBus.Subscribe(app.ActivateDeactivateServerCmdName, logCHMdw(app.NewActivateDeactivateServer(statusRepo, tracer)))
+	chBus.Subscribe(app.ExecuteZoneWithStatusCmdName, eventsMultiCHMdw(app.NewExecuteZoneWithStatus(zr, statusRepo, tracer)))
 	chBus.Subscribe(app.UpdateZoneCommandName, logCHMdw(app.NewUpdateZone(zr, tracer)))
 	chBus.Subscribe(app.CreateDailyProgramCommandName, logCHMdw(app.NewCreateDailyProgram(dailyRepo, zr, tracer)))
 	chBus.Subscribe(app.CreateOddProgramCommandName, logCHMdw(app.NewCreateOddProgram(oddRepo, zr, tracer)))
@@ -135,91 +181,69 @@ func run() error {
 	chBus.Subscribe(app.RemoveDailyProgramCommandName, logCHMdw(app.NewRemoveDailyProgram(dailyRepo, tracer)))
 	chBus.Subscribe(app.RemoveOddProgramCommandName, logCHMdw(app.NewRemoveOddProgram(oddRepo, tracer)))
 	chBus.Subscribe(app.RemoveEvenProgramCommandName, logCHMdw(app.NewRemoveEvenProgram(evenRepo, tracer)))
+	chBus.Subscribe(app.UpdateDailyProgramCommandName, logCHMdw(app.NewUpdateDailyProgram(dailyRepo, zr, tracer)))
+	chBus.Subscribe(app.UpdateOddProgramCommandName, logCHMdw(app.NewUpdateOddProgram(oddRepo, zr, tracer)))
+	chBus.Subscribe(app.UpdateEvenProgramCommandName, logCHMdw(app.NewUpdateEvenProgram(evenRepo, zr, tracer)))
 	chBus.Subscribe(app.CreateWeeklyProgramCommandName, logCHMdw(app.NewCreateWeeklyProgram(weeklyRepo, tracer)))
 	chBus.Subscribe(app.RemoveWeeklyProgramCommandName, logCHMdw(app.NewRemoveWeeklyProgram(weeklyRepo, tracer)))
+	chBus.Subscribe(app.UpdateWeeklyProgramCommandName, logCHMdw(app.NewUpdateWeeklyProgram(weeklyRepo, tracer)))
 	chBus.Subscribe(app.CreateTemperatureProgramCommandName, logCHMdw(app.NewCreateTemperatureProgram(tempProgRepo, tracer)))
 	chBus.Subscribe(app.RemoveTemperatureProgramCommandName, logCHMdw(app.NewRemoveTemperatureProgram(tempProgRepo, tracer)))
 	chBus.Subscribe(app.UpdateTemperatureProgramCommandName, logCHMdw(app.NewUpdateTemperatureProgram(tempProgRepo, tracer)))
+	chBus.Subscribe(app.ChangeCleanStatusCmdName, logCHMdw(app.NewChangeCleanStatus(statusRepo, tracer)))
 
-	eventBus := cqs.NewEventBus()
-	eventBus.Subscribe(zone.Executed{
-		BasicEvent: cqs.BasicEvent{NameAttr: zone.ExecutedEventName},
-	}, listener.NewExecutePinsOnExecuteZone(chBus, tracer), listener.NewWriteExecutionLogEventOnExecuteZone(eventsRepo, tracer))
-	eventBus.Subscribe(zone.Ignored{
-		BasicEvent: cqs.BasicEvent{NameAttr: zone.IgnoredEventName},
-	}, listener.NewPublishMessageOnZoneIgnored(chBus, tracer))
+	eventBus := event.NewBus()
+	executePinsOnExecuteZone := listener.NewExecutePinsOnExecuteZone(chBus, tracer)
+	writeExecutionLogOnExecuteZone := listener.NewWriteExecutionLogEventOnExecuteZone(eventsRepo, time.Now, tracer)
+	eventBus.Subscribe(zone.ExecutedEventName, executePinsOnExecuteZone, writeExecutionLogOnExecuteZone)
 
-	if err = initStatus(ctx, chBus, qhBus); err != nil {
+	eventBus.Subscribe(zone.IgnoredEventName, listener.NewPublishMessageOnZoneIgnored(chBus, tracer))
+
+	executePinsOnExecuteFertilizerZone := listener.NewExecutePinsOnExecuteFertilizerZone(chBus, listener.WaitFor, tracer, log)
+	writeExecutionLogOnExecuteFertilizerZone := listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, time.Now, tracer)
+	eventBus.Subscribe(zone.FertilizerZoneExecutedEventName, executePinsOnExecuteFertilizerZone, writeExecutionLogOnExecuteFertilizerZone)
+
+	eventBus.Subscribe(zone.CleanZoneExecutedEventName, listener.NewExecutePinsOnExecuteCleanZone(chBus, listener.WaitFor, tracer, log))
+
+	if err = worker.InitStatus(ctx, qhBus, chBus, time.Now()); err != nil {
 		log.ErrorContext(ctx, "failed initializing status", slog.String("error", err.Error()))
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
+	errCh := make(chan error, 2)
 
-	errCh := make(chan error)
-	defer close(errCh)
+	go superviseWorker(ctx, log, "update status", func(ctx context.Context) {
+		updateStatusWorker(ctx, qhBus, chBus, log)
+	})
+	go superviseWorker(ctx, log, "events", func(ctx context.Context) {
+		eventsWorker(ctx, dispatchCh, eventBus, log, tracer)
+	})
+	go superviseWorker(ctx, log, "execution in time", func(ctx context.Context) {
+		executionInTimeWorker(ctx, qhBus, chBus, location, log, tracer)
+	})
 
-	go updateStatusWorker(ctx, qhBus, chBus, log)
-	go eventsWorker(ctx, eventsCh, eventBus, log, tracer)
-	go executionInTimeWorker(ctx, qhBus, chBus, log, tracer)
-
-	go func() {
-		if err := runTelegramBot(ctx, conf, qhBus, chBus, log, tracer); err != nil {
-			log.ErrorContext(ctx, "failed running telegram bot", slog.String("error", err.Error()))
-			errCh <- err
-		}
-	}()
 	go func() {
 		if err := runHTTPServer(ctx, chBus, qhBus, conf, log, tracer); err != nil {
 			log.ErrorContext(ctx, "failed running http server", slog.String("error", err.Error()))
 			errCh <- err
 		}
 	}()
-	if err := <-errCh; err != nil {
+
+	select {
+	case err := <-errCh:
 		return err
+	case <-ctx.Done():
+		log.Info("shutdown signal received")
+		return nil
 	}
-	return nil
 }
 
-func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.EventsRepository, ch cqs.QueryHandler, log *slog.Logger, tracer trace.Tracer) {
+func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, events worker.EventsWriter, qh cqs.QueryHandler, log *slog.Logger, tracer trace.Tracer) {
 	defer cronJob.Stop()
 	_, err := cronJob.AddFunc("00 * * * *", func() {
-		ctx, span := tracer.Start(ctx, "TerraceWeatherCron")
-		defer span.End()
-		log.InfoContext(ctx, "[WORKER] Terrace Weather: getting weather")
-		result, err := ch.Handle(ctx, app.FindStatusQuery{})
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			log.ErrorContext(ctx, "[WORKER] Terrace Weather: failed getting weather", slog.String("error", err.Error()))
-			return
-		}
-		st, ok := result.(status.Status)
-		if !ok {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			log.ErrorContext(ctx, "[WORKER] Terrace Weather: failed casting weather", slog.String("type", fmt.Sprintf("%T", result)))
-			return
-		}
-		tw := disk.Weather{
-			Temperature: st.Weather().Temperature().Float32(),
-			IsRaining:   st.Weather().IsRaining(),
-			Humidity:    st.Weather().Humidity().Float32(),
-		}
-		ev, err := disk.NewFromWeather(ctx, &tw)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			log.ErrorContext(ctx, "[WORKER] Terrace Weather: failed creating weather event", slog.String("error", err.Error()))
-			return
-		}
-		if err = repo.Save(ctx, ev); err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+		if err := worker.SaveTerraceWeather(ctx, qh, events, time.Now(), tracer); err != nil {
 			log.ErrorContext(ctx, "[WORKER] Terrace Weather: failed saving weather event", slog.String("error", err.Error()))
 		}
-		span.SetStatus(codes.Ok, "Weather updated")
 	})
 	if err != nil {
 		log.ErrorContext(ctx, "[WORKER] Terrace Weather: failed adding cron job", slog.String("error", err.Error()))
@@ -231,92 +255,50 @@ func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, repo *disk.Even
 	log.InfoContext(ctx, "[WORKER] Terrace Weather: context done")
 }
 
-func buildCron() (*cron.Cron, error) {
-	loc, err := time.LoadLocation("Europe/Madrid")
-	if err != nil {
-		return nil, err
-	}
-	c := cron.New(cron.WithLocation(loc))
-	return c, nil
+func buildCron(location *time.Location, log *slog.Logger) *cron.Cron {
+	cronLog := cron.PrintfLogger(slog.NewLogLogger(log.Handler(), slog.LevelError))
+	return cron.New(cron.WithLocation(location), cron.WithChain(cron.Recover(cronLog)))
 }
 
-func readingEvents(
-	ctx context.Context,
-	eventsRepo *disk.EventsRepository,
-	publisher *nats.Publisher,
-	log *slog.Logger,
-) {
-	log.InfoContext(ctx, "[WORKER] Reading Events: starting")
-
-	tick := time.NewTicker(time.Minute)
-	defer tick.Stop()
-
+func runEvery(ctx context.Context, interval time.Duration, log *slog.Logger, name string, tick func(context.Context)) {
+	log.InfoContext(ctx, "[WORKER] "+name+": started")
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			log.InfoContext(ctx, "[WORKER] Reading Events: context done")
+			log.InfoContext(ctx, "[WORKER] "+name+": context done")
 			return
-
-		case <-tick.C:
-			events, err := eventsRepo.FindAll(ctx)
-			if err != nil {
-				log.ErrorContext(ctx, "[WORKER] Reading Events: failed reading events",
-					slog.String("error", err.Error()))
-				continue
-			}
-
-			for _, ev := range events {
-				prop := propagation.TraceContext{}
-				carrier := propagation.MapCarrier{
-					"traceparent": ev.Trace["traceparent"],
-				}
-				batchCtx := prop.Extract(ctx, carrier)
-				tracer := otel.Tracer("reading-events")
-				ctx, span := tracer.Start(batchCtx, ev.EventType)
-				if err = publishEvent(ctx, eventsRepo, publisher, &ev, span); err != nil {
-					span.RecordError(err)
-					log.ErrorContext(ctx, "[WORKER] Reading Events: failed publishing event",
-						slog.String("event_id", ev.ID),
-						slog.String("error", err.Error()))
-				}
-				span.End()
-			}
+		case <-ticker.C:
+			tick(ctx)
 		}
 	}
 }
 
-func publishEvent(ctx context.Context, evRepo *disk.EventsRepository, publisher *nats.Publisher, ev *disk.Event, span trace.Span) error {
-	if err := publisher.PublishEvent(ctx, ev.ID, ev.EventType, ev.Payload); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
-	if err := evRepo.Remove(ctx, ev); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
-	}
-
-	span.SetStatus(codes.Ok, "event published and removed")
-	return nil
+func sendingNotifications(
+	ctx context.Context,
+	pending worker.PendingNotifications,
+	sender worker.NotificationSender,
+	location *time.Location,
+	log *slog.Logger,
+	tracer trace.Tracer,
+) {
+	runEvery(ctx, notificationsInterval, log, "Sending notifications", func(ctx context.Context) {
+		if _, err := worker.SendNotifications(ctx, pending, sender, time.Now(), location, tracer); err != nil {
+			log.WarnContext(ctx, "[WORKER] Sending notifications: notifications kept for the next attempt", slog.String("error", err.Error()))
+		}
+	})
 }
 
-func runTelegramBot(ctx context.Context, conf *config.Config, qhBus app.QueryBus, chBus app.CommandBus, log *slog.Logger, tracer trace.Tracer) error {
-	if !conf.TelegramBotEnabled {
-		log.InfoContext(ctx, "[TELEGRAM SERVICE] disabled")
-		return nil
-	}
-	telegramServer, err := telegram.NewCommandReader(conf.TelegramToken, qhBus, chBus, tracer)
-	if err != nil {
-		log.ErrorContext(ctx, "[TELEGRAM SERVICE] failed building telegram server", slog.String("error", err.Error()))
-		return err
-	}
-	telegramServer.Read(ctx, log)
-	return nil
+func readingEvents(ctx context.Context, pending worker.PendingEvents, publisher worker.EventPublisher, log *slog.Logger, tracer trace.Tracer) {
+	runEvery(ctx, time.Minute, log, "Reading Events", func(ctx context.Context) {
+		if _, err := worker.PublishOutboxEvents(ctx, pending, publisher, tracer, outboxEventsBatchSize); err != nil {
+			log.WarnContext(ctx, "[WORKER] Reading Events: events kept in the outbox", slog.String("error", err.Error()))
+		}
+	})
 }
 
-func runHTTPServer(ctx context.Context, chBus app.CommandBus, qhBus app.QueryBus, conf *config.Config, log *slog.Logger, tracer trace.Tracer) error {
+func runHTTPServer(ctx context.Context, chBus cqs.CommandBus, qhBus cqs.QueryBus, conf *config.Config, log *slog.Logger, tracer trace.Tracer) error {
 	definitions := handlersDefinition(chBus, qhBus, conf.AuthToken, tracer)
 	httpHandlers := infrahttp.NewHandler(definitions)
 	if err := infrahttp.RunServer(ctx, conf.ServerURL, httpHandlers, &infrahttp.CORSOpt{}, log); err != nil {
@@ -326,49 +308,46 @@ func runHTTPServer(ctx context.Context, chBus app.CommandBus, qhBus app.QueryBus
 	return nil
 }
 
-func buildLog() *slog.Logger {
+func buildLog(level string) *slog.Logger {
+	levels := map[string]slog.Level{
+		"info":  slog.LevelInfo,
+		"debug": slog.LevelDebug,
+		"error": slog.LevelError,
+		"warn":  slog.LevelWarn,
+	}
+	l := levels[level]
+
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: l,
 	})
 
-	log := slog.New(handler)
-	log.With("service", serviceName)
-	return log
+	return slog.New(handler).With(slog.String("service", serviceName))
 }
 
-func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, logger *slog.Logger, tracer trace.Tracer) {
-	logger.InfoContext(ctx, "[WORKER] Execution in time: started")
-	ticker := time.NewTicker(time.Minute)
-	for {
-		select {
-		case <-ctx.Done():
-			logger.InfoContext(ctx, "[WORKER] Execution in time: context done")
-			return
-		case <-ticker.C:
-			if err := worker.ExecutionInTime(ctx, qh, ch, now(), tracer); err != nil {
-				logger.ErrorContext(ctx, "[WORKER] failed execution in time", slog.String("error", err.Error()))
-			}
+func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, location *time.Location, logger *slog.Logger, tracer trace.Tracer) {
+	runEvery(ctx, time.Minute, logger, "Execution in time", func(ctx context.Context) {
+		if err := worker.ExecutionInTime(ctx, qh, ch, time.Now().In(location), tracer); err != nil {
+			logger.ErrorContext(ctx, "[WORKER] failed execution in time", slog.String("error", err.Error()))
 		}
-	}
+	})
 }
 
-func now() time.Time {
-	loc, _ := time.LoadLocation("Europe/Madrid")
-	return time.Now().In(loc)
-}
-
-func eventsWorker(ctx context.Context, ch <-chan tracing.Event, evBus cqs.EventBus, logger *slog.Logger, tracer trace.Tracer) {
+func eventsWorker(ctx context.Context, ch <-chan app.TracedEvent, evBus event.Bus, logger *slog.Logger, tracer trace.Tracer) {
 	logger.InfoContext(ctx, "[WORKER] Events: started")
 	for {
 		select {
 		case <-ctx.Done():
 			logger.InfoContext(ctx, "[WORKER] Events: context done")
 			return
-		case event := <-ch:
-			parentCtx := trace.ContextWithSpanContext(ctx, event.SpanContext)
+		case traced, ok := <-ch:
+			if !ok {
+				logger.InfoContext(ctx, "[WORKER] Events: channel closed")
+				return
+			}
+			parentCtx := trace.ContextWithSpanContext(ctx, traced.SpanContext)
 			ctx, span := tracer.Start(parentCtx, "eventDispatch")
-			span.SetAttributes(attribute.String("event-name", event.Event.EventName()))
-			if err := evBus.Dispatch(ctx, event.Event); err != nil {
+			span.SetAttributes(attribute.String("event-name", traced.Event.EventName()))
+			if err := evBus.Dispatch(ctx, traced.Event); err != nil {
 				span.RecordError(err)
 				span.SetStatus(codes.Error, err.Error())
 				logger.ErrorContext(ctx, "[WORKER] Events: failed dispatching event", slog.String("error", err.Error()))
@@ -379,44 +358,14 @@ func eventsWorker(ctx context.Context, ch <-chan tracing.Event, evBus cqs.EventB
 }
 
 func updateStatusWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, logger *slog.Logger) {
-	logger.InfoContext(ctx, "[WORKER] Update status: started")
-	ticker := time.NewTicker(5 * time.Minute)
-	for {
-		select {
-		case <-ctx.Done():
-			logger.InfoContext(ctx, "[WORKER] Update status: context done")
-			return
-		case <-ticker.C:
-			updateStatus(ctx, qh, ch, logger)
+	runEvery(ctx, statusUpdateInterval, logger, "Update status", func(ctx context.Context) {
+		if err := worker.UpdateStatus(ctx, qh, ch); err != nil {
+			logger.ErrorContext(ctx, "[WORKER] Update status: failed updating status", slog.String("error", err.Error()))
 		}
-	}
-}
-
-func updateStatus(ctx context.Context, qh cqs.QueryHandler, ch cqs.CommandHandler, logger *slog.Logger) {
-	result, err := qh.Handle(ctx, app.FindWeatherQuery{})
-	if err != nil {
-		logger.ErrorContext(ctx, "[WORKER] Update status: failed getting weather", slog.String("error", err.Error()))
-	}
-	weath, _ := result.(weather.Weather)
-	if _, err = ch.Handle(ctx, app.UpdateStatusCmd{Weather: weath}); err != nil {
-		logger.ErrorContext(ctx, "[WORKER] Update status: failed updating status", slog.String("error", err.Error()))
-	}
-}
-
-func initStatus(ctx context.Context, ch cqs.CommandHandler, qh cqs.QueryHandler) error {
-	result, err := qh.Handle(ctx, app.FindWeatherQuery{})
-	if err != nil {
-		return err
-	}
-	weath, _ := result.(weather.Weather)
-	_, err = ch.Handle(ctx, app.CreateStatusCmd{
-		StartedAt: time.Now(),
-		Weather:   weath,
 	})
-	return err
 }
 
-func handlersDefinition(chBus app.CommandBus, qhBus app.QueryBus, authToken string, tracer trace.Tracer) infrahttp.HandlersDefinition {
+func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken string, tracer trace.Tracer) infrahttp.HandlersDefinition {
 	authMdw := infrahttp.AuthMiddleware(authToken)
 	return infrahttp.HandlersDefinition{
 		{
@@ -432,12 +381,22 @@ func handlersDefinition(chBus app.CommandBus, qhBus app.QueryBus, authToken stri
 		{
 			Endpoint:    "/zones",
 			Method:      http.MethodGet,
-			HandlerFunc: authMdw(infrahttp.FinZones(qhBus, tracer)),
+			HandlerFunc: authMdw(infrahttp.FindZones(qhBus, tracer)),
 		},
 		{
 			Endpoint:    "/zones/{id}/execute",
 			Method:      http.MethodPost,
 			HandlerFunc: authMdw(infrahttp.ExecuteZone(chBus, tracer)),
+		},
+		{
+			Endpoint:    "/zones/fertilizer/{id}/execute",
+			Method:      http.MethodPost,
+			HandlerFunc: authMdw(infrahttp.ExecuteFertilizerZone(chBus, tracer)),
+		},
+		{
+			Endpoint:    "/zones/clean/{id}/execute",
+			Method:      http.MethodPost,
+			HandlerFunc: authMdw(infrahttp.ExecuteCleanZone(chBus, tracer)),
 		},
 		{
 			Endpoint:    "/zones/{id}",
@@ -480,6 +439,11 @@ func handlersDefinition(chBus app.CommandBus, qhBus app.QueryBus, authToken stri
 			HandlerFunc: authMdw(infrahttp.RemoveProgram(chBus, infrahttp.DailyProgram, tracer)),
 		},
 		{
+			Endpoint:    "/programs/daily/{hour}",
+			Method:      http.MethodPut,
+			HandlerFunc: authMdw(infrahttp.UpdateProgram(chBus, infrahttp.DailyProgram, tracer)),
+		},
+		{
 			Endpoint:    "/programs/odd",
 			Method:      http.MethodPost,
 			HandlerFunc: authMdw(infrahttp.CreateProgram(chBus, infrahttp.OddProgram, tracer)),
@@ -488,6 +452,11 @@ func handlersDefinition(chBus app.CommandBus, qhBus app.QueryBus, authToken stri
 			Endpoint:    "/programs/odd/{hour}",
 			Method:      http.MethodDelete,
 			HandlerFunc: authMdw(infrahttp.RemoveProgram(chBus, infrahttp.OddProgram, tracer)),
+		},
+		{
+			Endpoint:    "/programs/odd/{hour}",
+			Method:      http.MethodPut,
+			HandlerFunc: authMdw(infrahttp.UpdateProgram(chBus, infrahttp.OddProgram, tracer)),
 		},
 		{
 			Endpoint:    "/programs/even",
@@ -500,6 +469,11 @@ func handlersDefinition(chBus app.CommandBus, qhBus app.QueryBus, authToken stri
 			HandlerFunc: authMdw(infrahttp.RemoveProgram(chBus, infrahttp.EvenProgram, tracer)),
 		},
 		{
+			Endpoint:    "/programs/even/{hour}",
+			Method:      http.MethodPut,
+			HandlerFunc: authMdw(infrahttp.UpdateProgram(chBus, infrahttp.EvenProgram, tracer)),
+		},
+		{
 			Endpoint:    "/programs/weekly",
 			Method:      http.MethodPost,
 			HandlerFunc: authMdw(infrahttp.CreateWeeklyProgram(chBus, tracer)),
@@ -508,6 +482,11 @@ func handlersDefinition(chBus app.CommandBus, qhBus app.QueryBus, authToken stri
 			Endpoint:    "/programs/weekly/{day}",
 			Method:      http.MethodDelete,
 			HandlerFunc: authMdw(infrahttp.RemoveWeeklyProgram(chBus, tracer)),
+		},
+		{
+			Endpoint:    "/programs/weekly/{day}",
+			Method:      http.MethodPut,
+			HandlerFunc: authMdw(infrahttp.UpdateWeeklyProgram(chBus, tracer)),
 		},
 		{
 			Endpoint:    "/programs/temperature",
