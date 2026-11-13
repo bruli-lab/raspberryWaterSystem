@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bruli/raspberryWaterSystem/internal/infra/nats"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
 	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -83,6 +84,45 @@ func TestPublisherPublishEvent(t *testing.T) {
 		require.Equal(t, []string{subject}, info.Config.Subjects)
 		require.Equal(t, uint64(2), info.State.Msgs)
 	})
+}
+
+func TestPublisherPublishEvents(t *testing.T) {
+	serverURL := startNats(t)
+	tests := []struct {
+		name   string
+		events int
+	}{
+		{name: "with a batch of events, then it publishes all of them without an error per event", events: 5},
+	}
+	for _, tt := range tests {
+		t.Run(`Given a nats Publisher connected to a server without the stream,
+		when PublishEvents method is called `+tt.name, func(t *testing.T) {
+			t.Parallel()
+			pub, err := nats.NewPublisher(serverURL, []string{subject}, noop.NewTracerProvider().Tracer("test"))
+			require.NoError(t, err)
+			defer pub.Close()
+			require.Eventually(t, pub.IsConnected, 5*time.Second, 50*time.Millisecond)
+			events := make([]outbox.Event, tt.events)
+			for i := range events {
+				events[i] = outbox.Event{ID: uuid.NewString(), EventType: subject, Payload: []byte(`{"zone":"a"}`)}
+			}
+
+			errs := pub.PublishEvents(t.Context(), events)
+
+			require.Len(t, errs, tt.events)
+			for _, err := range errs {
+				require.NoError(t, err)
+			}
+			nc, err := natsgo.Connect(serverURL)
+			require.NoError(t, err)
+			defer nc.Close()
+			js, err := nc.JetStream()
+			require.NoError(t, err)
+			info, err := js.StreamInfo(nats.StreamName)
+			require.NoError(t, err)
+			require.Equal(t, uint64(tt.events), info.State.Msgs)
+		})
+	}
 }
 
 func freePort(t *testing.T) int {

@@ -19,10 +19,10 @@ type PendingEvents interface {
 
 type EventPublisher interface {
 	IsConnected() bool
-	PublishEvent(ctx context.Context, id, subject string, payload []byte) error
+	PublishEvents(ctx context.Context, events []outbox.Event) []error
 }
 
-func PublishOutboxEvents(ctx context.Context, pending PendingEvents, publisher EventPublisher, tracer trace.Tracer) (int, error) {
+func PublishOutboxEvents(ctx context.Context, pending PendingEvents, publisher EventPublisher, tracer trace.Tracer, batchSize int) (int, error) {
 	ctx, span := tracer.Start(ctx, "PublishOutboxEvents worker")
 	defer span.End()
 	if !publisher.IsConnected() {
@@ -38,16 +38,15 @@ func PublishOutboxEvents(ctx context.Context, pending PendingEvents, publisher E
 	}
 	published := 0
 	var failures []error
-	for i := range events {
-		if err = publishOutboxEvent(ctx, pending, publisher, &events[i], tracer); err != nil {
-			failures = append(failures, PublishOutboxEventError{id: events[i].ID, err: err})
-			if !publisher.IsConnected() {
-				failures = append(failures, PublisherNotConnectedError{})
-				break
-			}
-			continue
+	for start := 0; start < len(events); start += batchSize {
+		batch := events[start:min(start+batchSize, len(events))]
+		batchPublished, batchFailures := publishOutboxEventsBatch(ctx, pending, publisher, batch, tracer)
+		published += batchPublished
+		failures = append(failures, batchFailures...)
+		if !publisher.IsConnected() {
+			failures = append(failures, PublisherNotConnectedError{})
+			break
 		}
-		published++
 	}
 	span.SetAttributes(attribute.Int("events.published", published))
 	if len(failures) > 0 {
@@ -60,14 +59,31 @@ func PublishOutboxEvents(ctx context.Context, pending PendingEvents, publisher E
 	return published, nil
 }
 
-func publishOutboxEvent(ctx context.Context, pending PendingEvents, publisher EventPublisher, ev *outbox.Event, tracer trace.Tracer) error {
+func publishOutboxEventsBatch(
+	ctx context.Context, pending PendingEvents, publisher EventPublisher, batch []outbox.Event, tracer trace.Tracer,
+) (int, []error) {
+	errs := publisher.PublishEvents(ctx, batch)
+	published := 0
+	var failures []error
+	for i := range batch {
+		ev := &batch[i]
+		if err := recordOutboxEvent(ctx, pending, ev, errs[i], tracer); err != nil {
+			failures = append(failures, PublishOutboxEventError{id: ev.ID, err: err})
+			continue
+		}
+		published++
+	}
+	return published, failures
+}
+
+func recordOutboxEvent(ctx context.Context, pending PendingEvents, ev *outbox.Event, publishErr error, tracer trace.Tracer) error {
 	parentCtx := propagation.TraceContext{}.Extract(ctx, propagation.MapCarrier{"traceparent": ev.Trace["traceparent"]})
 	ctx, span := tracer.Start(parentCtx, ev.EventType)
 	defer span.End()
-	if err := publisher.PublishEvent(ctx, ev.ID, ev.EventType, ev.Payload); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return err
+	if publishErr != nil {
+		span.RecordError(publishErr)
+		span.SetStatus(codes.Error, publishErr.Error())
+		return publishErr
 	}
 	if err := pending.Remove(ctx, ev); err != nil {
 		span.RecordError(err)
