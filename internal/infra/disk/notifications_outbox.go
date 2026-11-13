@@ -13,17 +13,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
 const NotificationsDirectory = "notifications"
-
-type Notification struct {
-	ID        string
-	Message   string
-	CreatedAt time.Time
-}
 
 type notificationFile struct {
 	Message   string    `json:"message"`
@@ -58,7 +53,7 @@ func (n NotificationsOutbox) save(message string) error {
 	return writeJsonFile(n.path(id), notificationFile{Message: message, CreatedAt: createdAt})
 }
 
-func (n NotificationsOutbox) FindAll(ctx context.Context) ([]Notification, error) {
+func (n NotificationsOutbox) FindAll(ctx context.Context) ([]outbox.Notification, error) {
 	_, span := n.tracer.Start(ctx, "NotificationsOutbox.FindAll")
 	defer span.End()
 	entries, err := os.ReadDir(n.dir)
@@ -72,7 +67,7 @@ func (n NotificationsOutbox) FindAll(ctx context.Context) ([]Notification, error
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	notifications := make([]Notification, 0, len(entries))
+	notifications := make([]outbox.Notification, 0, len(entries))
 	for _, entry := range entries {
 		if !isEventFile(entry) {
 			continue
@@ -88,24 +83,24 @@ func (n NotificationsOutbox) FindAll(ctx context.Context) ([]Notification, error
 		}
 		notifications = append(notifications, notification)
 	}
-	slices.SortFunc(notifications, func(a, b Notification) int {
+	slices.SortFunc(notifications, func(a, b outbox.Notification) int {
 		return strings.Compare(a.ID, b.ID)
 	})
 	span.SetStatus(codes.Ok, "notifications found")
 	return notifications, nil
 }
 
-func readNotification(path string) (Notification, error) {
+func readNotification(path string) (outbox.Notification, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Notification{}, fmt.Errorf("failed to read notification %s: %w", path, err)
+		return outbox.Notification{}, fmt.Errorf("failed to read notification %s: %w", path, err)
 	}
 	var file notificationFile
 	if err = json.Unmarshal(data, &file); err != nil {
-		return Notification{}, fmt.Errorf("failed to decode notification %s: %w", path, err)
+		return outbox.Notification{}, fmt.Errorf("failed to decode notification %s: %w", path, err)
 	}
 	id := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	return Notification{ID: id, Message: file.Message, CreatedAt: file.CreatedAt}, nil
+	return outbox.Notification{ID: id, Message: file.Message, CreatedAt: file.CreatedAt}, nil
 }
 
 func (n NotificationsOutbox) Remove(ctx context.Context, id string) error {

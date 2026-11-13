@@ -2,82 +2,26 @@ package disk
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const (
-	ExecutionLogsEventType  = "execution_logs"
-	TerraceWeatherEventType = "terrace_weather"
-	DeadLetterDirectory     = "dead-letter"
-)
-
-type Event struct {
-	ID        string            `json:"id"`
-	EventType string            `json:"event_type"`
-	EventAt   time.Time         `json:"event_at"`
-	Payload   []byte            `json:"payload"`
-	Trace     map[string]string `json:"trace"`
-}
-
-type Weather struct {
-	Temperature float32 `json:"temperature"`
-	IsRaining   bool    `json:"is_raining"`
-	Humidity    float32 `json:"humidity"`
-}
-
-func NewFromWeather(ctx context.Context, w *Weather) (*Event, error) {
-	payload, err := json.Marshal(w)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal weather: %w", err)
-	}
-	return &Event{
-		ID:        uuid.NewString(),
-		EventType: TerraceWeatherEventType,
-		EventAt:   time.Now(),
-		Payload:   payload,
-		Trace:     buildTracingMap(ctx),
-	}, nil
-}
-
-func NewFromExecutionLog(ctx context.Context, lo *Log) (*Event, error) {
-	payload, err := json.Marshal(lo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal execution log: %w", err)
-	}
-	return &Event{
-		ID:        fmt.Sprintf("%s-%v", lo.ZoneName, lo.ExecutedAt.Unix()),
-		EventType: ExecutionLogsEventType,
-		EventAt:   time.Now(),
-		Payload:   payload,
-		Trace:     buildTracingMap(ctx),
-	}, nil
-}
-
-func buildTracingMap(ctx context.Context) map[string]string {
-	carrier := make(map[string]string)
-	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(carrier))
-	return carrier
-}
+const DeadLetterDirectory = "dead-letter"
 
 type EventsRepository struct {
 	eventsDir string
 	tracer    trace.Tracer
 }
 
-func (e EventsRepository) Save(ctx context.Context, ev *Event) error {
+func (e EventsRepository) Save(ctx context.Context, ev *outbox.Event) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -100,7 +44,7 @@ func (e EventsRepository) Save(ctx context.Context, ev *Event) error {
 	}
 }
 
-func (e EventsRepository) Remove(ctx context.Context, ev *Event) error {
+func (e EventsRepository) Remove(ctx context.Context, ev *outbox.Event) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -120,7 +64,7 @@ func (e EventsRepository) Remove(ctx context.Context, ev *Event) error {
 	}
 }
 
-func (e EventsRepository) FindAll(ctx context.Context) ([]Event, error) {
+func (e EventsRepository) FindAll(ctx context.Context) ([]outbox.Event, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -137,13 +81,13 @@ func (e EventsRepository) FindAll(ctx context.Context) ([]Event, error) {
 			span.SetStatus(codes.Error, err.Error())
 			return nil, fmt.Errorf("failed to read events directory: %w", err)
 		}
-		events := make([]Event, 0, len(files))
+		events := make([]outbox.Event, 0, len(files))
 		for _, f := range files {
 			if !isEventFile(f) {
 				continue
 			}
 			path := filepath.Join(e.eventsDir, f.Name())
-			var ev Event
+			var ev outbox.Event
 			if err := readJsonFile(path, &ev); err != nil {
 				span.RecordError(fmt.Errorf("failed to read event file %s: %w", f.Name(), err))
 				if err := e.moveToDeadLetter(path); err != nil {

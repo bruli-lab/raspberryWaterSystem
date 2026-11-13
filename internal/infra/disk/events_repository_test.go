@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,17 +17,17 @@ func TestEventsRepository(t *testing.T) {
 	t.Run(`Given an Events repository`, func(t *testing.T) {
 		repo := disk.NewEventsRepository("/tmp/events", tracer())
 		number := 3
-		var events []disk.Event
+		var events []outbox.Event
 		t.Run(`when Save method is called with a Log payload in event,
 		then it create files`, func(t *testing.T) {
 			for i := 0; i < number; i++ {
 				now := time.Now()
-				lo := disk.Log{
+				lo := outbox.ExecutionLog{
 					Seconds:    10,
 					ZoneName:   fmt.Sprintf("zone_%v", i),
 					ExecutedAt: now.Add(time.Minute * time.Duration(i) * 10),
 				}
-				event, err := disk.NewFromExecutionLog(t.Context(), &lo)
+				event, err := outbox.NewFromExecutionLog(t.Context(), lo, now.Add(time.Duration(i)*time.Microsecond))
 				require.NoError(t, err)
 				err = repo.Save(t.Context(), event)
 				require.NoError(t, err)
@@ -40,7 +41,7 @@ func TestEventsRepository(t *testing.T) {
 			events = got
 
 			for _, ev := range events {
-				var log disk.Log
+				var log outbox.ExecutionLog
 				err = json.Unmarshal(ev.Payload, &log)
 				require.NoError(t, err)
 			}
