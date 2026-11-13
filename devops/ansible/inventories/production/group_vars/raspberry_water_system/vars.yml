@@ -2,3 +2,7 @@
 auth_token: "{{ auth_token_vault }}"
 ntfy_user: "{{ ntfy_user_vault }}"
 ntfy_password: "{{ ntfy_password_vault }}"
+server_url: "192.168.1.11:8080"
+nats_server_url: "nats://192.168.1.14:31222"
+otel_endpoint: "http://192.168.1.14:30318"
+ntfy_topic: "bonsais"

@@ -1,0 +1,90 @@
+name: Release and deploy
+
+on:
+  push:
+    branches:
+      - feat/new-fertilizer-system
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  test:
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  security:
+    uses: ./.github/workflows/security.yml
+
+  release:
+    needs: [ lint, test, security ]
+    runs-on: ubuntu-latest
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run semantic-release
+        id: semantic
+        run: npx --yes semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true' && vars.RASPBERRY_V2_DEPLOY_ENABLED == 'true'
+    runs-on: [ self-hosted, raspberry ]
+    environment: raspberry-v2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.release.outputs.new_release_version }}
+
+      - name: Set up Go 1.27.4
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.4'
+
+      - name: Install Task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+
+      - name: Install Ansible
+        run: |
+          python3 -m pip install --user ansible
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build ARM64 binary
+        run: task build
+
+      - name: Write vault password
+        run: |
+          umask 077
+          printf '%s' "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > "$RUNNER_TEMP/vault-pass"
+
+      - name: Deploy with Ansible
+        run: |
+          ansible-playbook -i devops/ansible/inventories/raspberry_v2/hosts devops/ansible/deploy.yml --vault-password-file "$RUNNER_TEMP/vault-pass"
+
+      - name: Clean up vault password file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/vault-pass"

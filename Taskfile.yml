@@ -185,7 +185,7 @@ tasks:
           -o devops/ansible/assets/server ./cmd/server/
 
   deploy:
-    desc: Deploy with Ansible
+    desc: Deploy with Ansible to the production Raspberry (v1, frozen)
     deps:
       - build
     cmds:
@@ -193,3 +193,13 @@ tasks:
         set -euo pipefail
         echo "🚚 Deploying with Ansible (production inventory)..."
         ansible-playbook -i devops/ansible/inventories/production/hosts devops/ansible/deploy.yml --ask-vault-pass
+
+  deploy-raspberry-v2:
+    desc: Deploy with Ansible to the new Raspberry (v2, in validation)
+    deps:
+      - build
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🚚 Deploying with Ansible (raspberry-v2 inventory)..."
+        ansible-playbook -i devops/ansible/inventories/raspberry_v2/hosts devops/ansible/deploy.yml --ask-vault-pass
