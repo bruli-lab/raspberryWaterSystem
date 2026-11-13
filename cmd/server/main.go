@@ -45,6 +45,7 @@ const (
 	pendingIrrigationMaxAge = time.Hour
 	notificationsInterval   = 10 * time.Second
 	statusUpdateInterval    = 5 * time.Minute
+	outboxEventsBatchSize   = 50
 )
 
 func main() {
@@ -287,7 +288,7 @@ func sendingNotifications(
 
 func readingEvents(ctx context.Context, pending worker.PendingEvents, publisher worker.EventPublisher, log *slog.Logger, tracer trace.Tracer) {
 	runEvery(ctx, time.Minute, log, "Reading Events", func(ctx context.Context) {
-		if _, err := worker.PublishOutboxEvents(ctx, pending, publisher, tracer); err != nil {
+		if _, err := worker.PublishOutboxEvents(ctx, pending, publisher, tracer, outboxEventsBatchSize); err != nil {
 			log.WarnContext(ctx, "[WORKER] Reading Events: events kept in the outbox", slog.String("error", err.Error()))
 		}
 	})
