@@ -195,11 +195,13 @@ tasks:
         ansible-playbook -i devops/ansible/inventories/production/hosts devops/ansible/deploy.yml --ask-vault-pass
 
   deploy-raspberry-v2:
-    desc: Deploy with Ansible to the new Raspberry (v2, in validation)
+    desc: Deploy with Ansible to the new Raspberry (v2, in validation). Secrets come live from Vault
+      (community.hashi_vault, needs VAULT_ADDR/VAULT_TOKEN in the environment), not from an ansible-vault file.
     deps:
       - build
     cmds:
       - |
         set -euo pipefail
         echo "🚚 Deploying with Ansible (raspberry-v2 inventory)..."
-        ansible-playbook -i devops/ansible/inventories/raspberry_v2/hosts devops/ansible/deploy.yml --ask-vault-pass
+        ansible-galaxy collection install -r devops/ansible/requirements.yml
+        ansible-playbook -i devops/ansible/inventories/raspberry_v2/hosts devops/ansible/deploy.yml
