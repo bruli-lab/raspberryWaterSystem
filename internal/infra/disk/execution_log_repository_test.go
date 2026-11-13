@@ -3,7 +3,6 @@
 package disk_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
@@ -13,26 +12,37 @@ import (
 )
 
 func TestExecutionLogRepository(t *testing.T) {
-	t.Run(`Given a ExecutionLogRepository,`, func(t *testing.T) {
-		ctx := context.Background()
-		path := "/tmp/execution_logs.json"
-		defer populateFile(t, path)
-		repo := disk.NewExecutionLogRepository(path, tracer())
-		t.Run(`when Save method is called,
-		then it not returns error`, func(t *testing.T) {
-			logs := []program.ExecutionLog{
+	tests := []struct {
+		name string
+		logs []program.ExecutionLog
+	}{
+		{
+			name: "without saved logs, then FindAll returns an empty slice",
+		},
+		{
+			name: "with three saved logs, then FindAll returns the three logs",
+			logs: []program.ExecutionLog{
 				fixtures.ExecutionLogBuilder{ZoneName: new("zone 1")}.Build(),
 				fixtures.ExecutionLogBuilder{ZoneName: new("zone 2")}.Build(),
 				fixtures.ExecutionLogBuilder{ZoneName: new("zone 3")}.Build(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(`Given an ExecutionLogRepository, when Save and FindAll methods are called `+tt.name, func(t *testing.T) {
+			t.Parallel()
+			repo := disk.NewExecutionLogRepository(tempFile(t, "execution_logs.json"), tracer())
+			if tt.logs != nil {
+				require.NoError(t, repo.Save(t.Context(), tt.logs))
 			}
-			err := repo.Save(ctx, logs)
+			found, err := repo.FindAll(t.Context())
 			require.NoError(t, err)
+			require.Len(t, found, len(tt.logs))
+			for i, lo := range tt.logs {
+				require.Equal(t, lo.ZoneName(), found[i].ZoneName())
+				require.Equal(t, lo.Seconds(), found[i].Seconds())
+				require.True(t, lo.ExecutedAt().Equal(found[i].ExecutedAt()))
+			}
 		})
-		t.Run(`when FindAll method is called,
-		then it returns a valid slice`, func(t *testing.T) {
-			logs, err := repo.FindAll(ctx)
-			require.NoError(t, err)
-			require.Len(t, logs, 3)
-		})
-	})
+	}
 }

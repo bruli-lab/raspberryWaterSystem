@@ -7,7 +7,7 @@ on:
       - "**.go"
       - "go.mod"
       - "go.sum"
-      - "Taskfile.yaml"
+      - "Taskfile.yml"
       - ".github/workflows/security.yml"
   pull_request:
     branches: [ "**" ]

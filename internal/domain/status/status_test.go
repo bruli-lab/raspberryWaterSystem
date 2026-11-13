@@ -13,6 +13,7 @@ func TestNew(t *testing.T) {
 	t.Run(`Given a Status struct,
 	when New function is called, 
 	then it returns a valid active status`, func(t *testing.T) {
+		t.Parallel()
 		start := time.Now()
 		weather := fixtures.WeatherBuilder{}.Build()
 		light := fixtures.LightBuilder{}.Build()

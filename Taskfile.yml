@@ -100,7 +100,7 @@ tasks:
       - |
         set -euo pipefail
         echo "🚀 Executing golangci-lint..."
-        golangci-lint run ./...
+        golangci-lint run --build-tags infra ./...
 
   test:
     desc: Run unit tests
