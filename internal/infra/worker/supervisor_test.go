@@ -1,4 +1,4 @@
-package main
+package worker_test
 
 import (
 	"context"
@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bruli/raspberryWaterSystem/internal/infra/worker"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSuperviseWorker(t *testing.T) {
+func TestSupervise(t *testing.T) {
 	tests := []struct {
 		name          string
 		panics        int32
@@ -35,7 +36,7 @@ func TestSuperviseWorker(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(`Given a supervised worker,
-		when superviseWorker function is called `+tt.name, func(t *testing.T) {
+		when Supervise function is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
@@ -43,7 +44,7 @@ func TestSuperviseWorker(t *testing.T) {
 				time.AfterFunc(tt.cancelAfter, cancel)
 			}
 			var calls atomic.Int32
-			worker := func(_ context.Context) {
+			panickingWorker := func(_ context.Context) {
 				if calls.Add(1) <= tt.panics {
 					panic("sensor is nil")
 				}
@@ -51,14 +52,14 @@ func TestSuperviseWorker(t *testing.T) {
 			done := make(chan struct{})
 
 			go func() {
-				superviseWorkerWithDelay(ctx, slog.New(slog.DiscardHandler), "test", time.Millisecond, worker)
+				worker.Supervise(ctx, slog.New(slog.DiscardHandler), "test", time.Millisecond, panickingWorker)
 				close(done)
 			}()
 
 			select {
 			case <-done:
 			case <-time.After(5 * time.Second):
-				t.Fatal("superviseWorker did not return")
+				t.Fatal("Supervise did not return")
 			}
 			if tt.expectedCalls > 0 {
 				require.Equal(t, tt.expectedCalls, calls.Load())

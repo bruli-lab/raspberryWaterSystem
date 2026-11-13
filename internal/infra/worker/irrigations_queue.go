@@ -1,4 +1,4 @@
-package main
+package worker
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
 )
 
-type pendingIrrigationsStore interface {
+type PendingIrrigationsStore interface {
 	Save(ctx context.Context, ev event.Event) (disk.PendingIrrigation, error)
 	Remove(ctx context.Context, id string) error
 	FindAll(ctx context.Context) ([]disk.PendingIrrigation, error)
@@ -21,9 +21,9 @@ type queuedEvent struct {
 	pendingID string
 }
 
-func restorePendingIrrigations(
+func RestorePendingIrrigations(
 	ctx context.Context,
-	store pendingIrrigationsStore,
+	store PendingIrrigationsStore,
 	maxAge time.Duration,
 	now time.Time,
 	log *slog.Logger,
@@ -50,11 +50,11 @@ func restorePendingIrrigations(
 	return restored
 }
 
-func queueEvents(
+func QueueEvents(
 	ctx context.Context,
 	in <-chan app.TracedEvent,
 	out chan<- app.TracedEvent,
-	store pendingIrrigationsStore,
+	store PendingIrrigationsStore,
 	restored []disk.PendingIrrigation,
 	log *slog.Logger,
 ) {
@@ -84,7 +84,7 @@ func queueEvents(
 	}
 }
 
-func persistEvent(ctx context.Context, store pendingIrrigationsStore, ev *app.TracedEvent, log *slog.Logger) queuedEvent {
+func persistEvent(ctx context.Context, store PendingIrrigationsStore, ev *app.TracedEvent, log *slog.Logger) queuedEvent {
 	if !disk.IsPendingIrrigation(ev.Event) {
 		return queuedEvent{event: *ev}
 	}
@@ -97,7 +97,7 @@ func persistEvent(ctx context.Context, store pendingIrrigationsStore, ev *app.Tr
 	return queuedEvent{event: *ev, pendingID: saved.ID}
 }
 
-func removePendingIrrigation(ctx context.Context, store pendingIrrigationsStore, id string, log *slog.Logger) {
+func removePendingIrrigation(ctx context.Context, store PendingIrrigationsStore, id string, log *slog.Logger) {
 	if err := store.Remove(ctx, id); err != nil {
 		log.ErrorContext(ctx, "[QUEUE] failed removing pending irrigation", slog.String("id", id), slog.String("error", err.Error()))
 	}

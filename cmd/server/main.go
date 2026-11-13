@@ -96,8 +96,8 @@ func run() error {
 	eventsCh := make(chan app.TracedEvent)
 	dispatchCh := make(chan app.TracedEvent)
 	pendingIrrigations := disk.NewPendingIrrigationsRepository(conf.PendingIrrigationsDir, time.Now, tracer)
-	restored := restorePendingIrrigations(ctx, pendingIrrigations, pendingIrrigationMaxAge, time.Now(), log)
-	go queueEvents(ctx, eventsCh, dispatchCh, pendingIrrigations, restored, log)
+	restored := worker.RestorePendingIrrigations(ctx, pendingIrrigations, pendingIrrigationMaxAge, time.Now(), log)
+	go worker.QueueEvents(ctx, eventsCh, dispatchCh, pendingIrrigations, restored, log)
 
 	logCHMdw := cqs.NewCommandHndErrorMiddleware(log, tracer)
 	eventsCHMdw := app.NewEventMiddleware(eventsCh, tracer)

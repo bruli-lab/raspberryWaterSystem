@@ -1,4 +1,4 @@
-package main
+package worker_test
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/worker"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -143,7 +144,7 @@ func TestQueueEvents(t *testing.T) {
 			store.saveErr = tt.saveErr
 			in := make(chan app.TracedEvent)
 			out := make(chan app.TracedEvent)
-			go queueEvents(ctx, in, out, store, nil, discardLogger())
+			go worker.QueueEvents(ctx, in, out, store, nil, discardLogger())
 
 			sent := make(chan struct{})
 			go func() {
@@ -186,7 +187,7 @@ func TestQueueEventsWithRestoredIrrigations(t *testing.T) {
 		store := newMemoryPendingStore(restored...)
 		in := make(chan app.TracedEvent)
 		out := make(chan app.TracedEvent)
-		go queueEvents(ctx, in, out, store, restored, discardLogger())
+		go worker.QueueEvents(ctx, in, out, store, restored, discardLogger())
 
 		in <- app.TracedEvent{Event: zoneIgnored("new")}
 
@@ -223,12 +224,12 @@ func TestRestorePendingIrrigations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(`Given stored pending irrigations,
-		when restorePendingIrrigations is called `+tt.name, func(t *testing.T) {
+		when RestorePendingIrrigations is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
 			store := newMemoryPendingStore(tt.pendings...)
 			store.findErr = tt.findErr
 
-			restored := restorePendingIrrigations(t.Context(), store, time.Hour, now, discardLogger())
+			restored := worker.RestorePendingIrrigations(t.Context(), store, time.Hour, now, discardLogger())
 
 			ids := make([]string, 0, len(restored))
 			for _, r := range restored {
