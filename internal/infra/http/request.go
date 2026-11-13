@@ -23,6 +23,8 @@ const (
 	weeklyProgramRequestSchema            = "WeeklyProgramRequest"
 	temperatureProgramRequestSchema       = "TemperatureProgramRequest"
 	updateTemperatureProgramRequestSchema = "UpdateTemperatureProgramRequest"
+	updateProgramRequestSchema            = "UpdateProgramRequest"
+	updateWeeklyProgramRequestSchema      = "UpdateWeeklyProgramRequest"
 )
 
 //go:embed openapi.yaml

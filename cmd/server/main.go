@@ -181,8 +181,12 @@ func run() error {
 	chBus.Subscribe(app.RemoveDailyProgramCommandName, logCHMdw(app.NewRemoveDailyProgram(dailyRepo, tracer)))
 	chBus.Subscribe(app.RemoveOddProgramCommandName, logCHMdw(app.NewRemoveOddProgram(oddRepo, tracer)))
 	chBus.Subscribe(app.RemoveEvenProgramCommandName, logCHMdw(app.NewRemoveEvenProgram(evenRepo, tracer)))
+	chBus.Subscribe(app.UpdateDailyProgramCommandName, logCHMdw(app.NewUpdateDailyProgram(dailyRepo, zr, tracer)))
+	chBus.Subscribe(app.UpdateOddProgramCommandName, logCHMdw(app.NewUpdateOddProgram(oddRepo, zr, tracer)))
+	chBus.Subscribe(app.UpdateEvenProgramCommandName, logCHMdw(app.NewUpdateEvenProgram(evenRepo, zr, tracer)))
 	chBus.Subscribe(app.CreateWeeklyProgramCommandName, logCHMdw(app.NewCreateWeeklyProgram(weeklyRepo, tracer)))
 	chBus.Subscribe(app.RemoveWeeklyProgramCommandName, logCHMdw(app.NewRemoveWeeklyProgram(weeklyRepo, tracer)))
+	chBus.Subscribe(app.UpdateWeeklyProgramCommandName, logCHMdw(app.NewUpdateWeeklyProgram(weeklyRepo, tracer)))
 	chBus.Subscribe(app.CreateTemperatureProgramCommandName, logCHMdw(app.NewCreateTemperatureProgram(tempProgRepo, tracer)))
 	chBus.Subscribe(app.RemoveTemperatureProgramCommandName, logCHMdw(app.NewRemoveTemperatureProgram(tempProgRepo, tracer)))
 	chBus.Subscribe(app.UpdateTemperatureProgramCommandName, logCHMdw(app.NewUpdateTemperatureProgram(tempProgRepo, tracer)))
@@ -435,6 +439,11 @@ func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken stri
 			HandlerFunc: authMdw(infrahttp.RemoveProgram(chBus, infrahttp.DailyProgram, tracer)),
 		},
 		{
+			Endpoint:    "/programs/daily/{hour}",
+			Method:      http.MethodPut,
+			HandlerFunc: authMdw(infrahttp.UpdateProgram(chBus, infrahttp.DailyProgram, tracer)),
+		},
+		{
 			Endpoint:    "/programs/odd",
 			Method:      http.MethodPost,
 			HandlerFunc: authMdw(infrahttp.CreateProgram(chBus, infrahttp.OddProgram, tracer)),
@@ -443,6 +452,11 @@ func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken stri
 			Endpoint:    "/programs/odd/{hour}",
 			Method:      http.MethodDelete,
 			HandlerFunc: authMdw(infrahttp.RemoveProgram(chBus, infrahttp.OddProgram, tracer)),
+		},
+		{
+			Endpoint:    "/programs/odd/{hour}",
+			Method:      http.MethodPut,
+			HandlerFunc: authMdw(infrahttp.UpdateProgram(chBus, infrahttp.OddProgram, tracer)),
 		},
 		{
 			Endpoint:    "/programs/even",
@@ -455,6 +469,11 @@ func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken stri
 			HandlerFunc: authMdw(infrahttp.RemoveProgram(chBus, infrahttp.EvenProgram, tracer)),
 		},
 		{
+			Endpoint:    "/programs/even/{hour}",
+			Method:      http.MethodPut,
+			HandlerFunc: authMdw(infrahttp.UpdateProgram(chBus, infrahttp.EvenProgram, tracer)),
+		},
+		{
 			Endpoint:    "/programs/weekly",
 			Method:      http.MethodPost,
 			HandlerFunc: authMdw(infrahttp.CreateWeeklyProgram(chBus, tracer)),
@@ -463,6 +482,11 @@ func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken stri
 			Endpoint:    "/programs/weekly/{day}",
 			Method:      http.MethodDelete,
 			HandlerFunc: authMdw(infrahttp.RemoveWeeklyProgram(chBus, tracer)),
+		},
+		{
+			Endpoint:    "/programs/weekly/{day}",
+			Method:      http.MethodPut,
+			HandlerFunc: authMdw(infrahttp.UpdateWeeklyProgram(chBus, tracer)),
 		},
 		{
 			Endpoint:    "/programs/temperature",
