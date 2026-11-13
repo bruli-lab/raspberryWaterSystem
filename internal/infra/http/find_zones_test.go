@@ -54,7 +54,7 @@ func TestFindZones(t *testing.T) {
 				},
 			}
 			handler := http.FindZones(qh, tracer())
-			req := httptest.NewRequestWithContext(t.Context(), http2.MethodGet, "/zones", http2.NoBody)
+			req := httptest.NewRequest(http2.MethodGet, "/zones", http2.NoBody)
 			writer := httptest.NewRecorder()
 
 			handler.ServeHTTP(writer, req)

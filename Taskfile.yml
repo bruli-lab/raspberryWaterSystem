@@ -100,7 +100,7 @@ tasks:
       - |
         set -euo pipefail
         echo "🚀 Executing golangci-lint..."
-        golangci-lint run --build-tags infra ./...
+        golangci-lint run --build-tags infra,resilience ./...
 
   test:
     desc: Run unit tests
@@ -111,12 +111,20 @@ tasks:
         go test -race ./... -json -cover -coverprofile=coverage.out | go tool tparse -all
 
   test-infra:
-    desc: Run infra tests (disk, listeners, timers and testcontainers, needs Docker)
+    desc: Run infra tests (real files and testcontainers, needs Docker)
     cmds:
       - |
         set -euo pipefail
         echo "🧪 Running infra tests..."
         go test -race -tags=infra ./internal/infra/... -count=1
+
+  test-resilience:
+    desc: Run resilience tests (app offline from NATS and ntfy with testcontainers, needs Docker, ~1 min)
+    cmds:
+      - |
+        set -euo pipefail
+        echo "🧪 Running resilience tests..."
+        go test -tags=resilience ./tests/resilience/... -count=1 -timeout 5m
 
   test-functional:
     desc: Run functional tests
