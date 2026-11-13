@@ -12,8 +12,8 @@ github.com/aymanbagabas/go-udiff v0.2.0 h1:TK0fH4MteXUDspT88n8CKzvK0X9O2xu9yQjWp
 github.com/aymanbagabas/go-udiff v0.2.0/go.mod h1:RE4Ex0qsGkTAJoQdQQCA0uG+nAzJO/pI/QwceO5fgrA=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/bruli-lab/go-core v1.9.0 h1:cwkQte/w6/CsvXU3d0gaIHWBOU0EP1wc+1jY8axfJN0=
-github.com/bruli-lab/go-core v1.9.0/go.mod h1:D7QEEH9oYTnbfe79JWpegUrRMzqRWKNjopjAVLl7VRY=
+github.com/bruli-lab/go-core v1.10.0 h1:+u/ZiARSh/4MpaCrstP+gim0Are6ZhpaCtuCgbCj02I=
+github.com/bruli-lab/go-core v1.10.0/go.mod h1:u/yuL1ZxbAqn/nj81Fr/ThE3me7iNUXy7n0BmG1DThs=
 github.com/caarlos0/env v3.5.0+incompatible h1:Yy0UN8o9Wtr/jGHZDpCBLpNrzcFLLM2yixi/rBrKyJs=
 github.com/caarlos0/env v3.5.0+incompatible/go.mod h1:tdCsowwCzMLdkqRYDlHpZCp2UooDD3MspDBjZ2AD02Y=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
