@@ -1,7 +1,10 @@
 ---
-auth_token: "{{ auth_token_vault }}"
-ntfy_user: "{{ ntfy_user_vault }}"
-ntfy_password: "{{ ntfy_password_vault }}"
+water_system_vault_secret: "{{ lookup('community.hashi_vault.vault_kv2_get', 'waterSystem', engine_mount_point='k3s') }}"
+ntfy_vault_secret: "{{ lookup('community.hashi_vault.vault_kv2_get', 'ntfy', engine_mount_point='k3s') }}"
+
+auth_token: "{{ water_system_vault_secret.secret.auth_token }}"
+ntfy_user: "{{ ntfy_vault_secret.secret.user }}"
+ntfy_password: "{{ ntfy_vault_secret.secret.password }}"
 server_url: "192.168.1.12:8080"
 nats_server_url: "nats://192.168.1.14:31222"
 otel_endpoint: "http://192.168.1.14:30318"

@@ -3,7 +3,7 @@ name: Release and deploy
 on:
   push:
     branches:
-      - feat/new-fertilizer-system
+      - main
 
 permissions:
   contents: write
@@ -70,21 +70,15 @@ jobs:
 
       - name: Install Ansible
         run: |
-          python3 -m pip install --user ansible
+          python3 -m pip install --user ansible hvac
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r devops/ansible/requirements.yml
 
       - name: Build ARM64 binary
         run: task build
 
-      - name: Write vault password
-        run: |
-          umask 077
-          printf '%s' "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > "$RUNNER_TEMP/vault-pass"
-
       - name: Deploy with Ansible
         run: |
-          ansible-playbook -i devops/ansible/inventories/raspberry_v2/hosts devops/ansible/deploy.yml --vault-password-file "$RUNNER_TEMP/vault-pass"
-
-      - name: Clean up vault password file
-        if: always()
-        run: rm -f "$RUNNER_TEMP/vault-pass"
+          ansible-playbook -i devops/ansible/inventories/raspberry_v2/hosts devops/ansible/deploy.yml

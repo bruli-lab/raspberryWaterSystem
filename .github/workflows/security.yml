@@ -2,7 +2,7 @@ name: Security
 
 on:
   push:
-    branches-ignore: [ "feat/new-fertilizer-system" ]
+    branches-ignore: [ "main" ]
     paths:
       - "**.go"
       - "go.mod"
