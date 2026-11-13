@@ -19,6 +19,7 @@ import (
 
 type ExecutePinsOnExecuteFertilizerZone struct {
 	ch    cqs.CommandHandler
+	wait  Wait
 	trace trace.Tracer
 	log   *slog.Logger
 }
@@ -92,13 +93,8 @@ func (e ExecutePinsOnExecuteFertilizerZone) execution(ctx context.Context, execu
 		return e.zone(ctx, executed)
 	})
 
-	timer := time.NewTimer(time.Duration(executed.StabilizationZoneSeconds) * time.Second)
-	defer timer.Stop()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
+	if err := e.wait(ctx, time.Duration(executed.StabilizationZoneSeconds)*time.Second); err != nil {
+		return err
 	}
 	g.Go(func() error {
 		if err := e.fertilizerValve(ctx, executed); err != nil {
@@ -120,6 +116,6 @@ func (e ExecutePinsOnExecuteFertilizerZone) clean(ctx context.Context, executed 
 	return e.executePin(ctx, executed.CleanValveSeconds, []string{executed.CleanValveRelayPin})
 }
 
-func NewExecutePinsOnExecuteFertilizerZone(ch cqs.CommandHandler, tracer trace.Tracer, log *slog.Logger) *ExecutePinsOnExecuteFertilizerZone {
-	return &ExecutePinsOnExecuteFertilizerZone{ch: ch, trace: tracer, log: log}
+func NewExecutePinsOnExecuteFertilizerZone(ch cqs.CommandHandler, wait Wait, tracer trace.Tracer, log *slog.Logger) *ExecutePinsOnExecuteFertilizerZone {
+	return &ExecutePinsOnExecuteFertilizerZone{ch: ch, wait: wait, trace: tracer, log: log}
 }

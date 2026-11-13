@@ -192,9 +192,9 @@ func run() error {
 
 	eventBus.Subscribe(zone.IgnoredEventName, listener.NewPublishMessageOnZoneIgnored(chBus, tracer))
 
-	eventBus.Subscribe(zone.FertilizerZoneExecutedEventName, listener.NewExecutePinsOnExecuteFertilizerZone(chBus, tracer, log), listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, time.Now, tracer))
+	eventBus.Subscribe(zone.FertilizerZoneExecutedEventName, listener.NewExecutePinsOnExecuteFertilizerZone(chBus, listener.WaitFor, tracer, log), listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, time.Now, tracer))
 
-	eventBus.Subscribe(zone.CleanZoneExecutedEventName, listener.NewExecutePinsOnExecuteCleanZone(chBus, tracer, log))
+	eventBus.Subscribe(zone.CleanZoneExecutedEventName, listener.NewExecutePinsOnExecuteCleanZone(chBus, listener.WaitFor, tracer, log))
 
 	if err = worker.InitStatus(ctx, qhBus, chBus, time.Now()); err != nil {
 		log.ErrorContext(ctx, "failed initializing status", slog.String("error", err.Error()))
