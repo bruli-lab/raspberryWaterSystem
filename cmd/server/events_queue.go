@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
-	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 )
 
 type pendingIrrigationsStore interface {
@@ -17,7 +17,7 @@ type pendingIrrigationsStore interface {
 }
 
 type queuedEvent struct {
-	event     tracing.Event
+	event     app.TracedEvent
 	pendingID string
 }
 
@@ -52,19 +52,19 @@ func restorePendingIrrigations(
 
 func queueEvents(
 	ctx context.Context,
-	in <-chan tracing.Event,
-	out chan<- tracing.Event,
+	in <-chan app.TracedEvent,
+	out chan<- app.TracedEvent,
 	store pendingIrrigationsStore,
 	restored []disk.PendingIrrigation,
 	log *slog.Logger,
 ) {
 	pending := make([]queuedEvent, 0, len(restored))
 	for _, r := range restored {
-		pending = append(pending, queuedEvent{event: tracing.Event{Event: r.Event}, pendingID: r.ID})
+		pending = append(pending, queuedEvent{event: app.TracedEvent{Event: r.Event}, pendingID: r.ID})
 	}
 	for {
 		var next queuedEvent
-		var sendCh chan<- tracing.Event
+		var sendCh chan<- app.TracedEvent
 		if len(pending) > 0 {
 			next = pending[0]
 			sendCh = out
@@ -84,7 +84,7 @@ func queueEvents(
 	}
 }
 
-func persistEvent(ctx context.Context, store pendingIrrigationsStore, ev *tracing.Event, log *slog.Logger) queuedEvent {
+func persistEvent(ctx context.Context, store pendingIrrigationsStore, ev *app.TracedEvent, log *slog.Logger) queuedEvent {
 	if !disk.IsPendingIrrigation(ev.Event) {
 		return queuedEvent{event: *ev}
 	}

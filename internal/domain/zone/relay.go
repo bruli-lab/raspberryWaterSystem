@@ -1,6 +1,9 @@
 package zone
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 const (
 	OneRelayID = iota + 1
@@ -55,4 +58,27 @@ func newRelay(id RelayID) (Relay, error) {
 
 func ParseRelay(i int) (Relay, error) {
 	return newRelay(RelayID(i))
+}
+
+var (
+	fertilizerPumpRelay  = mustRelay(FertilizerPumpID)
+	airRelay             = mustRelay(AirRelayID)
+	cleanValveRelay      = mustRelay(CleanValveID)
+	fertilizerValveRelay = mustRelay(FertilizerValveID)
+)
+
+func mustRelay(id RelayID) Relay {
+	r, err := newRelay(id)
+	if err != nil {
+		panic(UnknownFixedRelayError{id: id})
+	}
+	return r
+}
+
+type UnknownFixedRelayError struct {
+	id RelayID
+}
+
+func (u UnknownFixedRelayError) Error() string {
+	return fmt.Sprintf("fixed relay %d has no pin", u.id)
 }

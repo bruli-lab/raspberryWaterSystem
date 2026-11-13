@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/bruli-lab/go-core/event"
+	"github.com/bruli/raspberryWaterSystem/internal/app"
 	"github.com/bruli/raspberryWaterSystem/internal/domain/zone"
 	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
-	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -95,7 +95,7 @@ func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func receive(t *testing.T, out <-chan tracing.Event) event.Event {
+func receive(t *testing.T, out <-chan app.TracedEvent) event.Event {
 	t.Helper()
 	select {
 	case ev := <-out:
@@ -141,8 +141,8 @@ func TestQueueEvents(t *testing.T) {
 			defer cancel()
 			store := newMemoryPendingStore()
 			store.saveErr = tt.saveErr
-			in := make(chan tracing.Event)
-			out := make(chan tracing.Event)
+			in := make(chan app.TracedEvent)
+			out := make(chan app.TracedEvent)
 			go queueEvents(ctx, in, out, store, nil, discardLogger())
 
 			sent := make(chan struct{})
@@ -153,7 +153,7 @@ func TestQueueEvents(t *testing.T) {
 					if tt.irrigation {
 						ev = zoneExecuted(name)
 					}
-					in <- tracing.Event{Event: ev}
+					in <- app.TracedEvent{Event: ev}
 				}
 				close(sent)
 			}()
@@ -184,11 +184,11 @@ func TestQueueEventsWithRestoredIrrigations(t *testing.T) {
 			{ID: "b", EnqueuedAt: time.Now(), Event: zoneExecuted("restored 2")},
 		}
 		store := newMemoryPendingStore(restored...)
-		in := make(chan tracing.Event)
-		out := make(chan tracing.Event)
+		in := make(chan app.TracedEvent)
+		out := make(chan app.TracedEvent)
 		go queueEvents(ctx, in, out, store, restored, discardLogger())
 
-		in <- tracing.Event{Event: zoneIgnored("new")}
+		in <- app.TracedEvent{Event: zoneIgnored("new")}
 
 		require.Equal(t, "restored 1", receive(t, out).AggregateRootID())
 		require.Equal(t, "restored 2", receive(t, out).AggregateRootID())

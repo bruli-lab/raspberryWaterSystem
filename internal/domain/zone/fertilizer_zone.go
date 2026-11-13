@@ -1,7 +1,6 @@
 package zone
 
 import (
-	"sync"
 	"time"
 
 	"github.com/bruli-lab/go-core/event"
@@ -21,7 +20,6 @@ type FertilizerZone struct {
 	fertilizerPump  *FertilizerPumpZone
 	cleanValve      *CleanValveZone
 	fertilizerValve *FertilizerValveZone
-	mutex           sync.Mutex
 }
 
 func (z *FertilizerZone) Execute(seconds uint) error {
@@ -52,8 +50,6 @@ func (z *FertilizerZone) Execute(seconds uint) error {
 }
 
 func (z *FertilizerZone) ExecuteWithStatus(active, raining bool, seconds uint) error {
-	z.mutex.Lock()
-	defer z.mutex.Unlock()
 	if ignored, isIgnored := ignoredByStatus(z.zone.id, z.zone.name, active, raining); isIgnored {
 		z.Record(ignored)
 		return nil
@@ -69,15 +65,13 @@ func NewFertilizerZone(zone *Zone) *FertilizerZone {
 		fertilizerPump:     &FertilizerPumpZone{},
 		cleanValve:         &CleanValveZone{},
 		fertilizerValve:    &FertilizerValveZone{},
-		mutex:              sync.Mutex{},
 	}
 }
 
 type FertilizerValveZone struct{}
 
-func (f FertilizerValveZone) Relay() *Relay {
-	r, _ := ParseRelay(FertilizerValveID)
-	return &r
+func (f FertilizerValveZone) Relay() Relay {
+	return fertilizerValveRelay
 }
 
 type CleanValveZone struct{}
@@ -86,16 +80,14 @@ func (c CleanValveZone) Seconds() time.Duration {
 	return CleanValveDefaultTime
 }
 
-func (c CleanValveZone) Relay() *Relay {
-	r, _ := ParseRelay(CleanValveID)
-	return &r
+func (c CleanValveZone) Relay() Relay {
+	return cleanValveRelay
 }
 
 type FertilizerPumpZone struct{}
 
-func (f FertilizerPumpZone) Relay() *Relay {
-	r, _ := ParseRelay(FertilizerPumpID)
-	return &r
+func (f FertilizerPumpZone) Relay() Relay {
+	return fertilizerPumpRelay
 }
 
 type AirZone struct{}
@@ -104,7 +96,6 @@ func (a AirZone) Seconds() time.Duration {
 	return AirZoneDefaultTime
 }
 
-func (a AirZone) Relay() *Relay {
-	r, _ := ParseRelay(AirRelayID)
-	return &r
+func (a AirZone) Relay() Relay {
+	return airRelay
 }
