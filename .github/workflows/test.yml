@@ -93,6 +93,10 @@ jobs:
         run: |
           task test-infra
 
+      - name: Run functional tests
+        run: |
+          task test-functional
+
       - name: Run resilience tests
         run: |
           task test-resilience

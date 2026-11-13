@@ -29,6 +29,7 @@ func (z ZoneRepository) Update(ctx context.Context, zo *zone.Zone) error {
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.Update")
 		defer span.End()
+		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			return err
@@ -54,6 +55,7 @@ func (z ZoneRepository) FindAll(ctx context.Context) ([]*zone.Zone, error) {
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.FindAll")
 		defer span.End()
+		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			span.RecordError(err)
@@ -74,6 +76,7 @@ func (z ZoneRepository) Remove(ctx context.Context, zo *zone.Zone) error {
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.Remove")
 		defer span.End()
+		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			span.RecordError(err)
@@ -105,6 +108,7 @@ func (z ZoneRepository) FindByID(ctx context.Context, id string) (*zone.Zone, er
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.FindByID")
 		defer span.End()
+		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			span.RecordError(err)
@@ -156,6 +160,7 @@ func (z ZoneRepository) Save(ctx context.Context, zo *zone.Zone) error {
 	default:
 		_, span := z.tracer.Start(ctx, "ZoneRepository.Save")
 		defer span.End()
+		defer lockFile(z.filePath)()
 		zones := make(zonesMap)
 		if err := readYamlFile(z.filePath, &zones); err != nil {
 			span.RecordError(err)

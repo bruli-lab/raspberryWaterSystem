@@ -26,6 +26,7 @@ func (t TemperatureProgramRepository) FindByTemperature(ctx context.Context, tem
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.FindByTemperature")
 		defer span.End()
+		defer lockFile(t.path)()
 		temp := make(temperatureMap)
 		if err := readYamlFile(t.path, &temp); err != nil {
 			span.RecordError(err)
@@ -59,6 +60,7 @@ func (t TemperatureProgramRepository) Remove(ctx context.Context, temperature fl
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.Remove")
 		defer span.End()
+		defer lockFile(t.path)()
 		temp := make(temperatureMap)
 		if err := readYamlFile(t.path, &temp); err != nil {
 			span.RecordError(err)
@@ -83,6 +85,7 @@ func (t TemperatureProgramRepository) Save(ctx context.Context, programs *progra
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.Save")
 		defer span.End()
+		defer lockFile(t.path)()
 		temp := make(temperatureMap)
 		if err := readYamlFile(t.path, &temp); err != nil {
 			span.RecordError(err)
@@ -107,6 +110,7 @@ func (t TemperatureProgramRepository) FindAll(ctx context.Context) ([]program.Te
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.FindAll")
 		defer span.End()
+		defer lockFile(t.path)()
 		temperature := make(temperatureMap)
 		if err := readYamlFile(t.path, &temperature); err != nil {
 			span.RecordError(err)
@@ -138,6 +142,7 @@ func (t TemperatureProgramRepository) FindByTemperatureAndHour(ctx context.Conte
 	default:
 		_, span := t.tracer.Start(ctx, "TemperatureProgramRepository.FindByTemperatureAndHour")
 		defer span.End()
+		defer lockFile(t.path)()
 		temp := make(temperatureMap)
 		if err := readYamlFile(t.path, &temp); err != nil {
 			span.RecordError(err)

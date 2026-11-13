@@ -24,6 +24,7 @@ func (w WeeklyRepository) FindByDay(ctx context.Context, day *program.WeekDay) (
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.FindByDay")
 		defer span.End()
+		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
@@ -57,6 +58,7 @@ func (w WeeklyRepository) Remove(ctx context.Context, day *program.WeekDay) erro
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.Remove")
 		defer span.End()
+		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
@@ -81,6 +83,7 @@ func (w WeeklyRepository) FindByDayAndHour(ctx context.Context, day *program.Wee
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.FindByDayAndHour")
 		defer span.End()
+		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
@@ -119,6 +122,7 @@ func (w WeeklyRepository) Save(ctx context.Context, prg *program.Weekly) error {
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.Save")
 		defer span.End()
+		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
@@ -143,6 +147,7 @@ func (w WeeklyRepository) FindAll(ctx context.Context) ([]program.Weekly, error)
 	default:
 		_, span := w.tracer.Start(ctx, "WeeklyRepository.FindAll")
 		defer span.End()
+		defer lockFile(w.path)()
 		weekly := make(weeklyMap)
 		if err := readYamlFile(w.path, &weekly); err != nil {
 			span.RecordError(err)
