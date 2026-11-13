@@ -81,7 +81,7 @@ func TestExecutePinsHandle(t *testing.T) {
 			events, err := handler.Handle(context.Background(), tt.cmd)
 			require.Len(t, pe.ExecuteCalls(), tt.expectedExecutions)
 			if tt.expectedErr != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.NoError(t, err)

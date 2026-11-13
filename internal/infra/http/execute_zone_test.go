@@ -65,7 +65,7 @@ func TestExecuteZone(t *testing.T) {
 			handler := http.ExecuteZone(ch, tracer())
 			server := chi.NewMux()
 			server.Post("/zones/{id}/execute", handler)
-			req := httptest.NewRequest(http2.MethodPost, "/zones/id/execute", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPost, "/zones/id/execute", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

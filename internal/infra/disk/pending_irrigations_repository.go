@@ -70,7 +70,7 @@ func (p PendingIrrigationsRepository) save(ev event.Event) (PendingIrrigation, e
 	}
 	enqueuedAt := p.now()
 	id := fmt.Sprintf("%020d-%010d", enqueuedAt.UnixNano(), p.sequence.Add(1))
-	if err = os.MkdirAll(p.dir, 0o755); err != nil {
+	if err = os.MkdirAll(p.dir, DirPermissions); err != nil {
 		return PendingIrrigation{}, fmt.Errorf("failed to create pending irrigations directory: %w", err)
 	}
 	file := pendingIrrigationFile{Name: ev.EventName(), EnqueuedAt: enqueuedAt, Event: payload}

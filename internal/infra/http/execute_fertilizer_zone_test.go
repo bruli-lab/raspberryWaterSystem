@@ -58,7 +58,7 @@ func TestExecuteFertilizerZone(t *testing.T) {
 			handler := http.ExecuteFertilizerZone(ch, tracer())
 			server := chi.NewMux()
 			server.Post("/zones/fertilizer/{id}/execute", handler)
-			req := httptest.NewRequest(http2.MethodPost, "/zones/fertilizer/id/execute", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPost, "/zones/fertilizer/id/execute", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

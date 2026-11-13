@@ -3,7 +3,6 @@ package http_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	http2 "net/http"
 	"net/http/httptest"
 	"testing"
@@ -84,7 +83,7 @@ func TestRemoveProgram(t *testing.T) {
 			}
 			server := chi.NewMux()
 			server.Delete("/programs/{hour}", http.RemoveProgram(ch, tt.program, tracer()))
-			req := httptest.NewRequest(http2.MethodDelete, fmt.Sprintf("/programs/%s", tt.hour), http2.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodDelete, "/programs/"+tt.hour, http2.NoBody)
 			writer := httptest.NewRecorder()
 
 			server.ServeHTTP(writer, req)

@@ -62,7 +62,7 @@ func TestExecutePinsOnExecuteCleanZoneInBackground(t *testing.T) {
 		expectedPublishCalls int
 	}{
 		{
-			name:                 "and publishing notifications returns an error, then it returns immediately, runs the clean and clarify phases in background and clears the clean status",
+			name:                 "and publishing notifications fails, then it returns immediately, runs clean and clarify in the background and clears the clean status",
 			event:                cleanZoneEvent(time.Millisecond),
 			publishErr:           errors.New("ntfy unreachable"),
 			expectedPinsCalls:    6,

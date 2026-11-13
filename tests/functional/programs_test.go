@@ -34,6 +34,7 @@ func TestPrograms(t *testing.T) {
 		{
 			name: "a daily program is created, then it is listed",
 			run: func(t *testing.T, zoneID string) {
+				t.Helper()
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/daily", program("12:45", zoneID)))
 				require.True(t, hasHour(programs(t, st).Daily, "12:45"))
 			},
@@ -41,6 +42,7 @@ func TestPrograms(t *testing.T) {
 		{
 			name: "a daily program is removed, then it is no longer listed",
 			run: func(t *testing.T, zoneID string) {
+				t.Helper()
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/daily", program("13:45", zoneID)))
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodDelete, "/programs/daily/13:45", nil))
 				require.False(t, hasHour(programs(t, st).Daily, "13:45"))
@@ -49,6 +51,7 @@ func TestPrograms(t *testing.T) {
 		{
 			name: "an odd program is created and removed, then it is no longer listed",
 			run: func(t *testing.T, zoneID string) {
+				t.Helper()
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/odd", program("14:45", zoneID)))
 				require.True(t, hasHour(programs(t, st).Odd, "14:45"))
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodDelete, "/programs/odd/14:45", nil))
@@ -58,6 +61,7 @@ func TestPrograms(t *testing.T) {
 		{
 			name: "an even program is created and removed, then it is no longer listed",
 			run: func(t *testing.T, zoneID string) {
+				t.Helper()
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/even", program("15:45", zoneID)))
 				require.True(t, hasHour(programs(t, st).Even, "15:45"))
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodDelete, "/programs/even/15:45", nil))
@@ -67,12 +71,14 @@ func TestPrograms(t *testing.T) {
 		{
 			name: "a daily program that does not exist is removed, then it returns not found",
 			run: func(t *testing.T, _ string) {
+				t.Helper()
 				require.Equal(t, http2.StatusNotFound, st.Send(t, http2.MethodDelete, "/programs/daily/23:59", nil))
 			},
 		},
 		{
 			name: "a weekly program is created and removed, then it is no longer listed",
 			run: func(t *testing.T, zoneID string) {
+				t.Helper()
 				weekly := http.WeeklyProgramRequest{Programs: []http.Program{program("10:00", zoneID)}, WeekDay: "Monday"}
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/weekly", weekly))
 				require.True(t, slices.ContainsFunc(programs(t, st).Weekly, func(item http.WeeklyItemResponse) bool {
@@ -87,6 +93,7 @@ func TestPrograms(t *testing.T) {
 		{
 			name: "a temperature program is created, updated and removed, then each change is listed",
 			run: func(t *testing.T, zoneID string) {
+				t.Helper()
 				temperature := func(hour string) bool {
 					return slices.ContainsFunc(programs(t, st).Temperature, func(item http.TemperatureItemResponse) bool {
 						return item.Temperature == 20 && (hour == "" || hasHour(item.Programs, hour))

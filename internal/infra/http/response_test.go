@@ -10,6 +10,7 @@ import (
 )
 
 func readResponse(t *testing.T, resp *http2.Response, schema any) {
+	t.Helper()
 	body := resp.Body
 	defer func() { _ = body.Close() }()
 	respBody, err := io.ReadAll(body)

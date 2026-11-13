@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli-lab/go-core/event"
@@ -94,5 +93,5 @@ func (e ExecuteZoneWithStatusError) Unwrap() error {
 }
 
 func (e ExecuteZoneWithStatusError) Error() string {
-	return fmt.Sprintf("failed to execute zone with status: %s", e.m)
+	return "failed to execute zone with status: " + e.m
 }

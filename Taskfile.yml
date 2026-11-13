@@ -143,21 +143,13 @@ tasks:
       - task: lint
       - task: test
 
-  install-openapi:
-      desc: Install openapi-codegen
-      cmds:
-        - |
-          set -euo pipefail
-          echo "🧪 Installing openapi-codegen..."
-          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
-
   generate-schema:
     desc: Generate code from JSON schemas
     cmds:
       - |
         set -euo pipefail
         echo "🧪 Generating code from openapi.yaml..."
-        oapi-codegen \
+        go tool oapi-codegen \
           -generate types,skip-prune \
           -package http \
           -o internal/infra/http/models.gen.go \

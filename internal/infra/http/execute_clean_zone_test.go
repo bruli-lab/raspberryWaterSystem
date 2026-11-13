@@ -55,7 +55,7 @@ func TestExecuteCleanZone(t *testing.T) {
 			handler := http.ExecuteCleanZone(ch, tracer())
 			server := chi.NewMux()
 			server.Post("/zones/clean/{id}/execute", handler)
-			req := httptest.NewRequest(http2.MethodPost, "/zones/clean/id/execute", http2.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPost, "/zones/clean/id/execute", http2.NoBody)
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

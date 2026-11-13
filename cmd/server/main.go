@@ -75,7 +75,7 @@ func run() error {
 		return err
 	}
 	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 
 		if err = tracingProv.Shutdown(shutdownCtx); err != nil {
@@ -84,7 +84,7 @@ func run() error {
 	}()
 
 	defer func() {
-		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		if err := pe.Stop(stopCtx); err != nil {
 			log.ErrorContext(stopCtx, "failed turning off relays at shutdown", slog.String("error", err.Error()))
@@ -188,11 +188,15 @@ func run() error {
 	chBus.Subscribe(app.ChangeCleanStatusCmdName, logCHMdw(app.NewChangeCleanStatus(statusRepo, tracer)))
 
 	eventBus := event.NewBus()
-	eventBus.Subscribe(zone.ExecutedEventName, listener.NewExecutePinsOnExecuteZone(chBus, tracer), listener.NewWriteExecutionLogEventOnExecuteZone(eventsRepo, time.Now, tracer))
+	executePinsOnExecuteZone := listener.NewExecutePinsOnExecuteZone(chBus, tracer)
+	writeExecutionLogOnExecuteZone := listener.NewWriteExecutionLogEventOnExecuteZone(eventsRepo, time.Now, tracer)
+	eventBus.Subscribe(zone.ExecutedEventName, executePinsOnExecuteZone, writeExecutionLogOnExecuteZone)
 
 	eventBus.Subscribe(zone.IgnoredEventName, listener.NewPublishMessageOnZoneIgnored(chBus, tracer))
 
-	eventBus.Subscribe(zone.FertilizerZoneExecutedEventName, listener.NewExecutePinsOnExecuteFertilizerZone(chBus, listener.WaitFor, tracer, log), listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, time.Now, tracer))
+	executePinsOnExecuteFertilizerZone := listener.NewExecutePinsOnExecuteFertilizerZone(chBus, listener.WaitFor, tracer, log)
+	writeExecutionLogOnExecuteFertilizerZone := listener.NewWriteExecutionLogEventOnExecuteFertilizerZone(eventsRepo, time.Now, tracer)
+	eventBus.Subscribe(zone.FertilizerZoneExecutedEventName, executePinsOnExecuteFertilizerZone, writeExecutionLogOnExecuteFertilizerZone)
 
 	eventBus.Subscribe(zone.CleanZoneExecutedEventName, listener.NewExecutePinsOnExecuteCleanZone(chBus, listener.WaitFor, tracer, log))
 
