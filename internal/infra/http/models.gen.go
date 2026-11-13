@@ -70,8 +70,19 @@ type TemperatureProgramRequest struct {
 	Temperature float32   `json:"temperature"`
 }
 
+// UpdateProgramRequest defines model for UpdateProgramRequest.
+type UpdateProgramRequest struct {
+	Executions []ExecutionRequest `json:"executions"`
+	Fertilizer *bool              `json:"fertilizer,omitempty"`
+}
+
 // UpdateTemperatureProgramRequest defines model for UpdateTemperatureProgramRequest.
 type UpdateTemperatureProgramRequest struct {
+	Programs []Program `json:"programs"`
+}
+
+// UpdateWeeklyProgramRequest defines model for UpdateWeeklyProgramRequest.
+type UpdateWeeklyProgramRequest struct {
 	Programs []Program `json:"programs"`
 }
 

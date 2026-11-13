@@ -25,6 +25,16 @@ func hasHour(items []http.ProgramItemResponse, hour string) bool {
 	})
 }
 
+func programItem(items []http.ProgramItemResponse, hour string) (http.ProgramItemResponse, bool) {
+	i := slices.IndexFunc(items, func(item http.ProgramItemResponse) bool {
+		return item.Hour == hour
+	})
+	if i == -1 {
+		return http.ProgramItemResponse{}, false
+	}
+	return items[i], true
+}
+
 func TestPrograms(t *testing.T) {
 	st := harness.Start(t, appBinary)
 	tests := []struct {
@@ -49,6 +59,30 @@ func TestPrograms(t *testing.T) {
 			},
 		},
 		{
+			name: "a daily program is updated, then the change is listed with the new executions and fertilizer flag",
+			run: func(t *testing.T, zoneID string) {
+				t.Helper()
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/daily", program("12:50", zoneID)))
+				update := http.UpdateProgramRequest{
+					Executions: []http.ExecutionRequest{{Seconds: 30, Zones: []string{zoneID}}},
+					Fertilizer: ptrTo(true),
+				}
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/daily/12:50", update))
+				item, found := programItem(programs(t, st).Daily, "12:50")
+				require.True(t, found)
+				require.True(t, item.Fertilizer)
+				require.Equal(t, []http.ExecutionItemResponse{{Seconds: 30, Zones: []string{zoneID}}}, item.Executions)
+			},
+		},
+		{
+			name: "a daily program that does not exist is updated, then it returns not found",
+			run: func(t *testing.T, zoneID string) {
+				t.Helper()
+				update := http.UpdateProgramRequest{Executions: []http.ExecutionRequest{{Seconds: 10, Zones: []string{zoneID}}}}
+				require.Equal(t, http2.StatusNotFound, st.Send(t, http2.MethodPut, "/programs/daily/23:58", update))
+			},
+		},
+		{
 			name: "an odd program is created and removed, then it is no longer listed",
 			run: func(t *testing.T, zoneID string) {
 				t.Helper()
@@ -59,6 +93,18 @@ func TestPrograms(t *testing.T) {
 			},
 		},
 		{
+			name: "an odd program is updated, then the change is listed",
+			run: func(t *testing.T, zoneID string) {
+				t.Helper()
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/odd", program("14:50", zoneID)))
+				update := http.UpdateProgramRequest{Executions: []http.ExecutionRequest{{Seconds: 40, Zones: []string{zoneID}}}}
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/odd/14:50", update))
+				item, found := programItem(programs(t, st).Odd, "14:50")
+				require.True(t, found)
+				require.Equal(t, []http.ExecutionItemResponse{{Seconds: 40, Zones: []string{zoneID}}}, item.Executions)
+			},
+		},
+		{
 			name: "an even program is created and removed, then it is no longer listed",
 			run: func(t *testing.T, zoneID string) {
 				t.Helper()
@@ -66,6 +112,18 @@ func TestPrograms(t *testing.T) {
 				require.True(t, hasHour(programs(t, st).Even, "15:45"))
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodDelete, "/programs/even/15:45", nil))
 				require.False(t, hasHour(programs(t, st).Even, "15:45"))
+			},
+		},
+		{
+			name: "an even program is updated, then the change is listed",
+			run: func(t *testing.T, zoneID string) {
+				t.Helper()
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/even", program("15:50", zoneID)))
+				update := http.UpdateProgramRequest{Executions: []http.ExecutionRequest{{Seconds: 50, Zones: []string{zoneID}}}}
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/even/15:50", update))
+				item, found := programItem(programs(t, st).Even, "15:50")
+				require.True(t, found)
+				require.Equal(t, []http.ExecutionItemResponse{{Seconds: 50, Zones: []string{zoneID}}}, item.Executions)
 			},
 		},
 		{
@@ -88,6 +146,27 @@ func TestPrograms(t *testing.T) {
 				require.False(t, slices.ContainsFunc(programs(t, st).Weekly, func(item http.WeeklyItemResponse) bool {
 					return item.WeekDay == "Monday"
 				}))
+			},
+		},
+		{
+			name: "a weekly program is updated, then the change is listed",
+			run: func(t *testing.T, zoneID string) {
+				t.Helper()
+				weekly := http.WeeklyProgramRequest{Programs: []http.Program{program("09:00", zoneID)}, WeekDay: "Tuesday"}
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/weekly", weekly))
+				update := http.UpdateWeeklyProgramRequest{Programs: []http.Program{program("11:00", zoneID)}}
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/weekly/Tuesday", update))
+				require.True(t, slices.ContainsFunc(programs(t, st).Weekly, func(item http.WeeklyItemResponse) bool {
+					return item.WeekDay == "Tuesday" && hasHour(item.Programs, "11:00") && !hasHour(item.Programs, "09:00")
+				}))
+			},
+		},
+		{
+			name: "a weekly program that does not exist is updated, then it returns not found",
+			run: func(t *testing.T, zoneID string) {
+				t.Helper()
+				update := http.UpdateWeeklyProgramRequest{Programs: []http.Program{program("11:00", zoneID)}}
+				require.Equal(t, http2.StatusNotFound, st.Send(t, http2.MethodPut, "/programs/weekly/Sunday", update))
 			},
 		},
 		{
@@ -126,4 +205,8 @@ func program(hour, zoneID string) http.Program {
 		Executions: []http.ExecutionRequest{{Seconds: 10, Zones: []string{zoneID}}},
 		Hour:       hour,
 	}
+}
+
+func ptrTo[T any](v T) *T {
+	return &v
 }

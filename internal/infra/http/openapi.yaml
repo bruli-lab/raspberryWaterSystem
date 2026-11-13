@@ -206,6 +206,15 @@ components:
                  $ref: "#/components/schemas/program"
         required:
             - programs
+    UpdateWeeklyProgramRequest:
+        type: object
+        properties:
+            programs:
+               type: array
+               items:
+                 $ref: "#/components/schemas/program"
+        required:
+            - programs
     TemperatureProgramRequest:
         type: object
         properties:
@@ -260,6 +269,20 @@ components:
           type: array
           items:
             type: string
+
+    UpdateProgramRequest:
+      type: object
+      required:
+        - executions
+      properties:
+        fertilizer:
+          type: boolean
+          default: false
+
+        executions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExecutionRequest"
 
     zonesResponse:
         type: object

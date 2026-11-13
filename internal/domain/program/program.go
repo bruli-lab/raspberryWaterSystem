@@ -79,6 +79,10 @@ func HydrateWeekly(weekDay WeekDay, programs []Program) Weekly {
 	return Weekly{weekDay: weekDay, programs: programs}
 }
 
+func (w *Weekly) Update(programs []Program) {
+	w.programs = programs
+}
+
 type Temperature struct {
 	temperature float32
 	programs    []Program
