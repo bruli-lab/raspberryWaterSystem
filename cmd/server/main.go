@@ -119,7 +119,7 @@ func run() error {
 		log.ErrorContext(ctx, "failed loading time zone", slog.String("error", err.Error()))
 		return err
 	}
-	sunriseSunsetRepo := api.NewSunriseSunsetRepository(latitude, longitude, location, 5*time.Second)
+	sunriseSunsetRepo := api.NewSunriseSunsetRepository(api.SunriseSunsetURL, latitude, longitude, location, 5*time.Second)
 	go superviseWorker(ctx, log, "clean yesterday light", sunriseSunsetRepo.CleanYesterday)
 	lightRepo := solar.NewFallbackLightRepository(
 		sunriseSunsetRepo,

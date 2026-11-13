@@ -36,6 +36,7 @@ func RemoveProgram(ch cqs.CommandHandler, prg string, tracer trace.Tracer) http.
 			default:
 				WriteErrorResponse(writer, http.StatusInternalServerError)
 			}
+			return
 		}
 		span.SetStatus(codes.Ok, "program removed")
 		WriteResponse(writer, http.StatusOK, nil)

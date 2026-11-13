@@ -92,3 +92,7 @@ jobs:
       - name: Run infra tests
         run: |
           task test-infra
+
+      - name: Run resilience tests
+        run: |
+          task test-resilience
