@@ -8,7 +8,6 @@ import (
 
 	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli-lab/go-core/event"
-	"github.com/bruli/raspberryWaterSystem/internal/infra/tracing"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 
@@ -29,11 +28,11 @@ func TestNewEventMiddleware(t *testing.T) {
 			At:        time.Now(),
 			AggRootID: "dkdkdkd",
 		}
-		event1 := tracing.Event{
+		event1 := app.TracedEvent{
 			SpanContext: trace.SpanContext{},
 			Event:       ev,
 		}
-		eventCh := make(chan tracing.Event)
+		eventCh := make(chan app.TracedEvent)
 		eventMdw := app.NewEventMiddleware(eventCh, tracer())
 		handler := eventMdw(commandHandler{
 			events: []event.Event{

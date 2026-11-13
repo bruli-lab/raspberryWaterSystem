@@ -2,7 +2,6 @@ package zone
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/bruli-lab/go-core/event"
@@ -29,7 +28,6 @@ type Zone struct {
 	event.BasicAggregateRoot
 	id, name string
 	relays   []Relay
-	mutex    sync.RWMutex
 }
 
 func (z *Zone) Id() string {
@@ -54,7 +52,6 @@ func New(id, name string, relays []Relay) (*Zone, error) {
 		id:                 id,
 		name:               name,
 		relays:             relays,
-		mutex:              sync.RWMutex{},
 	}
 	if err := z.validate(); err != nil {
 		return nil, err
@@ -67,7 +64,6 @@ func HydrateZone(id, name string, relays []Relay) *Zone {
 		id:     id,
 		name:   name,
 		relays: relays,
-		mutex:  sync.RWMutex{},
 	}
 }
 
@@ -104,8 +100,6 @@ func (z *Zone) Execute(seconds uint) error {
 }
 
 func (z *Zone) IgnoreWhileCleaning() {
-	z.mutex.Lock()
-	defer z.mutex.Unlock()
 	z.Record(Ignored{
 		BasicEvent: event.NewBasicEvent(IgnoredEventName, uuid.New(), z.id),
 		ZoneName:   z.name,
@@ -114,8 +108,6 @@ func (z *Zone) IgnoreWhileCleaning() {
 }
 
 func (z *Zone) ExecuteWithStatus(active, raining bool, seconds uint) error {
-	z.mutex.Lock()
-	defer z.mutex.Unlock()
 	if ignored, isIgnored := ignoredByStatus(z.id, z.name, active, raining); isIgnored {
 		z.Record(ignored)
 		return nil

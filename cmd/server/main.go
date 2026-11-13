@@ -95,8 +95,8 @@ func run() error {
 
 	tracer := otel.Tracer(serviceName)
 
-	eventsCh := make(chan tracing.Event)
-	dispatchCh := make(chan tracing.Event)
+	eventsCh := make(chan app.TracedEvent)
+	dispatchCh := make(chan app.TracedEvent)
 	pendingIrrigations := disk.NewPendingIrrigationsRepository(conf.PendingIrrigationsDir, time.Now, tracer)
 	restored := restorePendingIrrigations(ctx, pendingIrrigations, pendingIrrigationMaxAge, time.Now(), log)
 	go queueEvents(ctx, eventsCh, dispatchCh, pendingIrrigations, restored, log)
@@ -424,7 +424,7 @@ func executionInTimeWorker(ctx context.Context, qh cqs.QueryHandler, ch cqs.Comm
 	}
 }
 
-func eventsWorker(ctx context.Context, ch <-chan tracing.Event, evBus event.Bus, logger *slog.Logger, tracer trace.Tracer) {
+func eventsWorker(ctx context.Context, ch <-chan app.TracedEvent, evBus event.Bus, logger *slog.Logger, tracer trace.Tracer) {
 	logger.InfoContext(ctx, "[WORKER] Events: started")
 	for {
 		select {
