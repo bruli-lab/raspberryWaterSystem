@@ -60,7 +60,7 @@ func TestFindExecutionLogs(t *testing.T) {
 				},
 			}
 			handler := http.FindExecutionLogs(qh, tracer())
-			req := httptest.NewRequest(http2.MethodGet, tt.url, http2.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodGet, tt.url, http2.NoBody)
 			writer := httptest.NewRecorder()
 			handler.ServeHTTP(writer, req)
 			resp := writer.Result()

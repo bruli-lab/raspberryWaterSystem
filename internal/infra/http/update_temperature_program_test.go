@@ -3,7 +3,6 @@ package http_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	http2 "net/http"
 	"net/http/httptest"
 	"testing"
@@ -100,8 +99,8 @@ func TestUpdateTemperatureProgram(t *testing.T) {
 			handler := http.UpdateTemperatureProgram(ch, tracer())
 			server := chi.NewMux()
 			server.Put("/programs/temperature/{temperature}", handler)
-			url := fmt.Sprintf("/programs/temperature/%s", tt.temperature)
-			req := httptest.NewRequest(http2.MethodPut, url, buildRequestBody(tt.body))
+			url := "/programs/temperature/" + tt.temperature
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPut, url, buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

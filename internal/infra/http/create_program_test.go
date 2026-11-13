@@ -92,7 +92,7 @@ func TestCreateProgram(t *testing.T) {
 				},
 			}
 			handler := http2.CreateProgram(ch, http2.DailyProgram, tracer())
-			req := httptest.NewRequest(http.MethodPost, "/programs", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/programs", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			handler.ServeHTTP(writer, req)
 			resp := writer.Result()

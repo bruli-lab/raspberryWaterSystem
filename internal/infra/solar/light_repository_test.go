@@ -59,7 +59,7 @@ func TestLightRepositoryFind(t *testing.T) {
 
 			light, err := repo.Find(t.Context(), tt.date)
 			if tt.expectedErr != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.NoError(t, err)

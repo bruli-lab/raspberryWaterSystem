@@ -91,7 +91,7 @@ func TestExecuteCleanZoneHandle(t *testing.T) {
 			events, err := handler.Handle(context.Background(), tt.command)
 			require.Len(t, sr.UpdateCalls(), tt.expectedUpdates)
 			if tt.expectedErr != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.NoError(t, err)

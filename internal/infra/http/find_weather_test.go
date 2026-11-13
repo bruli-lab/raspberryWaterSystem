@@ -42,7 +42,7 @@ func TestFindWeather(t *testing.T) {
 				},
 			}
 			handler := http.FindWeather(qh, tracer())
-			req := httptest.NewRequest(http2.MethodGet, "/weather", http2.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodGet, "/weather", http2.NoBody)
 			writer := httptest.NewRecorder()
 			handler.ServeHTTP(writer, req)
 			resp := writer.Result()

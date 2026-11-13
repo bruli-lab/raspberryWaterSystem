@@ -79,7 +79,7 @@ func TestExecutePinsOnExecuteZoneDuringClean(t *testing.T) {
 			require.Equal(t, tt.expectedExecutions, pins.calls.Load())
 			require.Len(t, logCH.HandleCalls(), tt.expectedLogs)
 			if tt.expectedErr != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.NoError(t, err)

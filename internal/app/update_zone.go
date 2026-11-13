@@ -83,5 +83,5 @@ type UpdateZoneError struct {
 }
 
 func (u UpdateZoneError) Error() string {
-	return fmt.Sprintf("failed to update zone: %s", u.msg)
+	return "failed to update zone: " + u.msg
 }

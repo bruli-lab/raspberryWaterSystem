@@ -70,5 +70,5 @@ type CreateWeeklyProgramError struct {
 }
 
 func (c CreateWeeklyProgramError) Error() string {
-	return fmt.Sprintf("failed to create a weekly program: %s", c.msg)
+	return "failed to create a weekly program: " + c.msg
 }

@@ -80,7 +80,7 @@ func TestCreateTemperatureProgram_Handle(t *testing.T) {
 			handler := app.NewCreateTemperatureProgram(repo, tracer())
 			_, err := handler.Handle(tt.args.ctx, tt.args.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 			}
 		})
 	}

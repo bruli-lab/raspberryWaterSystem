@@ -31,7 +31,7 @@ func eventsRepositoryWithExecutionLogs(t *testing.T, count int) *disk.EventsRepo
 }
 
 func TestEventsRepositoryFindAll(t *testing.T) {
-	t.Run(`Given an EventsRepository with three saved execution log events, when FindAll method is called, then it returns the three events with a readable payload`, func(t *testing.T) {
+	t.Run(`Given an EventsRepository with three saved logs, when FindAll method is called, then it returns them with a readable payload`, func(t *testing.T) {
 		t.Parallel()
 		events, err := eventsRepositoryWithExecutionLogs(t, 3).FindAll(t.Context())
 		require.NoError(t, err)

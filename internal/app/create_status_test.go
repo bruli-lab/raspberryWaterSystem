@@ -87,7 +87,7 @@ func TestCreateStatusHandle(t *testing.T) {
 			handler := app.NewCreateStatus(sr, lr, tracer())
 			events, err := handler.Handle(context.Background(), tt.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.Nil(t, events)

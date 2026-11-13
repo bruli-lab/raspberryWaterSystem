@@ -3,7 +3,6 @@ package http_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	http2 "net/http"
 	"net/http/httptest"
 	"testing"
@@ -53,7 +52,7 @@ func TestActivateDeactivateServer(t *testing.T) {
 			handler := http.ActivateDeactivateServer(ch, tracer())
 			server := chi.NewMux()
 			server.Patch("/status/{action}", handler)
-			req := httptest.NewRequest(http2.MethodPatch, fmt.Sprintf("/status/%s", tt.action), http2.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPatch, "/status/"+tt.action, http2.NoBody)
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			require.Equal(t, tt.expectedCode, writer.Code)

@@ -118,6 +118,7 @@ func TestExecutionInTime(t *testing.T) {
 			name: "and the weekly program is for another day and the temperature program needs more heat, then it executes only daily and odd programs",
 			now:  oddDay,
 			programs: func(t *testing.T, now time.Time) app.ProgramsInTime {
+				t.Helper()
 				return programsInTime(t, hour, now.Weekday()+1, currentTemperature+1)
 			},
 			expectedZones:           []string{"daily", "odd"},

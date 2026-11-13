@@ -48,7 +48,7 @@ func TestRemoveZone(t *testing.T) {
 			handler := http.RemoveZone(ch, tracer())
 			server := chi.NewMux()
 			server.Delete("/zones/{id}", handler)
-			req := httptest.NewRequest(http2.MethodDelete, "/zones/id", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodDelete, "/zones/id", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

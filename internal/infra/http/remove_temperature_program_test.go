@@ -3,7 +3,6 @@ package http_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	http2 "net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,7 +58,7 @@ func TestRemoveTemperatureProgram(t *testing.T) {
 			handler := http.RemoveTemperatureProgram(ch, tracer())
 			server := chi.NewMux()
 			server.Delete("/programs/temperature/{temperature}", handler)
-			req := httptest.NewRequest(http2.MethodDelete, fmt.Sprintf("/programs/temperature/%s", tt.temp), http2.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodDelete, "/programs/temperature/"+tt.temp, http2.NoBody)
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

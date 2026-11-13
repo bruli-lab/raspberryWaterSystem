@@ -68,7 +68,7 @@ func TestFallbackLightRepositoryFind(t *testing.T) {
 			light, err := repo.Find(t.Context(), time.Now())
 			require.Len(t, fallback.FindCalls(), tt.expectedFallbackCalls)
 			if tt.expectedErr != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.NoError(t, err)

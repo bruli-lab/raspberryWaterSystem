@@ -140,7 +140,7 @@ type CreateProgramError struct {
 }
 
 func (c CreateProgramError) Error() string {
-	return fmt.Sprintf("failed to create program: %s", c.msg)
+	return "failed to create program: " + c.msg
 }
 
 type CreateProgram struct {

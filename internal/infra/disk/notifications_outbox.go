@@ -47,7 +47,7 @@ func (n NotificationsOutbox) Publish(ctx context.Context, message string) error 
 func (n NotificationsOutbox) save(message string) error {
 	createdAt := n.now()
 	id := fmt.Sprintf("%020d-%010d", createdAt.UnixNano(), n.sequence.Add(1))
-	if err := os.MkdirAll(n.dir, 0o755); err != nil {
+	if err := os.MkdirAll(n.dir, DirPermissions); err != nil {
 		return fmt.Errorf("failed to create notifications directory: %w", err)
 	}
 	return writeJsonFile(n.path(id), notificationFile{Message: message, CreatedAt: createdAt})

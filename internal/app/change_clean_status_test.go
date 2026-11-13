@@ -72,7 +72,7 @@ func TestChangeCleanStatus_Handle(t *testing.T) {
 			handler := app.NewChangeCleanStatus(repo, tracer())
 			_, err := handler.Handle(t.Context(), tt.args.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 			}
 		})
 	}

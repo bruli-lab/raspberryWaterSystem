@@ -89,7 +89,7 @@ func TestNewWeekly(t *testing.T) {
 			t.Parallel()
 			week, err := program.NewWeekly(program.WeekDay(time.Friday), tt.programs)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.Equal(t, program.WeekDay(time.Friday), week.WeekDay())

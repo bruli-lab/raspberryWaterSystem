@@ -55,11 +55,11 @@ func (b *Bme280TemperatureSensor) Find(ctx context.Context) (weather.Temperature
 
 func NewBme280TemperatureSensor(tracer trace.Tracer) (*Bme280TemperatureSensor, error) {
 	if _, err := host.Init(); err != nil {
-		return nil, fmt.Errorf("failed to initialize temperature sensor host: %v", err)
+		return nil, fmt.Errorf("failed to initialize temperature sensor host: %w", err)
 	}
 	bus, err := i2creg.Open("")
 	if err != nil {
-		return nil, fmt.Errorf("failed to open i2c bus: %v", err)
+		return nil, fmt.Errorf("failed to open i2c bus: %w", err)
 	}
 	return &Bme280TemperatureSensor{bus: bus, tracer: tracer}, nil
 }

@@ -19,16 +19,12 @@ func WriteErrorResponse(w http.ResponseWriter, statusCode int, errs ...Error) {
 }
 
 type ErrorResponseJson struct {
-	// Errors corresponds to the JSON schema field "errors".
 	Errors []Error `json:"errors,omitempty"`
 }
 
 type Error struct {
-	// Code corresponds to the JSON schema field "code".
-	Code ErrorCode `json:"code"`
-
-	// Message corresponds to the JSON schema field "message".
-	Message string `json:"message"`
+	Code    ErrorCode `json:"code"`
+	Message string    `json:"message"`
 }
 
 const ErrorCodeInvalidRequest ErrorCode = "invalid_request"

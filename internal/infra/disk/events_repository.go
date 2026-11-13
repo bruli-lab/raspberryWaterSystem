@@ -28,7 +28,7 @@ func (e EventsRepository) Save(ctx context.Context, ev *outbox.Event) error {
 	default:
 		_, span := e.tracer.Start(ctx, "EventsRepository.Save")
 		defer span.End()
-		if err := os.MkdirAll(e.eventsDir, 0o755); err != nil {
+		if err := os.MkdirAll(e.eventsDir, DirPermissions); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return err
@@ -108,7 +108,7 @@ func (e EventsRepository) moveToDeadLetter(path string) error {
 
 func moveToDeadLetter(dir, path string) error {
 	deadLetterDir := filepath.Join(dir, DeadLetterDirectory)
-	if err := os.MkdirAll(deadLetterDir, 0o755); err != nil {
+	if err := os.MkdirAll(deadLetterDir, DirPermissions); err != nil {
 		return fmt.Errorf("failed to create dead letter directory: %w", err)
 	}
 	if err := os.Rename(path, filepath.Join(deadLetterDir, filepath.Base(path))); err != nil {

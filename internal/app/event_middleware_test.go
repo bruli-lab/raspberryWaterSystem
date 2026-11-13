@@ -41,20 +41,27 @@ func TestNewEventMiddleware(t *testing.T) {
 			},
 			err: errTest,
 		})
+		received := make(chan app.TracedEvent, 1)
 		go func() {
 			for {
 				select {
 				case <-ctx.Done():
 					cancel()
 					return
-				case received := <-eventCh:
-					require.Equal(t, event1, received)
+				case tracedEvent := <-eventCh:
+					received <- tracedEvent
 				}
 			}
 		}()
 		evnts, err := handler.Handle(ctx, command{})
 		require.Nil(t, evnts)
 		require.Equal(t, errTest, err)
+		select {
+		case r := <-received:
+			require.Equal(t, event1, r)
+		case <-time.After(time.Second):
+			t.Fatal("event not received")
+		}
 	})
 }
 

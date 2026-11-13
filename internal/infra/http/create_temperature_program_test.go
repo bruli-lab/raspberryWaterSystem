@@ -129,7 +129,7 @@ func TestCreateTemperatureProgram(t *testing.T) {
 				},
 			}
 			handler := http2.CreateTemperatureProgram(ch, tracer())
-			req := httptest.NewRequest(http.MethodPost, "/programs/temperature", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/programs/temperature", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			handler.ServeHTTP(writer, req)
 			resp := writer.Result()

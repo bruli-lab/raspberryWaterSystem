@@ -34,6 +34,7 @@ func TestZones(t *testing.T) {
 		{
 			name: "is created, then it is listed with its relays",
 			run: func(t *testing.T, zone http.Zone) {
+				t.Helper()
 				var zones []http.Zone
 				st.Get(t, "/zones", &zones)
 				require.Contains(t, zones, zone)
@@ -42,6 +43,7 @@ func TestZones(t *testing.T) {
 		{
 			name: "is executed, then it returns ok and the execution log is saved",
 			run: func(t *testing.T, zone http.Zone) {
+				t.Helper()
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/zones/"+zone.Id+"/execute", http.ExecuteZoneRequest{Seconds: 1}))
 				require.Eventually(t, func() bool {
 					return slices.ContainsFunc(st.ExecutionLogs(t), func(log http.ExecutionLogsResponse) bool {
@@ -53,6 +55,7 @@ func TestZones(t *testing.T) {
 		{
 			name: "is updated, then it is listed with the new name and relays",
 			run: func(t *testing.T, zone http.Zone) {
+				t.Helper()
 				update := http.UpdateZoneRequest{Name: "updated " + zone.Name, Relays: []http.UpdateZoneRequestRelays{4}}
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/zones/"+zone.Id, update))
 				var zones []http.Zone
@@ -63,6 +66,7 @@ func TestZones(t *testing.T) {
 		{
 			name: "is removed, then it is no longer listed",
 			run: func(t *testing.T, zone http.Zone) {
+				t.Helper()
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodDelete, "/zones/"+zone.Id, nil))
 				require.NotContains(t, zoneIDs(t, st), zone.Id)
 			},
@@ -70,6 +74,7 @@ func TestZones(t *testing.T) {
 		{
 			name: "does not exist and it is executed, then it returns not found",
 			run: func(t *testing.T, _ http.Zone) {
+				t.Helper()
 				require.Equal(t, http2.StatusNotFound, st.Send(t, http2.MethodPost, "/zones/unknown/execute", http.ExecuteZoneRequest{Seconds: 1}))
 			},
 		},

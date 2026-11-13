@@ -41,7 +41,7 @@ func (c CreateTemperatureProgram) Handle(ctx context.Context, cmd cqs.Command) (
 	_, err := c.repo.FindByTemperature(ctx, co.Temperature.Temperature())
 	switch {
 	case err == nil:
-		err = CreateTemperatureProgramError{msg: fmt.Sprintf("a temperature program with day %v already exists", co.Temperature)}
+		err = CreateTemperatureProgramError{msg: fmt.Sprintf("a temperature program with temperature %v already exists", co.Temperature)}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -69,5 +69,5 @@ type CreateTemperatureProgramError struct {
 }
 
 func (c CreateTemperatureProgramError) Error() string {
-	return fmt.Sprintf("failed to create a weekly program: %s", c.msg)
+	return "failed to create a temperature program: " + c.msg
 }

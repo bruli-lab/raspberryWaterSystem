@@ -3,7 +3,6 @@ package http_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	http2 "net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,7 +58,7 @@ func TestRemoveWeeklyProgram(t *testing.T) {
 			handler := http.RemoveWeeklyProgram(ch, tracer())
 			server := chi.NewMux()
 			server.Delete("/programs/weekly/{day}", handler)
-			req := httptest.NewRequest(http2.MethodDelete, fmt.Sprintf("/programs/weekly/%s", tt.day), http2.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodDelete, "/programs/weekly/"+tt.day, http2.NoBody)
 			writer := httptest.NewRecorder()
 			server.ServeHTTP(writer, req)
 			resp := writer.Result()

@@ -80,7 +80,7 @@ func TestSaveExecutionLogHandle(t *testing.T) {
 			handler := app.NewSaveExecutionLog(elr, tracer())
 			events, err := handler.Handle(context.Background(), tt.cmd)
 			if err != nil {
-				require.ErrorAs(t, err, &tt.expectedErr)
+				require.IsType(t, tt.expectedErr, err)
 				return
 			}
 			require.Equal(t, tt.expectedErr, err)

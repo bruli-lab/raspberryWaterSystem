@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -35,7 +34,7 @@ func newServer(ctx context.Context, handler http.Handler) *http.Server {
 }
 
 func listenAndServe(ctx context.Context, address string, server *http.Server, readyCh chan struct{}) error {
-	ln, err := net.Listen("tcp", address)
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", address)
 	if err != nil {
 		return err
 	}
@@ -71,7 +70,7 @@ func RunServer(ctx context.Context, serverURL string, httpHandler http.Handler, 
 	readyCh := make(chan struct{})
 	go func() {
 		<-readyCh
-		logger.InfoContext(ctx, fmt.Sprintf("[HTTP SERVICE] system ready to serve at %s", serverURL))
+		logger.InfoContext(ctx, "[HTTP SERVICE] system ready to serve at "+serverURL)
 	}()
 
 	corsHTTPHandler := buildCORS(corsOpt).Handler(httpHandler)

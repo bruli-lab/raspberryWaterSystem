@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/bruli-lab/go-core/cqs"
@@ -76,5 +75,5 @@ type SaveExecutionLogError struct {
 }
 
 func (s SaveExecutionLogError) Error() string {
-	return fmt.Sprintf("failed to save execution log: %s", s.m)
+	return "failed to save execution log: " + s.m
 }

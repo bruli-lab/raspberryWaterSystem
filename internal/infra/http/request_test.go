@@ -13,6 +13,7 @@ func buildRequestBody(body string) *strings.Reader {
 }
 
 func buildRequestJsonToString(t *testing.T, req any) string {
+	t.Helper()
 	d, err := json.Marshal(req)
 	require.NoError(t, err)
 	return string(d)

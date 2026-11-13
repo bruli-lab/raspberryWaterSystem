@@ -153,7 +153,7 @@ func TestRequestValidation(t *testing.T) {
 			}
 			server := chi.NewMux()
 			server.Method(tt.method, tt.route, tt.handler(ch))
-			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, strings.NewReader(tt.body))
 			writer := httptest.NewRecorder()
 
 			server.ServeHTTP(writer, req)
@@ -202,7 +202,7 @@ func TestCreateProgramFertilizerFlag(t *testing.T) {
 				},
 			}
 			handler := http2.CreateProgram(ch, http2.DailyProgram, tracer())
-			req := httptest.NewRequest(http.MethodPost, "/programs/daily", strings.NewReader(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/programs/daily", strings.NewReader(tt.body))
 			writer := httptest.NewRecorder()
 
 			handler.ServeHTTP(writer, req)

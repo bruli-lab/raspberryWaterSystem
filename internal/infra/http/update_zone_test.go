@@ -65,7 +65,7 @@ func TestUpdateZone(t *testing.T) {
 				},
 			}
 			handler := http.UpdateZone(ch, tracer())
-			req := httptest.NewRequest(http2.MethodPut, "/zones/id", buildRequestBody(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), http2.MethodPut, "/zones/id", buildRequestBody(tt.body))
 			writer := httptest.NewRecorder()
 			handler.ServeHTTP(writer, req)
 			resp := writer.Result()
