@@ -120,7 +120,7 @@ func TestExecutePinsOnExecuteCleanZoneInBackground(t *testing.T) {
 			chBus.Subscribe(app.ExecutePinsCmdName, pinsCH)
 			chBus.Subscribe(app.PublishMessageCmdName, publishCH)
 			chBus.Subscribe(app.ChangeCleanStatusCmdName, cleanCH)
-			list := listener.NewExecutePinsOnExecuteCleanZone(chBus, tracer(), slog.New(slog.DiscardHandler))
+			list := listener.NewExecutePinsOnExecuteCleanZone(chBus, listener.WaitFor, tracer(), slog.New(slog.DiscardHandler))
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			if tt.cancelAfter > 0 {
