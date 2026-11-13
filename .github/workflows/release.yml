@@ -1,34 +1,95 @@
-name: Release and deploy
+name: Check, release and deploy
 
 on:
   push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   lint:
-    uses: ./.github/workflows/lint.yml
+    name: Lint
+    runs-on: ubuntu-latest
 
-  test:
-    uses: ./.github/workflows/test.yml
-    secrets: inherit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go and Task
+        uses: ./.github/actions/setup-go-task
+
+      - name: Lint
+        run: task lint
 
   security:
-    uses: ./.github/workflows/security.yml
+    name: Security checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go and Task
+        uses: ./.github/actions/setup-go-task
+
+      - name: Security
+        run: task security
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go and Task
+        uses: ./.github/actions/setup-go-task
+
+      - name: Run tests
+        run: task test
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  infra:
+    name: Infra, functional and resilience tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go and Task
+        uses: ./.github/actions/setup-go-task
+
+      - name: Run infra tests
+        run: task test-infra
+
+      - name: Run functional tests
+        run: task test-functional
+
+      - name: Run resilience tests
+        run: task test-resilience
 
   release:
-    needs: [ lint, test, security ]
+    name: Semantic release
+    needs:
+      - lint
+      - security
+      - test
+      - infra
+
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+
     outputs:
-      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
-      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+      released: ${{ steps.semantic.outputs.new_release_published }}
+      version: ${{ steps.semantic.outputs.new_release_version }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -47,16 +108,25 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
+    name: Deploy to Raspberry v2
     needs: release
-    if: needs.release.outputs.new_release_published == 'true' && vars.RASPBERRY_V2_DEPLOY_ENABLED == 'true'
-    runs-on: [ self-hosted, raspberry ]
+
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      needs.release.outputs.released == 'true' &&
+      vars.RASPBERRY_V2_DEPLOY_ENABLED == 'true'
+
+    runs-on:
+      - self-hosted
+      - raspberry
+
     environment: raspberry-v2
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: v${{ needs.release.outputs.new_release_version }}
+          ref: v${{ needs.release.outputs.version }}
 
       - name: Set up Go 1.27.4
         uses: actions/setup-go@v6
