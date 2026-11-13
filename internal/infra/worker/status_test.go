@@ -43,7 +43,7 @@ func TestStatusWorkers(t *testing.T) {
 			expectedErr: errTest,
 		},
 		{
-			name:                    "and find weather query returns something that is not a weather, then it returns an unexpected result error, status untouched",
+			name:                    "and find weather query returns something that is not a weather, then it returns an unexpected query result error without touching the status",
 			queryResult:             "not a weather",
 			expectsUnexpectedResult: true,
 		},

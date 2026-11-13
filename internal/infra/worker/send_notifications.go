@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bruli/raspberryWaterSystem/internal/infra/disk"
+	"github.com/bruli/raspberryWaterSystem/internal/infra/outbox"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -17,7 +17,7 @@ const (
 )
 
 type PendingNotifications interface {
-	FindAll(ctx context.Context) ([]disk.Notification, error)
+	FindAll(ctx context.Context) ([]outbox.Notification, error)
 	Remove(ctx context.Context, id string) error
 }
 
@@ -61,7 +61,7 @@ func SendNotifications(
 	return sent, nil
 }
 
-func notificationMessage(notification disk.Notification, now time.Time, location *time.Location) string {
+func notificationMessage(notification outbox.Notification, now time.Time, location *time.Location) string {
 	if now.Sub(notification.CreatedAt) < notificationDelayThreshold {
 		return notification.Message
 	}
