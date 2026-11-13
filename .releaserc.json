@@ -1,6 +1,6 @@
 {
   "branches": [
-    "main"
+    "feat/new-fertilizer-system"
   ],
   "plugins": [
     "@semantic-release/commit-analyzer",
