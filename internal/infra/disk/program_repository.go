@@ -55,6 +55,7 @@ func (d ProgramRepository) Remove(ctx context.Context, hour *program.Hour) error
 	default:
 		_, span := d.tracer.Start(ctx, "ProgramRepository.Remove")
 		defer span.End()
+		defer lockFile(d.filePath)()
 		savedData := make(storedProgramMap)
 		if err := readYamlFile(d.filePath, &savedData); err != nil {
 			span.RecordError(err)
@@ -80,6 +81,7 @@ func (d ProgramRepository) Save(ctx context.Context, prg *program.Program) error
 	default:
 		_, span := d.tracer.Start(ctx, "ProgramRepository.Save")
 		defer span.End()
+		defer lockFile(d.filePath)()
 		savedData := make(storedProgramMap)
 		if err := readYamlFile(d.filePath, &savedData); err != nil {
 			span.RecordError(err)
@@ -133,6 +135,7 @@ func (d ProgramRepository) FindAll(ctx context.Context) ([]program.Program, erro
 	default:
 		_, span := d.tracer.Start(ctx, "ProgramRepository.FindAll")
 		defer span.End()
+		defer lockFile(d.filePath)()
 		dailyPgrms := make(storedProgramMap)
 		if err := readYamlFile(d.filePath, &dailyPgrms); err != nil {
 			span.RecordError(err)
@@ -181,6 +184,7 @@ func (d ProgramRepository) FindByHour(ctx context.Context, hour *program.Hour) (
 	default:
 		_, span := d.tracer.Start(ctx, "ProgramRepository.FindByHour")
 		defer span.End()
+		defer lockFile(d.filePath)()
 		dailyPgrms := make(storedProgramMap)
 		if err := readYamlFile(d.filePath, &dailyPgrms); err != nil {
 			span.RecordError(err)

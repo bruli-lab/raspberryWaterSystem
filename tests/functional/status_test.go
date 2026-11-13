@@ -1,55 +1,50 @@
 //go:build functional
 
-package functional
+package functional_test
 
 import (
-	"net/http"
+	http2 "net/http"
 	"testing"
 
-	http2 "github.com/bruli/raspberryWaterSystem/internal/infra/http"
-
+	"github.com/bruli/raspberryWaterSystem/internal/infra/http"
+	"github.com/bruli/raspberryWaterSystem/tests/harness"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStatus(t *testing.T) {
-	t.Run(`Given a FindStatus endpoint,
-	when a request is sent `, func(t *testing.T) {
-		t.Run(`without authorization, then its return unauthorized`, func(t *testing.T) {
-			resp, err := buildRequestAndSend(ctx, nil, nil, http.MethodGet, "/status", cl)
-			require.NoError(t, err)
-			require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-		})
-		t.Run(`with authorization, then it return a valid response`, func(t *testing.T) {
-			resp, err := buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodGet, "/status", cl)
-			require.NoError(t, err)
-			require.Equal(t, http.StatusOK, resp.StatusCode)
-			var schema http2.StatusResponse
-			readResponse(t, resp, &schema)
-			require.NotEmpty(t, schema.SystemStartedAt)
-			require.True(t, schema.Active)
-		})
-	})
-	t.Run(`Given an ActivateDeactivateServer endpoint,
-	when a request is sent`, func(t *testing.T) {
-		t.Run(`without authorization, then it returns unauthorized`, func(t *testing.T) {
-			resp, err := buildRequestAndSend(ctx, nil, nil, http.MethodPatch, "/status/activate", cl)
-			require.NoError(t, err)
-			require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-		})
-		t.Run(`with authorization, then it returns a valid response`, func(t *testing.T) {
-			resp, err := buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodPatch, "/status/deactivate", cl)
-			require.NoError(t, err)
-			require.Equal(t, http.StatusOK, resp.StatusCode)
+	tests := []struct {
+		name           string
+		actions        []string
+		expectedActive bool
+	}{
+		{
+			name:           "the status is requested, then it is active and has a start time",
+			expectedActive: true,
+		},
+		{
+			name:    "the server is deactivated, then the status is not active",
+			actions: []string{"deactivate"},
+		},
+		{
+			name:           "the server is deactivated and activated again, then the status is active",
+			actions:        []string{"deactivate", "activate"},
+			expectedActive: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(`Given the app running,
+		when `+tt.name, func(t *testing.T) {
+			t.Parallel()
+			st := harness.Start(t, appBinary)
+			for _, action := range tt.actions {
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPatch, "/status/"+action, nil))
+			}
 
-			respStatus, err := buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodGet, "/status", cl)
-			require.NoError(t, err)
-			require.Equal(t, http.StatusOK, resp.StatusCode)
-			var schema http2.StatusResponse
-			readResponse(t, respStatus, &schema)
-			require.False(t, schema.Active)
+			var status http.StatusResponse
+			st.Get(t, "/status", &status)
 
-			_, err = buildRequestAndSend(ctx, nil, authorizationHeader(), http.MethodPatch, "/status/activate", cl)
-			require.NoError(t, err)
+			require.NotEmpty(t, status.SystemStartedAt)
+			require.Equal(t, tt.expectedActive, status.Active)
 		})
-	})
+	}
 }

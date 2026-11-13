@@ -100,7 +100,7 @@ tasks:
       - |
         set -euo pipefail
         echo "🚀 Executing golangci-lint..."
-        golangci-lint run --build-tags infra,resilience ./...
+        golangci-lint run --build-tags infra,functional,resilience ./...
 
   test:
     desc: Run unit tests
@@ -127,12 +127,12 @@ tasks:
         go test -tags=resilience ./tests/resilience/... -count=1 -timeout 5m
 
   test-functional:
-    desc: Run functional tests
+    desc: Run functional tests (each test starts its own app with NATS and ntfy in testcontainers, needs Docker)
     cmds:
       - |
         set -euo pipefail
         echo "🧪 Running functional tests..."
-        go test -tags=functional ./... -count=1 -json |go tool tparse -all
+        go test -tags=functional ./tests/functional/... -count=1 -timeout 5m -json | go tool tparse -all
 
   check:
     desc: Run format, security, lint and tests

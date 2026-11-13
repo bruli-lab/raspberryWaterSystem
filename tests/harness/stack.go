@@ -170,7 +170,7 @@ func (s *Stack) runApp(t *testing.T, binary, dir, appPort string) {
 
 func freePort(t *testing.T) string {
 	t.Helper()
-	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer func() {
 		_ = listener.Close()
