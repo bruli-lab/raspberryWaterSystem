@@ -24,6 +24,7 @@ func TestEndpointsWithoutAuthorization(t *testing.T) {
 		{name: "to execute a clean zone", method: http.MethodPost, path: "/zones/clean/bbf/execute", expectedCode: http.StatusUnauthorized},
 		{name: "to update a zone", method: http.MethodPut, path: "/zones/bbf", expectedCode: http.StatusUnauthorized},
 		{name: "to remove a zone", method: http.MethodDelete, path: "/zones/bbf", expectedCode: http.StatusUnauthorized},
+		{name: "to test a relay", method: http.MethodPost, path: "/relays/1/test", expectedCode: http.StatusUnauthorized},
 		{name: "to find the status", method: http.MethodGet, path: "/status", expectedCode: http.StatusUnauthorized},
 		{name: "to activate the server", method: http.MethodPatch, path: "/status/activate", expectedCode: http.StatusUnauthorized},
 		{name: "to find the weather", method: http.MethodGet, path: "/weather", expectedCode: http.StatusUnauthorized},

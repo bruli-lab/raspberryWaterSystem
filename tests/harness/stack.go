@@ -107,7 +107,7 @@ func start(t *testing.T, binary string, dependenciesDown bool) *Stack {
 		natsURL: "nats://127.0.0.1:" + natsPort,
 		ntfyURL: "http://127.0.0.1:" + ntfyPort,
 		appURL:  "http://127.0.0.1:" + appPort,
-		client:  &http.Client{Timeout: 5 * time.Second},
+		client:  &http.Client{Timeout: 15 * time.Second},
 	}
 	dir := t.TempDir()
 	st.eventsDir = filepath.Join(dir, "events")

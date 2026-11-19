@@ -169,6 +169,7 @@ func run() error {
 	chBus.Subscribe(app.ExecuteFertilizerZoneCmdName, eventsMultiCHMdw(app.NewExecuteFertilizerZone(zr, statusRepo, tracer)))
 	chBus.Subscribe(app.ExecuteCleanZoneCmdName, eventsMultiCHMdw(app.NewExecuteCleanZone(zr, statusRepo, tracer)))
 	chBus.Subscribe(app.ExecutePinsCmdName, logCHMdw(app.NewExecutePins(pe, statusRepo, tracer)))
+	chBus.Subscribe(app.TestRelayCmdName, logCHMdw(app.NewTestRelay(pe, statusRepo, tracer)))
 	chBus.Subscribe(app.SaveExecutionLogCmdName, logCHMdw(app.NewSaveExecutionLog(execLogRepo, tracer)))
 	chBus.Subscribe(app.PublishMessageCmdName, logCHMdw(app.NewPublishMessage(notificationsOutbox, tracer)))
 	chBus.Subscribe(app.RemoveZoneCmdName, logCHMdw(app.NewRemoveZone(zr, tracer)))
@@ -210,8 +211,6 @@ func run() error {
 		return err
 	}
 
-	errCh := make(chan error, 2)
-
 	go superviseWorker(ctx, log, "update status", func(ctx context.Context) {
 		updateStatusWorker(ctx, qhBus, chBus, log)
 	})
@@ -222,20 +221,15 @@ func run() error {
 		executionInTimeWorker(ctx, qhBus, chBus, location, log, tracer)
 	})
 
-	go func() {
-		if err := runHTTPServer(ctx, chBus, qhBus, conf, log, tracer); err != nil {
-			log.ErrorContext(ctx, "failed running http server", slog.String("error", err.Error()))
-			errCh <- err
-		}
-	}()
+	go superviseWorker(ctx, log, "http server", func(ctx context.Context) {
+		worker.RetryUntilDone(ctx, log, "http server", workerRestartDelay, func(ctx context.Context) error {
+			return runHTTPServer(ctx, chBus, qhBus, conf, log, tracer)
+		})
+	})
 
-	select {
-	case err := <-errCh:
-		return err
-	case <-ctx.Done():
-		log.Info("shutdown signal received")
-		return nil
-	}
+	<-ctx.Done()
+	log.Info("shutdown signal received")
+	return nil
 }
 
 func terraceWeatherCron(ctx context.Context, cronJob *cron.Cron, events worker.EventsWriter, qh cqs.QueryHandler, log *slog.Logger, tracer trace.Tracer) {
@@ -301,11 +295,7 @@ func readingEvents(ctx context.Context, pending worker.PendingEvents, publisher 
 func runHTTPServer(ctx context.Context, chBus cqs.CommandBus, qhBus cqs.QueryBus, conf *config.Config, log *slog.Logger, tracer trace.Tracer) error {
 	definitions := handlersDefinition(chBus, qhBus, conf.AuthToken, tracer)
 	httpHandlers := infrahttp.NewHandler(definitions)
-	if err := infrahttp.RunServer(ctx, conf.ServerURL, httpHandlers, &infrahttp.CORSOpt{}, log); err != nil {
-		log.ErrorContext(ctx, "[HTTP SERVER] failed running server", slog.String("error", err.Error()))
-		return err
-	}
-	return nil
+	return infrahttp.RunServer(ctx, conf.ServerURL, httpHandlers, &infrahttp.CORSOpt{}, log)
 }
 
 func buildLog(level string) *slog.Logger {
@@ -407,6 +397,11 @@ func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken stri
 			Endpoint:    "/zones/{id}",
 			Method:      http.MethodPut,
 			HandlerFunc: authMdw(infrahttp.UpdateZone(chBus, tracer)),
+		},
+		{
+			Endpoint:    "/relays/{id}/test",
+			Method:      http.MethodPost,
+			HandlerFunc: authMdw(infrahttp.TestRelay(chBus, tracer)),
 		},
 		{
 			Endpoint:    "/status",

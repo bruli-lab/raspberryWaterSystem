@@ -197,6 +197,11 @@ tasks:
   deploy-raspberry-v2:
     desc: Deploy with Ansible to the new Raspberry (v2, in validation). Secrets come live from Vault
       (community.hashi_vault, needs VAULT_ADDR/VAULT_TOKEN in the environment), not from an ansible-vault file.
+    preconditions:
+      - sh: python3 -c 'import hvac'
+        msg: "Missing Python library hvac (needed by community.hashi_vault): sudo apt install python3-hvac"
+      - sh: '[ -n "${VAULT_ADDR:-}" ] && [ -n "${VAULT_TOKEN:-}" ]'
+        msg: "Export VAULT_ADDR (e.g. http://<ip>:<port>) and VAULT_TOKEN before deploying"
     deps:
       - build
     cmds:

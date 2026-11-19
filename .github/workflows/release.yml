@@ -138,10 +138,13 @@ jobs:
           go install github.com/go-task/task/v3/cmd/task@latest
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
 
-      - name: Install Ansible
+      - name: Check Ansible and hvac are installed
         run: |
-          python3 -m pip install --user ansible hvac
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if ! command -v ansible-playbook >/dev/null || ! python3 -c 'import hvac'; then
+            echo "::error::Install Ansible and hvac on the runner host: sudo apt install -y ansible python3-hvac"
+            exit 1
+          fi
+          ansible-playbook --version | head -1
 
       - name: Install Ansible collections
         run: ansible-galaxy collection install -r devops/ansible/requirements.yml
