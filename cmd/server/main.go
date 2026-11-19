@@ -35,6 +35,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+var version = "dev"
+
 const (
 	serviceName = "raspberryWaterSystem"
 	timeZone    = "Europe/Madrid"
@@ -69,6 +71,7 @@ func run() error {
 		return err
 	}
 	log := buildLog(conf.LogLevel)
+	log.InfoContext(ctx, "starting "+serviceName, slog.String("version", version))
 
 	tracingProv, err := tracing.InitTracing(ctx, serviceName)
 	if err != nil {
@@ -361,7 +364,7 @@ func handlersDefinition(chBus cqs.CommandBus, qhBus cqs.QueryBus, authToken stri
 		{
 			Endpoint:    "/",
 			Method:      http.MethodGet,
-			HandlerFunc: infrahttp.Homepage(),
+			HandlerFunc: infrahttp.Homepage(version),
 		},
 		{
 			Endpoint:    "/zones",

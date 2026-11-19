@@ -1,0 +1,101 @@
+- hosts: raspberry_water_system
+  vars:
+    releases_dir: "{{ home }}/releases"
+    current_link: "{{ home }}/current"
+    health_host: "{{ server_url.split(':')[0] | default('127.0.0.1', true) }}"
+    health_url: "http://{{ health_host }}:{{ server_url.split(':')[-1] }}/"
+  tasks:
+    - name: Find the current release
+      ansible.builtin.stat:
+        path: "{{ current_link }}"
+      register: current_stat
+
+    - name: Check there is a current release
+      ansible.builtin.assert:
+        that:
+          - current_stat.stat.exists
+          - current_stat.stat.islnk
+        fail_msg: "{{ current_link }} does not exist yet: deploy a release first"
+
+    - name: Find releases
+      ansible.builtin.find:
+        paths: "{{ releases_dir }}"
+        file_type: directory
+      register: releases
+
+    - name: Choose the release to roll back to
+      ansible.builtin.set_fact:
+        current_release: "{{ current_stat.stat.lnk_source }}"
+        newest_first: "{{ releases.files | sort(attribute='mtime', reverse=true) | map(attribute='path') | list }}"
+
+    - name: Choose the requested release or the one before the current release
+      ansible.builtin.set_fact:
+        target_release: >-
+          {{ (releases_dir ~ '/' ~ rollback_version) if rollback_version | default('') | length > 0
+             else (newest_first[newest_first.index(current_release) + 1]
+                   if current_release in newest_first and newest_first.index(current_release) + 1 < newest_first | length
+                   else '') }}
+
+    - name: Check the release to roll back to exists
+      ansible.builtin.assert:
+        that:
+          - target_release | length > 0
+          - target_release in newest_first
+          - target_release != current_release
+        fail_msg: >-
+          Cannot roll back to {{ rollback_version | default('the previous release') }}.
+          Current: {{ current_release | basename }}.
+          Available, newest first: {{ newest_first | map('basename') | join(', ') }}
+
+    - name: Switch to the release and check it is healthy
+      block:
+        - name: Point current to the release to roll back to
+          ansible.builtin.shell: ln -sfn "{{ target_release }}" "{{ current_link }}.tmp" && mv -T "{{ current_link }}.tmp" "{{ current_link }}"
+          changed_when: true
+
+        - name: Restart the service on the release to roll back to
+          ansible.builtin.systemd_service:
+            name: "{{ service_name }}"
+            state: restarted
+          become: true
+          tags: service
+
+        - name: Wait for the release to answer
+          ansible.builtin.uri:
+            url: "{{ health_url }}"
+            status_code: 200
+          register: health
+          until: health.status == 200
+          retries: 15
+          delay: 2
+          tags: health
+
+        - name: Give the release time to fail if it is going to
+          ansible.builtin.pause:
+            seconds: 10
+          tags: health
+
+        - name: Check the service is still running
+          ansible.builtin.command: systemctl is-active "{{ service_name }}"
+          changed_when: false
+          tags: health
+
+      rescue:
+        - name: Point current back to the release it was on
+          ansible.builtin.shell: ln -sfn "{{ current_release }}" "{{ current_link }}.tmp" && mv -T "{{ current_link }}.tmp" "{{ current_link }}"
+          changed_when: true
+
+        - name: Restart the service on the release it was on
+          ansible.builtin.systemd_service:
+            name: "{{ service_name }}"
+            state: restarted
+          become: true
+          tags: service
+
+        - name: Fail the rollback
+          ansible.builtin.fail:
+            msg: "{{ target_release | basename }} did not pass the health check, back on {{ current_release | basename }}"
+
+    - name: Show the release now running
+      ansible.builtin.debug:
+        msg: "Rolled back from {{ current_release | basename }} to {{ target_release | basename }}"

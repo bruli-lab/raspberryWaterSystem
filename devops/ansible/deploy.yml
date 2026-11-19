@@ -1,57 +1,181 @@
 - hosts: raspberry_water_system
+  vars:
+    releases_dir: "{{ home }}/releases"
+    current_link: "{{ home }}/current"
+    release_dir: "{{ releases_dir }}/{{ release_version }}"
+    legacy_release_dir: "{{ releases_dir }}/pre-releases"
+    keep_releases: 5
+    health_host: "{{ server_url.split(':')[0] | default('127.0.0.1', true) }}"
+    health_url: "http://{{ health_host }}:{{ server_url.split(':')[-1] }}/"
   tasks:
-    - name: Stopping service if service exists
-      with_first_found:
-        - files:
-            - /etc/systemd/system/water_system.service
-          skip: true
-      shell: systemctl stop "{{ service_name }}"
-      become: yes
-    - name: Check that the binary file exists
-      stat:
+    - name: Check the release version to deploy
+      ansible.builtin.assert:
+        that:
+          - release_version is defined
+          - release_version | length > 0
+          - "'/' not in release_version"
+        fail_msg: "Pass the version to deploy with -e release_version=vX.Y.Z"
+
+    - name: Find the current release
+      ansible.builtin.stat:
+        path: "{{ current_link }}"
+      register: current_stat
+
+    - name: Find a binary deployed before releases existed
+      ansible.builtin.stat:
         path: "{{ binary_path }}"
-      register: stat_result
-    - name: Copy old binary file
-      copy:
-        src: "{{ binary_path }}"
-        dest: "{{ binary_path }}_old"
-        remote_src: yes
-        force: yes
-      when: stat_result.stat.exists == true
-    - name: Upload binary file
-      copy:
+      register: legacy_binary
+
+    - name: Create releases directory
+      ansible.builtin.file:
+        path: "{{ releases_dir }}"
+        state: directory
+        mode: "0750"
+
+    - name: Keep the binary deployed before releases existed as a release
+      when: not current_stat.stat.exists and legacy_binary.stat.exists and legacy_binary.stat.isreg
+      block:
+        - name: Create pre-releases directory
+          ansible.builtin.file:
+            path: "{{ legacy_release_dir }}"
+            state: directory
+            mode: "0750"
+
+        - name: Copy the binary deployed before releases existed
+          ansible.builtin.copy:
+            src: "{{ binary_path }}"
+            dest: "{{ legacy_release_dir }}/server"
+            remote_src: true
+            mode: "0750"
+
+    - name: Remember the release to go back to
+      ansible.builtin.set_fact:
+        previous_release: >-
+          {{ current_stat.stat.lnk_source if current_stat.stat.exists and current_stat.stat.islnk
+             else (legacy_release_dir if legacy_binary.stat.exists and legacy_binary.stat.isreg else '') }}
+
+    - name: Create release directory
+      ansible.builtin.file:
+        path: "{{ release_dir }}"
+        state: directory
+        mode: "0750"
+
+    - name: Upload binary
+      ansible.builtin.copy:
         src: assets/server
-        dest: "{{ binary_path }}"
-        mode: 0750
-        force: yes
+        dest: "{{ release_dir }}/server"
+        mode: "0750"
+
+    - name: Mark the release as the newest one
+      ansible.builtin.command: touch "{{ release_dir }}"
+      changed_when: false
+
     - name: Create service directory if not exists
-      file:
+      ansible.builtin.file:
         path: "{{ systemd_path }}"
         state: directory
         owner: root
         group: root
-        mode: 0755
-      become: yes
-    - name: Updload conf file
-      template:
+        mode: "0755"
+      become: true
+      tags: service
+
+    - name: Upload conf file
+      ansible.builtin.template:
         src: config/water_system.conf
         dest: /etc/systemd/system/water_system.conf
-        mode: 0644
-        force: yes
-      become: yes
+        mode: "0644"
+      become: true
+      tags: service
+
     - name: Upload service file
-      template:
+      ansible.builtin.template:
         src: config/water_system.service
         dest: /etc/systemd/system/water_system.service
-        mode: 0644
-        force: yes
-      become: yes
-    - name: reload daemon service
-      shell: systemctl daemon-reload
-      become: yes
-    - name: Enable service on boot
-      shell: systemctl enable "{{ service_name }}"
-      become: yes
-    - name: Start service
-      shell: systemctl restart "{{ service_name }}"
-      become: yes
+        mode: "0644"
+      become: true
+      tags: service
+
+    - name: Switch to the new release and check it is healthy
+      block:
+        - name: Point current to the new release
+          ansible.builtin.shell: ln -sfn "{{ release_dir }}" "{{ current_link }}.tmp" && mv -T "{{ current_link }}.tmp" "{{ current_link }}"
+          changed_when: true
+
+        - name: Restart the service on the new release
+          ansible.builtin.systemd_service:
+            name: "{{ service_name }}"
+            daemon_reload: true
+            enabled: true
+            state: restarted
+          become: true
+          tags: service
+
+        - name: Wait for the new release to answer with its version
+          ansible.builtin.uri:
+            url: "{{ health_url }}"
+            status_code: 200
+          register: health
+          until: health.status == 200 and health.x_app_version | default('') == release_version
+          retries: 15
+          delay: 2
+          tags: health
+
+        - name: Give the new release time to fail if it is going to
+          ansible.builtin.pause:
+            seconds: 10
+          tags: health
+
+        - name: Check the service is still running
+          ansible.builtin.command: systemctl is-active "{{ service_name }}"
+          changed_when: false
+          tags: health
+
+      rescue:
+        - name: Point current back to the previous release
+          ansible.builtin.shell: ln -sfn "{{ previous_release }}" "{{ current_link }}.tmp" && mv -T "{{ current_link }}.tmp" "{{ current_link }}"
+          when: previous_release | length > 0 and previous_release != release_dir
+
+        - name: Restart the service on the previous release
+          ansible.builtin.systemd_service:
+            name: "{{ service_name }}"
+            state: restarted
+          become: true
+          when: previous_release | length > 0 and previous_release != release_dir
+          tags: service
+
+        - name: Remove the release that failed
+          ansible.builtin.file:
+            path: "{{ release_dir }}"
+            state: absent
+          when: previous_release | length > 0 and previous_release != release_dir
+
+        - name: Fail the deploy
+          ansible.builtin.fail:
+            msg: >-
+              {{ release_version }} did not pass the health check on {{ health_url }}.
+              {{ ('Rolled back to ' ~ (previous_release | basename)) if previous_release | length > 0 and previous_release != release_dir
+                 else 'There is no previous release to roll back to.' }}
+
+    - name: Find releases
+      ansible.builtin.find:
+        paths: "{{ releases_dir }}"
+        file_type: directory
+      register: releases
+
+    - name: Remove old releases
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ (releases.files | sort(attribute='mtime', reverse=true))[keep_releases:] }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: item.path not in [release_dir, previous_release]
+
+    - name: Remove binaries deployed before releases existed
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ binary_path }}"
+        - "{{ binary_path }}_old"

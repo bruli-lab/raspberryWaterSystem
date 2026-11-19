@@ -9,7 +9,7 @@ Restart=always
 RestartSec=1
 User=root
 WorkingDirectory={{ home }}
-ExecStart={{ home }}/server
+ExecStart={{ home }}/current/server
 EnvironmentFile=/etc/systemd/system/water_system.conf
 
 [Install]
