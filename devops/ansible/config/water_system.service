@@ -7,10 +7,23 @@ StartLimitIntervalSec=0
 Type=simple
 Restart=always
 RestartSec=1
-User=root
+User={{ ansible_user }}
+Group={{ ansible_user }}
+SupplementaryGroups={{ service_supplementary_groups }}
 WorkingDirectory={{ home }}
 ExecStart={{ home }}/current/server
 EnvironmentFile=/etc/systemd/system/water_system.conf
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictSUIDSGID=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths={{ home }}
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+LockPersonality=yes
 
 [Install]
 WantedBy=multi-user.target

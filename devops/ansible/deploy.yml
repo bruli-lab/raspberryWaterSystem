@@ -7,6 +7,11 @@
     keep_releases: 5
     health_host: "{{ server_url.split(':')[0] | default('127.0.0.1', true) }}"
     health_url: "http://{{ health_host }}:{{ server_url.split(':')[-1] }}/"
+    service_supplementary_groups: dialout
+    hardware_devices:
+      - /dev/gpiochip0
+      - /dev/i2c-1
+      - /dev/spidev0.0
   tasks:
     - name: Check the release version to deploy
       ansible.builtin.assert:
@@ -15,6 +20,29 @@
           - release_version | length > 0
           - "'/' not in release_version"
         fail_msg: "Pass the version to deploy with -e release_version=vX.Y.Z"
+
+    - name: Find the hardware devices
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ hardware_devices }}"
+      register: devices
+      tags: service
+
+    - name: Check the service user can use the hardware devices
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.gr_name in service_supplementary_groups.split()
+          - item.stat.rgrp and item.stat.wgrp
+        fail_msg: >-
+          {{ item.item }} must exist and be readable and writable by one of the groups
+          {{ service_supplementary_groups }} (found group {{ item.stat.gr_name | default('none') }}).
+          Enable the interface (gpio, i2c, spi) or set service_supplementary_groups in the inventory.
+        quiet: true
+      loop: "{{ devices.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      tags: service
 
     - name: Find the current release
       ansible.builtin.stat:
@@ -93,6 +121,15 @@
         src: config/water_system.service
         dest: /etc/systemd/system/water_system.service
         mode: "0644"
+      become: true
+      tags: service
+
+    - name: Give the service user the files the service writes
+      ansible.builtin.file:
+        path: "{{ home }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: true
       become: true
       tags: service
 
