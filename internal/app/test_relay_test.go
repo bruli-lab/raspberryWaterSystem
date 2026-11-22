@@ -65,7 +65,7 @@ func TestTestRelayHandle(t *testing.T) {
 			name:         "with a fixed relay, then it activates its pin during the test seconds and returns no events",
 			cmd:          app.TestRelayCmd{RelayID: zone.FertilizerPumpID},
 			st:           idle,
-			expectedPins: []string{"24"},
+			expectedPins: []string{"22"},
 		},
 	}
 	for _, tt := range tests {

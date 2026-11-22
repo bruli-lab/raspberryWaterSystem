@@ -28,10 +28,10 @@ var enabledRelays = map[RelayID]string{
 	OneRelayID:        "18",
 	TwoRelayID:        "17",
 	ThreeRelayID:      "23",
-	FourRelayID:       "22",
+	FourRelayID:       "24",
 	AirRelayID:        "15",
 	CleanValveID:      "14",
-	FertilizerPumpID:  "24",
+	FertilizerPumpID:  "22",
 	FertilizerValveID: "27",
 }
 
