@@ -20,7 +20,7 @@ const (
 )
 
 type UpdateDailyProgramCommand struct {
-	Program *program.Program
+	UpdateProgramInput
 }
 
 func (u UpdateDailyProgramCommand) Name() string {
@@ -28,7 +28,7 @@ func (u UpdateDailyProgramCommand) Name() string {
 }
 
 type UpdateOddProgramCommand struct {
-	Program *program.Program
+	UpdateProgramInput
 }
 
 func (u UpdateOddProgramCommand) Name() string {
@@ -36,7 +36,7 @@ func (u UpdateOddProgramCommand) Name() string {
 }
 
 type UpdateEvenProgramCommand struct {
-	Program *program.Program
+	UpdateProgramInput
 }
 
 func (u UpdateEvenProgramCommand) Name() string {
@@ -58,7 +58,7 @@ func (u UpdateDailyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]even
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	if err := u.Update(ctx, co.Program); err != nil {
+	if err := u.Update(ctx, co.UpdateProgramInput); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -89,7 +89,7 @@ func (u UpdateOddProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event.
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	if err := u.Update(ctx, co.Program); err != nil {
+	if err := u.Update(ctx, co.UpdateProgramInput); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -120,7 +120,7 @@ func (u UpdateEvenProgram) Handle(ctx context.Context, cmd cqs.Command) ([]event
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	if err := u.Update(ctx, co.Program); err != nil {
+	if err := u.Update(ctx, co.UpdateProgramInput); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -144,20 +144,41 @@ func (u UpdateProgramError) Error() string {
 	return "failed to update program: " + u.msg
 }
 
+type UpdateProgramInput struct {
+	Hour, Status string
+	Fertilizer   bool
+	Executions   []ProgramExecutionInput
+}
+
 type UpdateProgram struct {
 	programRepo ProgramRepository
 	zonesRepo   ZoneRepository
 }
 
-func (u UpdateProgram) Update(ctx context.Context, prog *program.Program) error {
-	hour := prog.Hour()
-	if _, err := u.programRepo.FindByHour(ctx, &hour); err != nil {
+func (u UpdateProgram) Update(ctx context.Context, in UpdateProgramInput) error {
+	hour, err := program.ParseHour(in.Hour)
+	if err != nil {
+		return UpdateProgramError{msg: err.Error()}
+	}
+	executions, err := buildProgramExecutions(in.Executions)
+	if err != nil {
+		return UpdateProgramError{msg: err.Error()}
+	}
+	st, err := parseProgramStatus(in.Status)
+	if err != nil {
+		return UpdateProgramError{msg: err.Error()}
+	}
+	current, err := u.programRepo.FindByHour(ctx, &hour)
+	if err != nil {
 		return err
 	}
-	if err := u.checkZone(ctx, prog.Executions()); err != nil {
+	if err := u.checkZone(ctx, executions); err != nil {
 		return err
 	}
-	return u.programRepo.Save(ctx, prog)
+	if err = current.Update(in.Fertilizer, executions, st); err != nil {
+		return UpdateProgramError{msg: err.Error()}
+	}
+	return u.programRepo.Save(ctx, current)
 }
 
 func (u UpdateProgram) checkZone(ctx context.Context, executions []program.Execution) error {

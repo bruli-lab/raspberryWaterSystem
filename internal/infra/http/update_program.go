@@ -6,7 +6,6 @@ import (
 
 	"github.com/bruli-lab/go-core/cqs"
 	"github.com/bruli/raspberryWaterSystem/internal/app"
-	"github.com/bruli/raspberryWaterSystem/internal/domain/program"
 	errs "github.com/bruli/raspberryWaterSystem/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/codes"
@@ -17,29 +16,19 @@ func UpdateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), "UpdateProgramRequest")
 		defer span.End()
-		hour, err := program.ParseHour(chi.URLParam(r, "hour"))
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			WriteErrorResponse(w, http.StatusBadRequest, Error{
-				Code:    ErrorCodeInvalidRequest,
-				Message: err.Error(),
-			})
-			return
-		}
 		var req UpdateProgramRequest
-		if err = ReadRequest(w, r, updateProgramRequestSchema, &req); err != nil {
+		if err := ReadRequest(w, r, updateProgramRequestSchema, &req); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return
 		}
-		prog, err := buildUpdateProgram(w, hour, req)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			return
+		in := app.UpdateProgramInput{
+			Hour:       chi.URLParam(r, "hour"),
+			Status:     programStatusInput(req.Status),
+			Fertilizer: req.Fertilizer != nil && *req.Fertilizer,
+			Executions: programExecutionInputs(req.Executions),
 		}
-		if _, err = ch.Handle(ctx, buildUpdateProgramCommand(programType, prog)); err != nil {
+		if _, err := ch.Handle(ctx, buildUpdateProgramCommand(programType, in)); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			switch {
@@ -60,54 +49,15 @@ func UpdateProgram(ch cqs.CommandHandler, programType string, tracer trace.Trace
 	}
 }
 
-func buildUpdateProgramCommand(programType string, prog *program.Program) cqs.Command {
+func buildUpdateProgramCommand(programType string, in app.UpdateProgramInput) cqs.Command {
 	switch programType {
 	case DailyProgram:
-		return app.UpdateDailyProgramCommand{Program: prog}
+		return app.UpdateDailyProgramCommand{UpdateProgramInput: in}
 	case OddProgram:
-		return app.UpdateOddProgramCommand{Program: prog}
+		return app.UpdateOddProgramCommand{UpdateProgramInput: in}
 	case EvenProgram:
-		return app.UpdateEvenProgramCommand{Program: prog}
+		return app.UpdateEvenProgramCommand{UpdateProgramInput: in}
 	default:
 	}
 	return nil
-}
-
-func buildUpdateProgram(w http.ResponseWriter, hour program.Hour, req UpdateProgramRequest) (*program.Program, error) {
-	exec := make([]program.Execution, len(req.Executions))
-	for i, ex := range req.Executions {
-		sec, err := program.ParseSeconds(ex.Seconds)
-		if err != nil {
-			WriteErrorResponse(w, http.StatusBadRequest, Error{
-				Code:    ErrorCodeInvalidRequest,
-				Message: err.Error(),
-			})
-			return nil, err
-		}
-		e, err := program.NewExecution(sec, ex.Zones)
-		if err != nil {
-			WriteErrorResponse(w, http.StatusBadRequest, Error{
-				Code:    ErrorCodeInvalidRequest,
-				Message: err.Error(),
-			})
-			return nil, err
-		}
-		exec[i] = e
-	}
-	prog, err := program.New(hour, req.Fertilizer != nil && *req.Fertilizer, exec)
-	if err != nil {
-		WriteErrorResponse(w, http.StatusBadRequest, Error{
-			Code:    ErrorCodeInvalidRequest,
-			Message: err.Error(),
-		})
-		return nil, err
-	}
-	if err = applyProgramStatus(prog, req.Status); err != nil {
-		WriteErrorResponse(w, http.StatusBadRequest, Error{
-			Code:    ErrorCodeInvalidRequest,
-			Message: err.Error(),
-		})
-		return nil, err
-	}
-	return prog, nil
 }

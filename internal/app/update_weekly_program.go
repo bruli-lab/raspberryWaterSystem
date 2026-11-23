@@ -13,8 +13,8 @@ import (
 const UpdateWeeklyProgramCommandName = "updateWeeklyProgram"
 
 type UpdateWeeklyProgramCommand struct {
-	WeekDay  program.WeekDay
-	Programs []program.Program
+	WeekDay  string
+	Programs []ProgramInput
 }
 
 func (u UpdateWeeklyProgramCommand) Name() string {
@@ -36,21 +36,40 @@ func (u UpdateWeeklyProgram) Handle(ctx context.Context, cmd cqs.Command) ([]eve
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	weekly, err := u.repo.FindByDay(ctx, &co.WeekDay)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-	weekly.Update(co.Programs)
-
-	if err = u.repo.Save(ctx, weekly); err != nil {
+	if err := u.update(ctx, co); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "weekly program updated")
 	return nil, nil
+}
+
+func (u UpdateWeeklyProgram) update(ctx context.Context, co UpdateWeeklyProgramCommand) error {
+	day, err := program.ParseWeekDay(co.WeekDay)
+	if err != nil {
+		return UpdateWeeklyProgramError{msg: err.Error()}
+	}
+	programs, err := buildProgramsWithoutFertilizer(co.Programs)
+	if err != nil {
+		return UpdateWeeklyProgramError{msg: err.Error()}
+	}
+	weekly, err := u.repo.FindByDay(ctx, &day)
+	if err != nil {
+		return err
+	}
+	if err = weekly.Update(programs); err != nil {
+		return UpdateWeeklyProgramError{msg: err.Error()}
+	}
+	return u.repo.Save(ctx, weekly)
+}
+
+type UpdateWeeklyProgramError struct {
+	msg string
+}
+
+func (u UpdateWeeklyProgramError) Error() string {
+	return "failed to update weekly program: " + u.msg
 }
 
 func NewUpdateWeeklyProgram(repo WeeklyProgramRepository, tracer trace.Tracer) *UpdateWeeklyProgram {

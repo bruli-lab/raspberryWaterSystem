@@ -37,6 +37,17 @@ func (p *Program) Executions() []Execution {
 	return p.executions
 }
 
+func (p *Program) Update(fertilizer bool, executions []Execution, status Status) error {
+	updated := Program{hour: p.hour, fertilizer: fertilizer, executions: executions, status: status}
+	if err := updated.validate(); err != nil {
+		return err
+	}
+	p.fertilizer = fertilizer
+	p.executions = executions
+	p.status = status
+	return nil
+}
+
 func (p *Program) validate() error {
 	if len(p.executions) == 0 {
 		return ErrEmptyPrograms
@@ -88,8 +99,12 @@ func HydrateWeekly(weekDay WeekDay, programs []Program) Weekly {
 	return Weekly{weekDay: weekDay, programs: programs}
 }
 
-func (w *Weekly) Update(programs []Program) {
+func (w *Weekly) Update(programs []Program) error {
+	if len(programs) == 0 {
+		return ErrEmptyPrograms
+	}
 	w.programs = programs
+	return nil
 }
 
 type Temperature struct {
@@ -127,6 +142,11 @@ func HydrateTemperature(temperature float32, programs []Program) Temperature {
 	return Temperature{temperature: temperature, programs: programs}
 }
 
-func (t *Temperature) Update(programs []Program) {
+func (t *Temperature) Update(programs []Program) error {
+	updated := Temperature{temperature: t.temperature, programs: programs}
+	if err := updated.validate(); err != nil {
+		return err
+	}
 	t.programs = programs
+	return nil
 }

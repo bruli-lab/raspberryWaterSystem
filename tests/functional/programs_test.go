@@ -190,11 +190,12 @@ func TestPrograms(t *testing.T) {
 				disabled.Status = ptrTo(http.Disabled)
 				update := http.UpdateWeeklyProgramRequest{Programs: []http.UpdateProgramItem{disabled}}
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/weekly/Wednesday", update))
-				i := slices.IndexFunc(programs(t, st).Weekly, func(item http.WeeklyItemResponse) bool {
+				weeklies := programs(t, st).Weekly
+				i := slices.IndexFunc(weeklies, func(item http.WeeklyItemResponse) bool {
 					return item.WeekDay == "Wednesday"
 				})
 				require.NotEqual(t, -1, i)
-				item, found := programItem(programs(t, st).Weekly[i].Programs, "08:00")
+				item, found := programItem(weeklies[i].Programs, "08:00")
 				require.True(t, found)
 				require.Equal(t, http.Disabled, item.Status)
 			},

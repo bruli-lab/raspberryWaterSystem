@@ -39,39 +39,35 @@ func (u UpdateZone) Handle(ctx context.Context, cmd cqs.Command) ([]event.Event,
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	if _, err := u.zr.FindByID(ctx, co.ID); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		switch {
-		case errors.As(err, &errs.NotFoundError{}):
-			return nil, UpdateZoneError{fmt.Sprintf("a zone with id %s, not found", co.ID)}
-		default:
-			return nil, err
-		}
-	}
-	relays := make([]zone.Relay, len(co.Relays))
-	for i, re := range co.Relays {
-		r, err := zone.ParseRelay(re)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			return nil, UpdateZoneError{msg: err.Error()}
-		}
-		relays[i] = r
-	}
-	zo, err := zone.New(co.ID, co.ZoneName, relays)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, UpdateZoneError{msg: err.Error()}
-	}
-	if err = u.zr.Update(ctx, zo); err != nil {
+	if err := u.update(ctx, co); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "zone updated")
 	return nil, nil
+}
+
+func (u UpdateZone) update(ctx context.Context, co UpdateZoneCommand) error {
+	relays := make([]zone.Relay, len(co.Relays))
+	for i, re := range co.Relays {
+		r, err := zone.ParseRelay(re)
+		if err != nil {
+			return UpdateZoneError{msg: err.Error()}
+		}
+		relays[i] = r
+	}
+	zo, err := u.zr.FindByID(ctx, co.ID)
+	if err != nil {
+		if errors.As(err, &errs.NotFoundError{}) {
+			return UpdateZoneError{fmt.Sprintf("a zone with id %s, not found", co.ID)}
+		}
+		return err
+	}
+	if err = zo.Update(co.ZoneName, relays); err != nil {
+		return UpdateZoneError{msg: err.Error()}
+	}
+	return u.zr.Update(ctx, zo)
 }
 
 func NewUpdateZone(zr ZoneRepository, tracer trace.Tracer) *UpdateZone {

@@ -67,6 +67,16 @@ func HydrateZone(id, name string, relays []Relay) *Zone {
 	}
 }
 
+func (z *Zone) Update(name string, relays []Relay) error {
+	updated := Zone{id: z.id, name: name, relays: relays}
+	if err := updated.validate(); err != nil {
+		return err
+	}
+	z.name = name
+	z.relays = relays
+	return nil
+}
+
 func (z *Zone) validate() error {
 	if z.id == "" {
 		return ErrInvalidZoneID

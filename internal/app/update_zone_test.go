@@ -56,11 +56,19 @@ func TestUpdateZone_Handle(t *testing.T) {
 			expectedErr: errTest,
 		},
 		{
-			name: "and new user returns an error, then it returns an update zone error",
+			name: "with an invalid relay, then it returns an update zone error",
+			args: args{
+				ctx: ctx,
+				cmd: app.UpdateZoneCommand{ID: zon.Id(), ZoneName: zon.Name(), Relays: []int{99}},
+			},
+			expectedErr: app.UpdateZoneError{},
+		},
+		{
+			name: "and zone update returns an error, then it returns an update zone error",
 			args: args{
 				ctx: ctx,
 				cmd: app.UpdateZoneCommand{
-					ID:       "dafa",
+					ID:       zon.Id(),
 					ZoneName: "",
 					Relays:   nil,
 				},
@@ -73,14 +81,25 @@ func TestUpdateZone_Handle(t *testing.T) {
 			updateErr:   errTest,
 			expectedErr: errTest,
 		},
+		{
+			name: "and update returns nil, then it updates the found zone",
+			args: args{
+				ctx: ctx,
+				cmd: app.UpdateZoneCommand{ID: zon.Id(), ZoneName: "new name", Relays: []int{2}},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(`Given a UpdateZone command handler,
 		when Handle method is called `+tt.name, func(t *testing.T) {
 			t.Parallel()
+			current := fixtures.ZoneBuilder{}.Build()
 			repo := &ZoneRepositoryMock{
 				FindByIDFunc: func(_ context.Context, _ string) (*zone.Zone, error) {
-					return nil, tt.findErr
+					if tt.findErr != nil {
+						return nil, tt.findErr
+					}
+					return current, nil
 				},
 				UpdateFunc: func(_ context.Context, _ *zone.Zone) error {
 					return tt.updateErr
@@ -89,9 +108,16 @@ func TestUpdateZone_Handle(t *testing.T) {
 
 			handler := app.NewUpdateZone(repo, tracer())
 			_, err := handler.Handle(tt.args.ctx, tt.args.cmd)
-			if err != nil {
+			if tt.expectedErr != nil {
 				require.IsType(t, tt.expectedErr, err)
+				return
 			}
+			require.NoError(t, err)
+			require.Len(t, repo.UpdateCalls(), 1)
+			updated := repo.UpdateCalls()[0].Zo
+			require.Same(t, current, updated)
+			require.Equal(t, "new name", updated.Name())
+			require.Len(t, updated.Relays(), 1)
 		})
 	}
 }
