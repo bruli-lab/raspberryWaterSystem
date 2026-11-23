@@ -10,6 +10,7 @@ type ProgramBuilder struct {
 	Hour       *program.Hour
 	Executions []program.Execution
 	Fertilizer bool
+	Status     *program.Status
 }
 
 func (b ProgramBuilder) Build() program.Program {
@@ -23,7 +24,11 @@ func (b ProgramBuilder) Build() program.Program {
 	if b.Executions != nil {
 		executions = b.Executions
 	}
-	return program.HydrateProgram(hour, b.Fertilizer, executions)
+	st := program.EnabledStatus
+	if b.Status != nil {
+		st = *b.Status
+	}
+	return program.HydrateProgram(hour, b.Fertilizer, executions, st)
 }
 
 type WeeklyBuilder struct {

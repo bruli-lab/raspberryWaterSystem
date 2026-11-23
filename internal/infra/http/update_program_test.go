@@ -30,6 +30,15 @@ func TestUpdateProgram(t *testing.T) {
 		Executions: []http.ExecutionRequest{{Seconds: 20, Zones: []string{"1", "2"}}},
 		Fertilizer: new(true),
 	})
+	disabledProg, err := program.New(hour, true, []program.Execution{execution})
+	require.NoError(t, err)
+	disabledProg.SetStatus(program.DisabledStatus)
+	disabled := http.Disabled
+	disabledBody := buildRequestJsonToString(t, http.UpdateProgramRequest{
+		Executions: []http.ExecutionRequest{{Seconds: 20, Zones: []string{"1", "2"}}},
+		Fertilizer: new(true),
+		Status:     &disabled,
+	})
 	tests := []struct {
 		name            string
 		programType     string
@@ -61,6 +70,21 @@ func TestUpdateProgram(t *testing.T) {
 				Executions: []http.ExecutionRequest{{Seconds: -10, Zones: []string{"1"}}},
 			}),
 			expectedCode: http2.StatusBadRequest,
+		},
+		{
+			name:         "with an unknown status, then it returns a bad request",
+			programType:  http.DailyProgram,
+			hour:         "10:15",
+			body:         `{"executions":[{"seconds":20,"zones":["1"]}],"status":"paused"}`,
+			expectedCode: http2.StatusBadRequest,
+		},
+		{
+			name:            "with a disabled status and command handler returns nil, then it updates the program as disabled",
+			programType:     http.DailyProgram,
+			hour:            "10:15",
+			body:            disabledBody,
+			expectedCode:    http2.StatusOK,
+			expectedCommand: app.UpdateDailyProgramCommand{Program: disabledProg},
 		},
 		{
 			name:            "and command handler returns a not found error, then it returns a not found",

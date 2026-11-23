@@ -69,7 +69,8 @@ func TestRainSensorFind(t *testing.T) {
 			opened := 0
 			port := &spitest.Playback{
 				Ops:       []conntest.IO{{W: channelZeroRequest, R: tt.response}},
-				DontPanic: true}
+				DontPanic: true,
+			}
 			sensor := gpio.NewRainSensorWithPort(func() (spi.PortCloser, error) {
 				opened++
 				if tt.openErr != nil {

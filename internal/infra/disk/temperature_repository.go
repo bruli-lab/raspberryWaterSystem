@@ -162,17 +162,27 @@ func (t TemperatureProgramRepository) FindByTemperatureAndHour(ctx context.Conte
 			span.SetStatus(codes.Error, err.Error())
 			return program.Temperature{}, err
 		}
+		tempByHour, err := buildProgramTemperature(temperature, hour, byHour)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return program.Temperature{}, err
+		}
 		span.SetStatus(codes.Ok, "temperature and hour found")
-		return buildProgramTemperature(temperature, hour, byHour), nil
+		return tempByHour, nil
 	}
 }
 
-func buildProgramTemperature(temperature float32, hour program.Hour, prgms []executions) program.Temperature {
-	programs := make([]program.Program, len(prgms))
-	for i, pd := range prgms {
-		programs[i] = program.HydrateProgramWithoutFertilizer(hour, buildExecutions(pd))
+func buildProgramTemperature(temperature float32, hour program.Hour, prg storedProgram) (program.Temperature, error) {
+	st, err := parseStoredStatus(prg.Status)
+	if err != nil {
+		return program.Temperature{}, InvalidStoredEntryError{key: hour.String(), cause: err}
 	}
-	return program.HydrateTemperature(temperature, programs)
+	programs := make([]program.Program, len(prg.Executions))
+	for i, pd := range prg.Executions {
+		programs[i] = program.HydrateProgramWithoutFertilizer(hour, buildExecutions(pd), st)
+	}
+	return program.HydrateTemperature(temperature, programs), nil
 }
 
 func buildExecutions(pd executions) []program.Execution {

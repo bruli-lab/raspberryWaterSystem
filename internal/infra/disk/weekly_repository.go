@@ -104,15 +104,24 @@ func (w WeeklyRepository) FindByDayAndHour(ctx context.Context, day *program.Wee
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
+		weeklyByHour, err := buildProgramWeeklyByHour(day, hour, byHour)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
 		span.SetStatus(codes.Ok, "weekly and hour found")
-		return buildProgramWeeklyByHour(day, hour, byHour), nil
+		return weeklyByHour, nil
 	}
 }
 
-func buildProgramWeeklyByHour(day *program.WeekDay, hour *program.Hour, prgms []executions) *program.Weekly {
-	programs := []program.Program{program.HydrateProgramWithoutFertilizer(*hour, buildProgramExecutions(prgms))}
-	weekly := program.HydrateWeekly(*day, programs)
-	return &weekly
+func buildProgramWeeklyByHour(day *program.WeekDay, hour *program.Hour, prg storedProgram) (*program.Weekly, error) {
+	pr, err := buildProgramWithoutFertilizer(prg, hour.String())
+	if err != nil {
+		return nil, err
+	}
+	weekly := program.HydrateWeekly(*day, []program.Program{*pr})
+	return &weekly, nil
 }
 
 func (w WeeklyRepository) Save(ctx context.Context, prg *program.Weekly) error {

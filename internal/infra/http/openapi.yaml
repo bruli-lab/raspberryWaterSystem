@@ -108,6 +108,8 @@ components:
                 type: string
             fertilizer:
                 type: boolean
+            status:
+                $ref: "#/components/schemas/programStatus"
             executions:
                 type: array
                 items:
@@ -116,6 +118,12 @@ components:
             - executions
             - hour
             - fertilizer
+            - status
+    programStatus:
+        type: string
+        enum:
+            - enabled
+            - disabled
     executionItemResponse:
         type: object
         properties:
@@ -203,7 +211,7 @@ components:
             programs:
                type: array
                items:
-                 $ref: "#/components/schemas/program"
+                 $ref: "#/components/schemas/UpdateProgramItem"
         required:
             - programs
     UpdateWeeklyProgramRequest:
@@ -212,7 +220,7 @@ components:
             programs:
                type: array
                items:
-                 $ref: "#/components/schemas/program"
+                 $ref: "#/components/schemas/UpdateProgramItem"
         required:
             - programs
     TemperatureProgramRequest:
@@ -232,6 +240,20 @@ components:
         properties:
             hour:
                 type: string
+            executions:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExecutionRequest"
+        required:
+            - executions
+            - hour
+    UpdateProgramItem:
+        type: object
+        properties:
+            hour:
+                type: string
+            status:
+                $ref: "#/components/schemas/programStatus"
             executions:
                 type: array
                 items:
@@ -278,6 +300,9 @@ components:
         fertilizer:
           type: boolean
           default: false
+
+        status:
+          $ref: "#/components/schemas/programStatus"
 
         executions:
           type: array

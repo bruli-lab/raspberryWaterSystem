@@ -133,6 +133,9 @@ func isEven(now time.Time) bool {
 }
 
 func executeProgram(ctx context.Context, ch cqs.CommandHandler, prg program.Program, now time.Time) error {
+	if !prg.Status().IsEnabled() {
+		return nil
+	}
 	nowHour := now.Format(program.HourLayout)
 	if nowHour == prg.Hour().String() {
 		for _, exec := range prg.Executions() {

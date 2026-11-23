@@ -14,6 +14,15 @@ type Program struct {
 	hour       Hour
 	fertilizer bool
 	executions []Execution
+	status     Status
+}
+
+func (p *Program) Status() Status {
+	return p.status
+}
+
+func (p *Program) SetStatus(s Status) {
+	p.status = s
 }
 
 func (p *Program) Hour() Hour {
@@ -35,12 +44,12 @@ func (p *Program) validate() error {
 	return nil
 }
 
-func HydrateProgram(hour Hour, fertilizer bool, executions []Execution) Program {
-	return Program{hour: hour, fertilizer: fertilizer, executions: executions}
+func HydrateProgram(hour Hour, fertilizer bool, executions []Execution, status Status) Program {
+	return Program{hour: hour, fertilizer: fertilizer, executions: executions, status: status}
 }
 
-func HydrateProgramWithoutFertilizer(hour Hour, executions []Execution) Program {
-	return HydrateProgram(hour, false, executions)
+func HydrateProgramWithoutFertilizer(hour Hour, executions []Execution, status Status) Program {
+	return HydrateProgram(hour, false, executions, status)
 }
 
 func NewWithoutFertilizer(hour Hour, executions []Execution) (*Program, error) {
@@ -48,7 +57,7 @@ func NewWithoutFertilizer(hour Hour, executions []Execution) (*Program, error) {
 }
 
 func New(hour Hour, fertilizer bool, executions []Execution) (*Program, error) {
-	pr := Program{hour: hour, fertilizer: fertilizer, executions: executions}
+	pr := Program{hour: hour, fertilizer: fertilizer, executions: executions, status: EnabledStatus}
 	if err := pr.validate(); err != nil {
 		return nil, err
 	}

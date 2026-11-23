@@ -46,7 +46,26 @@ func TestPrograms(t *testing.T) {
 			run: func(t *testing.T, zoneID string) {
 				t.Helper()
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/daily", program("12:45", zoneID)))
-				require.True(t, hasHour(programs(t, st).Daily, "12:45"))
+				item, found := programItem(programs(t, st).Daily, "12:45")
+				require.True(t, found)
+				require.Equal(t, http.Enabled, item.Status)
+			},
+		},
+		{
+			name: "a daily program is disabled and enabled again, then the listed status follows each update",
+			run: func(t *testing.T, zoneID string) {
+				t.Helper()
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/daily", program("12:55", zoneID)))
+				for _, status := range []http.ProgramStatus{http.Disabled, http.Enabled} {
+					update := http.UpdateProgramRequest{
+						Executions: []http.ExecutionRequest{{Seconds: 30, Zones: []string{zoneID}}},
+						Status:     ptrTo(status),
+					}
+					require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/daily/12:55", update))
+					item, found := programItem(programs(t, st).Daily, "12:55")
+					require.True(t, found)
+					require.Equal(t, status, item.Status)
+				}
 			},
 		},
 		{
@@ -154,7 +173,7 @@ func TestPrograms(t *testing.T) {
 				t.Helper()
 				weekly := http.WeeklyProgramRequest{Programs: []http.Program{program("09:00", zoneID)}, WeekDay: "Tuesday"}
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/weekly", weekly))
-				update := http.UpdateWeeklyProgramRequest{Programs: []http.Program{program("11:00", zoneID)}}
+				update := http.UpdateWeeklyProgramRequest{Programs: []http.UpdateProgramItem{programUpdate("11:00", zoneID)}}
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/weekly/Tuesday", update))
 				require.True(t, slices.ContainsFunc(programs(t, st).Weekly, func(item http.WeeklyItemResponse) bool {
 					return item.WeekDay == "Tuesday" && hasHour(item.Programs, "11:00") && !hasHour(item.Programs, "09:00")
@@ -162,10 +181,29 @@ func TestPrograms(t *testing.T) {
 			},
 		},
 		{
+			name: "a weekly program is created and then disabled with an update, then it is listed disabled",
+			run: func(t *testing.T, zoneID string) {
+				t.Helper()
+				weekly := http.WeeklyProgramRequest{Programs: []http.Program{program("08:00", zoneID)}, WeekDay: "Wednesday"}
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/weekly", weekly))
+				disabled := programUpdate("08:00", zoneID)
+				disabled.Status = ptrTo(http.Disabled)
+				update := http.UpdateWeeklyProgramRequest{Programs: []http.UpdateProgramItem{disabled}}
+				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/weekly/Wednesday", update))
+				i := slices.IndexFunc(programs(t, st).Weekly, func(item http.WeeklyItemResponse) bool {
+					return item.WeekDay == "Wednesday"
+				})
+				require.NotEqual(t, -1, i)
+				item, found := programItem(programs(t, st).Weekly[i].Programs, "08:00")
+				require.True(t, found)
+				require.Equal(t, http.Disabled, item.Status)
+			},
+		},
+		{
 			name: "a weekly program that does not exist is updated, then it returns not found",
 			run: func(t *testing.T, zoneID string) {
 				t.Helper()
-				update := http.UpdateWeeklyProgramRequest{Programs: []http.Program{program("11:00", zoneID)}}
+				update := http.UpdateWeeklyProgramRequest{Programs: []http.UpdateProgramItem{programUpdate("11:00", zoneID)}}
 				require.Equal(t, http2.StatusNotFound, st.Send(t, http2.MethodPut, "/programs/weekly/Sunday", update))
 			},
 		},
@@ -181,7 +219,7 @@ func TestPrograms(t *testing.T) {
 				create := http.TemperatureProgramRequest{Programs: []http.Program{program("10:00", zoneID)}, Temperature: 20}
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPost, "/programs/temperature", create))
 				require.True(t, temperature("10:00"))
-				update := http.UpdateTemperatureProgramRequest{Programs: []http.Program{program("17:00", zoneID)}}
+				update := http.UpdateTemperatureProgramRequest{Programs: []http.UpdateProgramItem{programUpdate("17:00", zoneID)}}
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodPut, "/programs/temperature/20", update))
 				require.True(t, temperature("17:00"))
 				require.Equal(t, http2.StatusOK, st.Send(t, http2.MethodDelete, "/programs/temperature/20", nil))
@@ -202,6 +240,13 @@ func TestPrograms(t *testing.T) {
 
 func program(hour, zoneID string) http.Program {
 	return http.Program{
+		Executions: []http.ExecutionRequest{{Seconds: 10, Zones: []string{zoneID}}},
+		Hour:       hour,
+	}
+}
+
+func programUpdate(hour, zoneID string) http.UpdateProgramItem {
+	return http.UpdateProgramItem{
 		Executions: []http.ExecutionRequest{{Seconds: 10, Zones: []string{zoneID}}},
 		Hour:       hour,
 	}

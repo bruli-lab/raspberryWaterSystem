@@ -88,6 +88,9 @@ func buildUpdateTempPrograms(req UpdateTemperatureProgramRequest) ([]program.Pro
 		if err != nil {
 			return nil, err
 		}
+		if err := applyProgramStatus(pr, p.Status); err != nil {
+			return nil, err
+		}
 		prgms[i] = *pr
 	}
 	return prgms, nil

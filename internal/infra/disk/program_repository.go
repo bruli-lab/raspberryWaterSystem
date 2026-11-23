@@ -12,9 +12,8 @@ import (
 )
 
 type (
-	programMap       = map[string][]executions
-	storedProgramMap = map[string]storedProgram
-	executions       = struct {
+	programMap = map[string]storedProgram
+	executions = struct {
 		Seconds int      `yaml:"seconds"`
 		Zones   []string `yaml:"zones"`
 	}
@@ -22,6 +21,7 @@ type (
 
 type storedProgram struct {
 	Fertilizer bool         `yaml:"fertilizer"`
+	Status     string       `yaml:"status,omitempty"`
 	Executions []executions `yaml:"executions"`
 }
 
@@ -56,7 +56,7 @@ func (d ProgramRepository) Remove(ctx context.Context, hour *program.Hour) error
 		_, span := d.tracer.Start(ctx, "ProgramRepository.Remove")
 		defer span.End()
 		defer lockFile(d.filePath)()
-		savedData := make(storedProgramMap)
+		savedData := make(programMap)
 		if err := readYamlFile(d.filePath, &savedData); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -82,20 +82,13 @@ func (d ProgramRepository) Save(ctx context.Context, prg *program.Program) error
 		_, span := d.tracer.Start(ctx, "ProgramRepository.Save")
 		defer span.End()
 		defer lockFile(d.filePath)()
-		savedData := make(storedProgramMap)
+		savedData := make(programMap)
 		if err := readYamlFile(d.filePath, &savedData); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			return err
 		}
-		execs := make([]executions, len(prg.Executions()))
-		for i, p := range prg.Executions() {
-			execs[i] = buildExecution(&p)
-		}
-		savedData[prg.Hour().String()] = storedProgram{
-			Fertilizer: prg.IsFertilizer(),
-			Executions: execs,
-		}
+		savedData[prg.Hour().String()] = buildStoredProgram(prg)
 		if err := writeYamlFile(d.filePath, savedData); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -113,19 +106,24 @@ func buildExecution(exec *program.Execution) executions {
 	}
 }
 
-func buildProgramMap(programs []program.Program) programMap {
-	dailyPrgms := make(programMap)
-	for _, pr := range programs {
-		pgrData := make([]executions, len(pr.Executions()))
-		for i, p := range pr.Executions() {
-			pgrData[i] = executions{
-				Seconds: p.Seconds().Int(),
-				Zones:   p.Zones(),
-			}
-		}
-		dailyPrgms[pr.Hour().String()] = pgrData
+func buildStoredProgram(prg *program.Program) storedProgram {
+	execs := make([]executions, len(prg.Executions()))
+	for i, p := range prg.Executions() {
+		execs[i] = buildExecution(&p)
 	}
-	return dailyPrgms
+	return storedProgram{
+		Fertilizer: prg.IsFertilizer(),
+		Status:     prg.Status().String(),
+		Executions: execs,
+	}
+}
+
+func buildProgramMap(programs []program.Program) programMap {
+	prgms := make(programMap, len(programs))
+	for _, pr := range programs {
+		prgms[pr.Hour().String()] = buildStoredProgram(&pr)
+	}
+	return prgms
 }
 
 func (d ProgramRepository) FindAll(ctx context.Context) ([]program.Program, error) {
@@ -136,7 +134,7 @@ func (d ProgramRepository) FindAll(ctx context.Context) ([]program.Program, erro
 		_, span := d.tracer.Start(ctx, "ProgramRepository.FindAll")
 		defer span.End()
 		defer lockFile(d.filePath)()
-		dailyPgrms := make(storedProgramMap)
+		dailyPgrms := make(programMap)
 		if err := readYamlFile(d.filePath, &dailyPgrms); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -149,11 +147,11 @@ func (d ProgramRepository) FindAll(ctx context.Context) ([]program.Program, erro
 	}
 }
 
-func buildStoredPrograms(pr storedProgramMap) ([]program.Program, []error) {
+func buildStoredPrograms(pr programMap) ([]program.Program, []error) {
 	dailies := make([]program.Program, 0, len(pr))
 	var skipped []error
 	for hour, pg := range pr {
-		p, err := buildProgram(pg.Executions, hour, pg.Fertilizer)
+		p, err := buildProgram(pg, hour)
 		if err != nil {
 			skipped = append(skipped, err)
 			continue
@@ -185,7 +183,7 @@ func (d ProgramRepository) FindByHour(ctx context.Context, hour *program.Hour) (
 		_, span := d.tracer.Start(ctx, "ProgramRepository.FindByHour")
 		defer span.End()
 		defer lockFile(d.filePath)()
-		dailyPgrms := make(storedProgramMap)
+		dailyPgrms := make(programMap)
 		if err := readYamlFile(d.filePath, &dailyPgrms); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -198,7 +196,7 @@ func (d ProgramRepository) FindByHour(ctx context.Context, hour *program.Hour) (
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		prog, err := buildProgram(pgr.Executions, hour.String(), pgr.Fertilizer)
+		prog, err := buildProgram(pgr, hour.String())
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -209,22 +207,41 @@ func (d ProgramRepository) FindByHour(ctx context.Context, hour *program.Hour) (
 	}
 }
 
-func buildProgram(pgr []executions, hour string, fertilizer bool) (*program.Program, error) {
-	ho, err := program.ParseHour(hour)
+func buildProgram(pgr storedProgram, hour string) (*program.Program, error) {
+	ho, st, err := parseStoredProgramKeys(pgr, hour)
 	if err != nil {
-		return nil, InvalidStoredEntryError{key: hour, cause: err}
+		return nil, err
 	}
-	prog := program.HydrateProgram(ho, fertilizer, buildProgramExecutions(pgr))
+	prog := program.HydrateProgram(ho, pgr.Fertilizer, buildProgramExecutions(pgr.Executions), st)
 	return &prog, nil
 }
 
-func buildProgramWithoutFertilizer(pgr []executions, hour string) (*program.Program, error) {
+func buildProgramWithoutFertilizer(pgr storedProgram, hour string) (*program.Program, error) {
+	ho, st, err := parseStoredProgramKeys(pgr, hour)
+	if err != nil {
+		return nil, err
+	}
+	prog := program.HydrateProgramWithoutFertilizer(ho, buildProgramExecutions(pgr.Executions), st)
+	return &prog, nil
+}
+
+func parseStoredProgramKeys(pgr storedProgram, hour string) (program.Hour, program.Status, error) {
 	ho, err := program.ParseHour(hour)
 	if err != nil {
-		return nil, InvalidStoredEntryError{key: hour, cause: err}
+		return program.Hour{}, "", InvalidStoredEntryError{key: hour, cause: err}
 	}
-	prog := program.HydrateProgramWithoutFertilizer(ho, buildProgramExecutions(pgr))
-	return &prog, nil
+	st, err := parseStoredStatus(pgr.Status)
+	if err != nil {
+		return program.Hour{}, "", InvalidStoredEntryError{key: hour, cause: err}
+	}
+	return ho, st, nil
+}
+
+func parseStoredStatus(st string) (program.Status, error) {
+	if st == "" {
+		return program.EnabledStatus, nil
+	}
+	return program.ParseStatus(st)
 }
 
 func buildProgramExecutions(pgr []executions) []program.Execution {

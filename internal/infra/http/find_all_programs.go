@@ -77,6 +77,7 @@ func buildProgramsResponse(programs []program.Program) []ProgramItemResponse {
 			Executions: exec,
 			Fertilizer: d.IsFertilizer(),
 			Hour:       d.Hour().String(),
+			Status:     ProgramStatus(d.Status()),
 		}
 	}
 	return programItemResponses

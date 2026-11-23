@@ -17,7 +17,7 @@ import (
 
 func TestUpdateTemperatureProgram(t *testing.T) {
 	body := buildRequestJsonToString(t, http.UpdateTemperatureProgramRequest{
-		Programs: []http.Program{
+		Programs: []http.UpdateProgramItem{
 			{
 				Executions: []http.ExecutionRequest{
 					{
@@ -52,7 +52,7 @@ func TestUpdateTemperatureProgram(t *testing.T) {
 			name:        "and build programs returns error, then it returns a bad request",
 			temperature: "20",
 			body: buildRequestJsonToString(t, http.UpdateTemperatureProgramRequest{
-				Programs: []http.Program{
+				Programs: []http.UpdateProgramItem{
 					{
 						Executions: []http.ExecutionRequest{
 							{

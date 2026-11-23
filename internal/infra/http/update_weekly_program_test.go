@@ -17,7 +17,7 @@ import (
 
 func TestUpdateWeeklyProgram(t *testing.T) {
 	body := buildRequestJsonToString(t, http.UpdateWeeklyProgramRequest{
-		Programs: []http.Program{
+		Programs: []http.UpdateProgramItem{
 			{
 				Executions: []http.ExecutionRequest{
 					{
@@ -51,7 +51,7 @@ func TestUpdateWeeklyProgram(t *testing.T) {
 			name: "and build programs returns an error, then it returns a bad request",
 			day:  "monday",
 			body: buildRequestJsonToString(t, http.UpdateWeeklyProgramRequest{
-				Programs: []http.Program{
+				Programs: []http.UpdateProgramItem{
 					{
 						Executions: []http.ExecutionRequest{
 							{Seconds: 10, Zones: []string{"a"}},

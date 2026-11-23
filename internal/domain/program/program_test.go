@@ -62,6 +62,7 @@ func TestNew(t *testing.T) {
 			require.Equal(t, hour, prg.Hour())
 			require.Equal(t, tt.executions, prg.Executions())
 			require.Equal(t, tt.expectedFertilizer, prg.IsFertilizer())
+			require.Equal(t, program.EnabledStatus, prg.Status())
 		})
 	}
 }

@@ -20,10 +20,22 @@ import (
 
 func programsInTime(t *testing.T, hour program.Hour, day time.Weekday, temperature float32) app.ProgramsInTime {
 	t.Helper()
+	return programsInTimeWithStatus(t, hour, day, temperature, program.EnabledStatus)
+}
+
+func programsInTimeWithStatus(
+	t *testing.T,
+	hour program.Hour,
+	day time.Weekday,
+	temperature float32,
+	st program.Status,
+) app.ProgramsInTime {
+	t.Helper()
 	programFor := func(zoneID string, fertilizer bool) program.Program {
 		return fixtures.ProgramBuilder{
 			Hour:       &hour,
 			Fertilizer: fertilizer,
+			Status:     &st,
 			Executions: []program.Execution{fixtures.ExecutionBuilder{Zones: []string{zoneID}}.Build()},
 		}.Build()
 	}
@@ -123,6 +135,27 @@ func TestExecutionInTime(t *testing.T) {
 			},
 			expectedZones:           []string{"daily", "odd"},
 			expectedFertilizerZones: []string{"daily"},
+		},
+		{
+			name: "and every program is disabled, then it executes nothing",
+			now:  oddDay,
+			programs: func(t *testing.T, now time.Time) app.ProgramsInTime {
+				t.Helper()
+				return programsInTimeWithStatus(t, hour, now.Weekday(), currentTemperature, program.DisabledStatus)
+			},
+		},
+		{
+			name: "and only the daily program is disabled, then it executes the rest of programs",
+			now:  oddDay,
+			programs: func(t *testing.T, now time.Time) app.ProgramsInTime {
+				t.Helper()
+				prgms := programsInTime(t, hour, now.Weekday(), currentTemperature)
+				disabled := program.DisabledStatus
+				daily := fixtures.ProgramBuilder{Hour: &hour, Status: &disabled}.Build()
+				prgms.Daily = &daily
+				return prgms
+			},
+			expectedZones: []string{"odd", "weekly", "temperature"},
 		},
 	}
 	for _, tt := range tests {

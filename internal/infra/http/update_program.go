@@ -102,5 +102,12 @@ func buildUpdateProgram(w http.ResponseWriter, hour program.Hour, req UpdateProg
 		})
 		return nil, err
 	}
+	if err = applyProgramStatus(prog, req.Status); err != nil {
+		WriteErrorResponse(w, http.StatusBadRequest, Error{
+			Code:    ErrorCodeInvalidRequest,
+			Message: err.Error(),
+		})
+		return nil, err
+	}
 	return prog, nil
 }
