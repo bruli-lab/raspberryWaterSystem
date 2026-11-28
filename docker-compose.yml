@@ -74,7 +74,7 @@ services:
         - water_system
 
   ntfy:
-      image: binwiederhier/ntfy:v2.22.0
+      image: binwiederhier/ntfy:v2.38.3
       container_name: ntfy
       command:
         - serve
